@@ -100,6 +100,16 @@
   .chart-card h3{ font-size:.85rem; font-weight:600; color:var(--ink-dim); margin-bottom:10px; }
   canvas{ width:100%; height:190px; display:block; }
 
+  /* ── ORDEN LISTA PARA EL BROKER ───────────────── */
+  .order-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
+  .order-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:12px; }
+  .order-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .order-leg{ background:#fafbfc; border:1px solid var(--line); border-radius:9px; padding:12px 14px; display:flex; flex-direction:column; gap:4px; }
+  .ol-lbl{ font-size:.72rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
+  .ol-val{ font-family:var(--font-mono); font-weight:700; font-size:1.15rem; }
+  .order-foot{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:.82rem; color:var(--ink-dim); }
+  .order-foot b{ font-family:var(--font-mono); color:var(--ink); }
+
   #status{ font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); text-align:center; }
   .status-ok{ color:var(--green); }
 
@@ -111,13 +121,13 @@
 
   <div class="topbar">
     <div>
-      <h1>Monitor de Spread</h1>
+      <h1>Monitor de Arbitraje TMRC/USAR</h1>
       <div class="sub" id="pair-sub">Objetivo / Adquirente</div>
     </div>
     <div class="cfg">
       <span><label>Umbral entrada</label><input type="number" id="threshold-input" value="6" step="0.1" min="0"></span>
       <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim); margin-right:6px;">%</span>
-      <span><label>Umbral salida</label><input type="number" id="threshold-exit-input" value="0" step="0.1"></span>
+      <span><label>Umbral salida</label><input type="number" id="threshold-exit-input" value="2" step="0.1"></span>
       <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim);">%</span>
       <select id="auto-interval">
         <option value="10000" selected>10s</option>
@@ -147,17 +157,6 @@
     </div>
   </div>
 
-  <!-- ── CAPITAL ─────────────────────────────────── -->
-  <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px;">
-    <span style="font-size:.78rem; color:var(--ink-dim); font-weight:600;">Capital simulado</span>
-    <select id="invest-sel" onchange="onInvestChange()" style="font-family:var(--font-mono); font-weight:600; padding:5px 10px; border-radius:6px; border:1px solid var(--line); background:#fff; cursor:pointer;">
-      <option value="100">$100</option>
-      <option value="1000" selected>$1,000</option>
-      <option value="10000">$10,000</option>
-      <option value="100000">$100,000</option>
-    </select>
-  </div>
-
   <!-- ── TICKERS ─────────────────────────────────── -->
   <div class="tickers">
     <div class="tcard" id="card-A">
@@ -176,9 +175,40 @@
     </div>
   </div>
 
+  <!-- ── CAPITAL ─────────────────────────────────── -->
+  <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px;">
+    <span style="font-size:.78rem; color:var(--ink-dim); font-weight:600;">Capital simulado</span>
+    <select id="invest-sel" onchange="onInvestChange()" style="font-family:var(--font-mono); font-weight:600; padding:5px 10px; border-radius:6px; border:1px solid var(--line); background:#fff; cursor:pointer;">
+      <option value="100">$100</option>
+      <option value="1000" selected>$1,000</option>
+      <option value="10000">$10,000</option>
+      <option value="100000">$100,000</option>
+    </select>
+  </div>
+
+  <!-- ── ORDEN LISTA PARA EL BROKER ──────────────── -->
+  <div class="order-card" id="order-card">
+    <div class="order-title">Orden a introducir</div>
+    <div class="order-grid">
+      <div class="order-leg">
+        <span class="ol-lbl">Comprar (largo)</span>
+        <span class="ol-val" id="ord-buy">–</span>
+      </div>
+      <div class="order-leg">
+        <span class="ol-lbl">Shortear (corto)</span>
+        <span class="ol-val" id="ord-sell">–</span>
+      </div>
+    </div>
+    <div class="order-foot">
+      <span>Capital realmente usado: <b id="ord-capital">–</b></span>
+      <span>Beneficio neto teórico: <b id="ord-profit">–</b></span>
+    </div>
+  </div>
+
+
   <!-- ── CHART ───────────────────────────────────── -->
   <div class="chart-card">
-    <h3>Evolución del spread de entrada</h3>
+    <h3>Evolución del spread de entrada (últimos 7 días)</h3>
     <canvas id="chart"></canvas>
   </div>
 
@@ -191,8 +221,8 @@
 // ════════════════════════════════════════════════════════════════
 // Clave "anon" (pública), NUNCA la "service_role" en una página que
 // corre en el navegador. Protege las tablas con RLS de solo lectura.
-const DATA_URL = 'https://zkpvhtaktowevholyasa.supabase.co';
-const DATA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprcHZodGFrdG93ZXZob2x5YXNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MjcyMTMsImV4cCI6MjEwMDQwMzIxM30.0NMyJAPX7A4x6don1PB4siDpNtvU3bOiZruM9GwRd84';
+const DATA_URL = 'https://TU-PROYECTO.supabase.co';
+const DATA_KEY = 'TU-ANON-KEY';
 const db = supabase.createClient(DATA_URL, DATA_KEY);
 
 const SYMBOL_TARGET   = 'TMRC';
@@ -213,7 +243,7 @@ document.getElementById('B-name').innerText = NAME_ACQUIRER;
 // ════════════════════════════════════════════════════════════════
 let INVEST = 1000;
 let threshold = 6;
-let thresholdExit = 0;
+let thresholdExit = 2;
 let priceCache = {};
 let chartPts = [];
 let autoTimer = null;
@@ -325,9 +355,36 @@ function recalc(){
   }
 }
 
+function updateOrderTicket(){
+  const {aBid, tAsk} = priceCache;
+  const buyEl = document.getElementById('ord-buy');
+  const sellEl = document.getElementById('ord-sell');
+  const capEl = document.getElementById('ord-capital');
+  const profitEl = document.getElementById('ord-profit');
+
+  if(isNaN(aBid) || isNaN(tAsk) || tAsk<=0){
+    buyEl.innerText = '–'; sellEl.innerText = '–';
+    capEl.innerText = '–'; profitEl.innerText = '–';
+    return;
+  }
+
+  const tmrcShares = Math.floor(INVEST / (tAsk + FEE_TARGET));
+  const usarShares = Math.round(tmrcShares * RATIO);
+  const capitalUsado = tmrcShares * (tAsk + FEE_TARGET);
+  const inPct = (RATIO*(aBid-FEE_ACQUIRER))/(tAsk+FEE_TARGET) - 1;
+  const netProfit = inPct * capitalUsado;
+
+  buyEl.innerText = `${tmrcShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
+  sellEl.innerText = `${usarShares.toLocaleString('en-US')} acc. ${SYMBOL_ACQUIRER}`;
+  capEl.innerText = fmt(capitalUsado);
+  profitEl.innerText = fmt(netProfit) + ` (${(inPct*100).toFixed(2)}%)`;
+  profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
+}
+
 function onInvestChange(){
   INVEST = parseInt(document.getElementById('invest-sel').value);
   recalc();
+  updateOrderTicket();
 }
 
 document.getElementById('threshold-input').addEventListener('input', (e)=>{
@@ -357,11 +414,49 @@ async function fetchLatestQuotes(){
   return bySymbol;
 }
 
+async function loadHistoricalSpread(){
+  const sinceISO = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+
+  const { data, error } = await db
+    .from('quotes_history')
+    .select('symbol,bid,ask,ib_timestamp,inserted_at')
+    .in('symbol', [SYMBOL_TARGET, SYMBOL_ACQUIRER])
+    .gte('inserted_at', sinceISO)
+    .order('inserted_at', { ascending: true })
+    .limit(20000);
+
+  if(error){ console.error('Error cargando histórico:', error.message); return; }
+  if(!data || !data.length) return;
+
+  let lastAsk = null, lastBid = null;
+  const pts = [];
+  for(const row of data){
+    const ts = row.ib_timestamp || row.inserted_at;
+    if(row.symbol === SYMBOL_TARGET){
+      const ask = parseFloat(row.ask);
+      if(!isNaN(ask)) lastAsk = ask;
+    } else if(row.symbol === SYMBOL_ACQUIRER){
+      const bid = parseFloat(row.bid);
+      if(!isNaN(bid)) lastBid = bid;
+    }
+    if(lastAsk!=null && lastBid!=null && lastAsk>0){
+      const inPct = (RATIO*(lastBid-FEE_ACQUIRER))/(lastAsk+FEE_TARGET) - 1;
+      pts.push({ t: new Date(ts).getTime(), v: inPct*100 });
+    }
+  }
+
+  // Downsample para que el gráfico no se sature con miles de puntos
+  const MAX_POINTS = 300;
+  if(pts.length > MAX_POINTS){
+    const step = Math.ceil(pts.length / MAX_POINTS);
+    chartPts = pts.filter((_,i)=> i % step === 0);
+  } else {
+    chartPts = pts;
+  }
+}
+
 async function updateData(){
-  const btn = document.getElementById('main-btn');
   const status = document.getElementById('status');
-  btn.disabled = true; btn.innerText='…';
-  status.innerText = 'Consultando…';
 
   try{
     const bySymbol = await fetchLatestQuotes();
@@ -387,23 +482,28 @@ async function updateData(){
       aBid: parseFloat(acquirer.bid), aAsk: parseFloat(acquirer.ask), aLast: parseFloat(acquirer.last),
     };
     recalc();
+    updateOrderTicket();
 
     if(!isNaN(priceCache.aBid) && !isNaN(priceCache.tAsk) && priceCache.tAsk>0){
       const inPct = (RATIO*(priceCache.aBid-FEE_ACQUIRER))/(priceCache.tAsk+FEE_TARGET) - 1;
       chartPts.push({t:Date.now(), v: inPct*100});
-      if(chartPts.length>150) chartPts.shift();
+      if(chartPts.length>600) chartPts.shift();
     }
     drawChart();
 
     status.innerHTML = `<span class="status-ok">Actualizado</span> · ${new Date().toLocaleTimeString()}`;
   }catch(e){
     status.innerText = 'Error al consultar datos: ' + e.message;
-  }finally{
-    btn.disabled=false; btn.innerText='Actualizar';
   }
 }
 
-window.onload = () => { setupCanvas(); updateData(); startAuto(); };
+window.onload = async () => {
+  setupCanvas();
+  await loadHistoricalSpread();
+  drawChart();
+  await updateData();
+  startAuto();
+};
 window.onresize = () => { setupCanvas(); drawChart(); };
 </script>
 </body>
