@@ -221,6 +221,7 @@
       <div class="trow"><span class="l">Last</span><span class="v" id="A-last">–</span></div>
       <div class="trow"><span class="l">Bid</span><span class="v" id="A-bid">–</span></div>
       <div class="trow"><span class="l">Ask</span><span class="v" id="A-ask">–</span></div>
+      <div class="trow"><span class="l">Vol.</span><span class="v" id="A-vol">–</span></div>
       <div class="tfresh" id="A-fresh">sin datos</div>
     </div>
     <div class="tcard" id="card-B">
@@ -228,6 +229,7 @@
       <div class="trow"><span class="l">Last</span><span class="v" id="B-last">–</span></div>
       <div class="trow"><span class="l">Bid</span><span class="v" id="B-bid">–</span></div>
       <div class="trow"><span class="l">Ask</span><span class="v" id="B-ask">–</span></div>
+      <div class="trow"><span class="l">Vol.</span><span class="v" id="B-vol">–</span></div>
       <div class="tfresh" id="B-fresh">sin datos</div>
     </div>
   </div>
@@ -329,8 +331,8 @@ let autoTimer = null;
 // junto con la marca de tiempo de cada uno, para poder mostrar "el último
 // valor válido" en vez de N/A cuando llega un tick sin dato.
 let lastValid = {
-  [SYMBOL_TARGET]:   { bid:NaN, ask:NaN, last:NaN, bidTs:null, askTs:null, lastTs:null },
-  [SYMBOL_ACQUIRER]: { bid:NaN, ask:NaN, last:NaN, bidTs:null, askTs:null, lastTs:null },
+  [SYMBOL_TARGET]:   { bid:NaN, ask:NaN, last:NaN, vol:NaN, bidTs:null, askTs:null, lastTs:null, volTs:null },
+  [SYMBOL_ACQUIRER]: { bid:NaN, ask:NaN, last:NaN, vol:NaN, bidTs:null, askTs:null, lastTs:null, volTs:null },
 };
 
 const cvs = document.getElementById('chart');
@@ -421,9 +423,11 @@ function ingestQuote(symbol, q){
   const bid  = cleanQuote(q.bid);
   const ask  = cleanQuote(q.ask);
   const last = cleanQuote(q.last);
+  const vol  = cleanQuote(q.volume);
   if(!isNaN(bid)){  store.bid  = bid;  store.bidTs  = ts; }
   if(!isNaN(ask)){  store.ask  = ask;  store.askTs  = ts; }
   if(!isNaN(last)){ store.last = last; store.lastTs = ts; }
+  if(!isNaN(vol)){  store.vol  = vol;  store.volTs  = ts; }
 }
 
 function updateExchangeExplainer(){
@@ -615,11 +619,12 @@ async function updateData(){
       document.getElementById(pfx+'-last').innerText = isNaN(store.last)?'N/A':store.last.toFixed(4);
       document.getElementById(pfx+'-bid').innerText  = isNaN(store.bid)?'N/A':store.bid.toFixed(4);
       document.getElementById(pfx+'-ask').innerText  = isNaN(store.ask)?'N/A':store.ask.toFixed(4);
+      document.getElementById(pfx+'-vol').innerText  = isNaN(store.vol)?'N/A':store.vol.toLocaleString('en-US');
       if(q.primary_exchange) document.getElementById(pfx+'-exch').innerText = q.primary_exchange;
 
       // Frescura: tomamos la marca de tiempo más reciente entre los
       // campos que sí tienen un valor válido guardado.
-      const stamps = [store.bidTs, store.askTs, store.lastTs].filter(Boolean).map(t => new Date(t).getTime());
+      const stamps = [store.bidTs, store.askTs, store.lastTs, store.volTs].filter(Boolean).map(t => new Date(t).getTime());
       const mostRecent = stamps.length ? new Date(Math.max(...stamps)).toISOString() : null;
       const fr = tiempoDesde(mostRecent);
       const frEl = document.getElementById(pfx+'-fresh');
