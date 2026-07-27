@@ -168,6 +168,7 @@
   .order-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:9px; padding:12px 14px; display:flex; flex-direction:column; gap:4px; }
   .ol-lbl{ font-size:.72rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
   .ol-val{ font-family:var(--font-mono); font-weight:700; font-size:1.15rem; }
+  .ol-price{ font-family:var(--font-mono); font-size:.76rem; color:var(--ink-dim); }
   .order-foot{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:.82rem; color:var(--ink-dim); }
   .order-foot b{ font-family:var(--font-mono); color:var(--ink); }
 
@@ -298,10 +299,12 @@
       <div class="order-leg">
         <span class="ol-lbl">Comprar (largo)</span>
         <span class="ol-val" id="ord-buy">–</span>
+        <span class="ol-price" id="ord-buy-price">–</span>
       </div>
       <div class="order-leg">
         <span class="ol-lbl">Shortear (corto)</span>
         <span class="ol-val" id="ord-sell">–</span>
+        <span class="ol-price" id="ord-sell-price">–</span>
       </div>
     </div>
     <div class="order-foot">
@@ -657,11 +660,14 @@ function updateOrderTicket(){
   const {aBid, tAsk} = priceCache;
   const buyEl = document.getElementById('ord-buy');
   const sellEl = document.getElementById('ord-sell');
+  const buyPriceEl = document.getElementById('ord-buy-price');
+  const sellPriceEl = document.getElementById('ord-sell-price');
   const capEl = document.getElementById('ord-capital');
   const profitEl = document.getElementById('ord-profit');
 
   if(isNaN(aBid) || isNaN(tAsk) || tAsk<=0){
     buyEl.innerText = '–'; sellEl.innerText = '–';
+    buyPriceEl.innerText = '–'; sellPriceEl.innerText = '–';
     capEl.innerText = '–'; profitEl.innerText = '–';
     return;
   }
@@ -673,7 +679,9 @@ function updateOrderTicket(){
   const netProfit = inPct * capitalUsado;
 
   buyEl.innerText = `${tmrcShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
+  buyPriceEl.innerText = `@ $${tAsk.toFixed(4)} (ask)`;
   sellEl.innerText = `${usarShares.toLocaleString('en-US')} acc. ${SYMBOL_ACQUIRER}`;
+  sellPriceEl.innerText = `@ $${aBid.toFixed(4)} (bid)`;
   capEl.innerText = fmt(capitalUsado);
   profitEl.innerText = fmt(netProfit) + ` (${(inPct*100).toFixed(2)}%)`;
   profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
