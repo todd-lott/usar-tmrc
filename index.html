@@ -329,6 +329,14 @@ let priceCache = {};
 let chartPts = [];
 let autoTimer = null;
 
+// Guarda, por símbolo, el último bid/ask/last VÁLIDOS vistos (ignorando -1)
+// junto con la marca de tiempo de cada uno, para poder mostrar "el último
+// valor válido" en vez de N/A cuando llega un tick sin dato.
+let lastValid = {
+  [SYMBOL_TARGET]:   { bid:NaN, ask:NaN, last:NaN, bidTs:null, askTs:null, lastTs:null },
+  [SYMBOL_ACQUIRER]: { bid:NaN, ask:NaN, last:NaN, bidTs:null, askTs:null, lastTs:null },
+};
+
 const cvs = document.getElementById('chart');
 const ctx = cvs?.getContext('2d');
 
@@ -405,6 +413,21 @@ function cleanQuote(v){
   const n = parseFloat(v);
   if(isNaN(n) || n === INVALID_TICK) return NaN;
   return n;
+}
+
+// Actualiza el store de "último valor válido" de un símbolo con un tick
+// crudo. Cada campo (bid/ask/last) se actualiza de forma independiente:
+// si un campo viene con -1, simplemente se conserva el valor anterior.
+function ingestQuote(symbol, q){
+  const store = lastValid[symbol];
+  if(!store || !q) return;
+  const ts = q.ib_timestamp || q.inserted_at || null;
+  const bid  = cleanQuote(q.bid);
+  const ask  = cleanQuote(q.ask);
+  const last = cleanQuote(q.last);
+  if(!isNaN(bid)){  store.bid  = bid;  store.bidTs  = ts; }
+  if(!isNaN(ask)){  store.ask  = ask;  store.askTs  = ts; }
+  if(!isNaN(last)){ store.last = last; store.lastTs = ts; }
 }
 
 function updateExchangeExplainer(){
@@ -547,6 +570,7 @@ async function loadHistoricalSpread(){
   if(!data || !data.length) return;
 
   let lastAsk = null, lastBid = null;
+  let lastAskTs = null, lastBidTs = null;
   const pts = [];
   for(const row of data){
     // Descartamos ticks marcados como no disponibles (-1) en bid y/o ask
@@ -557,15 +581,21 @@ async function loadHistoricalSpread(){
 
     const ts = row.ib_timestamp || row.inserted_at;
     if(row.symbol === SYMBOL_TARGET){
-      lastAsk = rowAsk;
+      lastAsk = rowAsk; lastAskTs = ts;
     } else if(row.symbol === SYMBOL_ACQUIRER){
-      lastBid = rowBid;
+      lastBid = rowBid; lastBidTs = ts;
     }
     if(lastAsk!=null && lastBid!=null && lastAsk>0){
       const inPct = (RATIO*(lastBid-FEE_ACQUIRER))/(lastAsk+FEE_TARGET) - 1;
       pts.push({ t: new Date(ts).getTime(), v: inPct*100 });
     }
   }
+
+  // Sembramos el store de "último valor válido" con lo que encontramos
+  // en el histórico, para no arrancar en N/A si el tick más reciente
+  // en vivo viniera con -1.
+  if(lastAsk != null){ lastValid[SYMBOL_TARGET].ask = lastAsk; lastValid[SYMBOL_TARGET].askTs = lastAskTs; }
+  if(lastBid != null){ lastValid[SYMBOL_ACQUIRER].bid = lastBid; lastValid[SYMBOL_ACQUIRER].bidTs = lastBidTs; }
 
   // Downsample para que el gráfico no se sature con miles de puntos
   const MAX_POINTS = 300;
@@ -585,23 +615,33 @@ async function updateData(){
     const target = bySymbol[SYMBOL_TARGET] || {};
     const acquirer = bySymbol[SYMBOL_ACQUIRER] || {};
 
-    const paint = (pfx, q) => {
-      const last=parseFloat(q.last), bid=cleanQuote(q.bid), ask=cleanQuote(q.ask);
-      document.getElementById(pfx+'-last').innerText = isNaN(last)?'N/A':last.toFixed(4);
-      document.getElementById(pfx+'-bid').innerText  = isNaN(bid)?'N/A':bid.toFixed(4);
-      document.getElementById(pfx+'-ask').innerText  = isNaN(ask)?'N/A':ask.toFixed(4);
+    // Actualiza el store de "último valor válido" con lo que llegó ahora
+    // (los campos en -1 se ignoran y se conserva lo anterior).
+    ingestQuote(SYMBOL_TARGET, target);
+    ingestQuote(SYMBOL_ACQUIRER, acquirer);
+
+    const paint = (pfx, symbol, q) => {
+      const store = lastValid[symbol];
+      document.getElementById(pfx+'-last').innerText = isNaN(store.last)?'N/A':store.last.toFixed(4);
+      document.getElementById(pfx+'-bid').innerText  = isNaN(store.bid)?'N/A':store.bid.toFixed(4);
+      document.getElementById(pfx+'-ask').innerText  = isNaN(store.ask)?'N/A':store.ask.toFixed(4);
       if(q.primary_exchange) document.getElementById(pfx+'-exch').innerText = q.primary_exchange;
-      const fr = tiempoDesde(q.ib_timestamp || q.inserted_at);
+
+      // Frescura: tomamos la marca de tiempo más reciente entre los
+      // campos que sí tienen un valor válido guardado.
+      const stamps = [store.bidTs, store.askTs, store.lastTs].filter(Boolean).map(t => new Date(t).getTime());
+      const mostRecent = stamps.length ? new Date(Math.max(...stamps)).toISOString() : null;
+      const fr = tiempoDesde(mostRecent);
       const frEl = document.getElementById(pfx+'-fresh');
       frEl.innerText = fr.texto;
       frEl.classList.toggle('stale', fr.stale);
     };
-    paint('A', target);
-    paint('B', acquirer);
+    paint('A', SYMBOL_TARGET, target);
+    paint('B', SYMBOL_ACQUIRER, acquirer);
 
     priceCache = {
-      tBid: cleanQuote(target.bid), tAsk: cleanQuote(target.ask), tLast: parseFloat(target.last),
-      aBid: cleanQuote(acquirer.bid), aAsk: cleanQuote(acquirer.ask), aLast: parseFloat(acquirer.last),
+      tBid: lastValid[SYMBOL_TARGET].bid,   tAsk: lastValid[SYMBOL_TARGET].ask,   tLast: lastValid[SYMBOL_TARGET].last,
+      aBid: lastValid[SYMBOL_ACQUIRER].bid, aAsk: lastValid[SYMBOL_ACQUIRER].ask, aLast: lastValid[SYMBOL_ACQUIRER].last,
     };
     recalc();
     updateOrderTicket();
