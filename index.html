@@ -202,7 +202,7 @@
       <div class="tag">Spread de entrada</div>
       <div class="big" id="in-pct">–</div>
       <div class="usd" id="in-usd">–</div>
-      <div class="note">Compra objetivo (ask) / corto adquirente (bid) · fees incluidas</div>
+      <div class="note">Compra objetivo (ask) / corto adquirente (bid)</div>
       <div class="last-ref"><span>Ref. last</span><b id="in-last">–</b></div>
     </div>
     <div class="spread-card" id="exit-card">
@@ -260,7 +260,6 @@
       <div class="ex-step">
         <div class="ex-lbl">① Vendes en corto USAR (bid)</div>
         <div class="ex-val" id="ex-abid">–</div>
-        <div class="ex-sub2">− fee <span id="ex-afee">–</span> = <b id="ex-anet">–</b></div>
       </div>
       <div class="ex-op">×<div class="ex-op-note">ratio de<br>canje<br><b id="ex-ratio">–</b></div></div>
       <div class="ex-step">
@@ -271,7 +270,6 @@
       <div class="ex-step">
         <div class="ex-lbl">③ Compras TMRC (ask)</div>
         <div class="ex-val" id="ex-task">–</div>
-        <div class="ex-sub2">+ fee <span id="ex-tfee">–</span> = <b id="ex-tnet">–</b></div>
       </div>
       <div class="ex-op">−1</div>
       <div class="ex-step ex-result">
@@ -279,7 +277,7 @@
         <div class="ex-val ex-big" id="ex-result">–</div>
       </div>
     </div>
-    <div class="explain-note">Es la ganancia (o pérdida) teórica por cada dólar invertido si la fusión se cierra hoy a estos precios y a este ratio de canje. El fee de cada lado ya está descontado.</div>
+    <div class="explain-note">Es la ganancia (o pérdida) teórica por cada dólar invertido si la fusión se cierra hoy a estos precios y a este ratio de canje.</div>
   </div>
 
   <!-- ── CHART ───────────────────────────────────── -->
@@ -308,8 +306,6 @@ const NAME_TARGET     = 'Texas Mineral (TMRC)';
 const NAME_ACQUIRER   = 'USA Rare Earth (USAR)';
 
 const RATIO = 3823328 / 88339693;
-const FEE_ACQUIRER = 0.4   / 132;
-const FEE_TARGET   = 11.49 / 3050;
 
 const STALE_MS = 60000;
 
@@ -434,25 +430,19 @@ function updateExchangeExplainer(){
   const {aBid, tAsk} = priceCache;
   document.getElementById('ex-ratio').innerText = RATIO.toFixed(4);
 
-  const ids = ['ex-abid','ex-afee','ex-anet','ex-equiv','ex-task','ex-tfee','ex-tnet'];
+  const ids = ['ex-abid','ex-equiv','ex-task'];
   if(isNaN(aBid) || isNaN(tAsk) || tAsk<=0){
     ids.forEach(id => document.getElementById(id).innerText = '–');
     document.getElementById('ex-result').innerText = '–';
     return;
   }
 
-  const aNet  = aBid - FEE_ACQUIRER;
-  const equiv = RATIO * aNet;
-  const tNet  = tAsk + FEE_TARGET;
-  const spread = equiv / tNet - 1;
+  const equiv = RATIO * aBid;
+  const spread = equiv / tAsk - 1;
 
   document.getElementById('ex-abid').innerText = '$' + aBid.toFixed(4);
-  document.getElementById('ex-afee').innerText = '$' + FEE_ACQUIRER.toFixed(4);
-  document.getElementById('ex-anet').innerText = '$' + aNet.toFixed(4);
   document.getElementById('ex-equiv').innerText = '$' + equiv.toFixed(4);
   document.getElementById('ex-task').innerText = '$' + tAsk.toFixed(4);
-  document.getElementById('ex-tfee').innerText = '$' + FEE_TARGET.toFixed(4);
-  document.getElementById('ex-tnet').innerText = '$' + tNet.toFixed(4);
 
   const resEl = document.getElementById('ex-result');
   resEl.innerText = fmtPct(spread);
@@ -463,7 +453,7 @@ function recalc(){
   const {aBid,aAsk,aLast,tBid,tAsk,tLast} = priceCache;
 
   if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0){
-    const inPct = (RATIO*(aBid-FEE_ACQUIRER))/(tAsk+FEE_TARGET) - 1;
+    const inPct = (RATIO*aBid)/tAsk - 1;
     const usd = inPct*INVEST;
     const pEl=document.getElementById('in-pct');
     pEl.innerText=fmtPct(inPct);
@@ -474,14 +464,14 @@ function recalc(){
     card.classList.toggle('entry-hit', (inPct*100) >= threshold);
   }
   if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
-    const inLast = (RATIO*(aLast-FEE_ACQUIRER))/(tLast+FEE_TARGET) - 1;
+    const inLast = (RATIO*aLast)/tLast - 1;
     document.getElementById('in-last').innerText = fmtPct(inLast);
   }
 
-  if(!isNaN(aAsk) && !isNaN(tBid) && tBid>FEE_TARGET && tAsk>0){
-    const outPct = (RATIO*(aAsk+FEE_ACQUIRER))/(tBid-FEE_TARGET) - 1;
-    const qty = INVEST/(tAsk+FEE_TARGET);
-    const usd = ((tBid-FEE_TARGET) - RATIO*(aAsk+FEE_ACQUIRER)) * qty;
+  if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0 && tAsk>0){
+    const outPct = (RATIO*aAsk)/tBid - 1;
+    const qty = INVEST/tAsk;
+    const usd = (tBid - RATIO*aAsk) * qty;
     const pEl=document.getElementById('out-pct');
     pEl.innerText=fmtPct(outPct);
     pEl.style.color = outPct>0 ? 'var(--red)' : 'var(--green)';
@@ -490,8 +480,8 @@ function recalc(){
     const exitCard = document.getElementById('exit-card');
     exitCard.classList.toggle('exit-hit', (outPct*100) <= thresholdExit);
   }
-  if(!isNaN(aLast) && !isNaN(tLast) && tLast>FEE_TARGET){
-    const outLast = (RATIO*(aLast+FEE_ACQUIRER))/(tLast-FEE_TARGET) - 1;
+  if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
+    const outLast = (RATIO*aLast)/tLast - 1;
     document.getElementById('out-last').innerText = fmtPct(outLast);
   }
 }
@@ -509,10 +499,10 @@ function updateOrderTicket(){
     return;
   }
 
-  const tmrcShares = Math.floor(INVEST / (tAsk + FEE_TARGET));
+  const tmrcShares = Math.floor(INVEST / tAsk);
   const usarShares = Math.round(tmrcShares * RATIO);
-  const capitalUsado = tmrcShares * (tAsk + FEE_TARGET);
-  const inPct = (RATIO*(aBid-FEE_ACQUIRER))/(tAsk+FEE_TARGET) - 1;
+  const capitalUsado = tmrcShares * tAsk;
+  const inPct = (RATIO*aBid)/tAsk - 1;
   const netProfit = inPct * capitalUsado;
 
   buyEl.innerText = `${tmrcShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
@@ -586,7 +576,7 @@ async function loadHistoricalSpread(){
       lastBid = rowBid; lastBidTs = ts;
     }
     if(lastAsk!=null && lastBid!=null && lastAsk>0){
-      const inPct = (RATIO*(lastBid-FEE_ACQUIRER))/(lastAsk+FEE_TARGET) - 1;
+      const inPct = (RATIO*lastBid)/lastAsk - 1;
       pts.push({ t: new Date(ts).getTime(), v: inPct*100 });
     }
   }
@@ -648,7 +638,7 @@ async function updateData(){
     updateExchangeExplainer();
 
     if(!isNaN(priceCache.aBid) && !isNaN(priceCache.tAsk) && priceCache.tAsk>0){
-      const inPct = (RATIO*(priceCache.aBid-FEE_ACQUIRER))/(priceCache.tAsk+FEE_TARGET) - 1;
+      const inPct = (RATIO*priceCache.aBid)/priceCache.tAsk - 1;
       chartPts.push({t:Date.now(), v: inPct*100});
       if(chartPts.length>600) chartPts.shift();
     }
