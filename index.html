@@ -78,6 +78,14 @@
     background:var(--accent-dim); border-color:var(--accent); color:var(--accent);
     box-shadow:0 0 0 3px rgba(46,224,163,.12);
   }
+  .sound-btn.alerting{
+    background:var(--amber-bg); border-color:var(--amber); color:var(--amber);
+    animation:soundPulse 1s ease-in-out infinite;
+  }
+  @keyframes soundPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(255,182,72,.45); }
+    50%{ box-shadow:0 0 0 7px rgba(255,182,72,0); }
+  }
   .spread-card .big{ font-family:var(--font-mono); font-weight:800; font-size:2.6rem; line-height:1.15; margin-top:6px; }
   .spread-card .usd{ font-family:var(--font-mono); font-weight:600; font-size:1rem; margin-top:2px; color:var(--ink-dim); }
   .spread-card .note{ font-size:.76rem; color:var(--ink-dim); margin-top:10px; }
@@ -246,21 +254,19 @@
     <div class="spread-card" id="entry-card">
       <div class="card-top">
         <div class="tag">Spread de entrada</div>
-        <button class="sound-btn" id="entry-sound-btn" onclick="toggleSound('entry')" title="Avisar con sonido cuando se cumpla la señal de entrada (se desactiva tras sonar)">🔔</button>
+        <button class="sound-btn" id="entry-sound-btn" onclick="toggleSound('entry')" title="Avisar con sonido en bucle cuando se cumpla la señal de entrada (suena hasta que lo desactives)">🔔</button>
       </div>
       <div class="big" id="in-pct">–</div>
       <div class="usd" id="in-usd">–</div>
-      <div class="note">Compra objetivo (ask) / corto adquirente (bid)</div>
       <div class="last-ref"><span>Ref. last</span><b id="in-last">–</b></div>
     </div>
     <div class="spread-card" id="exit-card">
       <div class="card-top">
         <div class="tag">Spread de salida</div>
-        <button class="sound-btn" id="exit-sound-btn" onclick="toggleSound('exit')" title="Avisar con sonido cuando se cumpla la señal de salida (se desactiva tras sonar)">🔔</button>
+        <button class="sound-btn" id="exit-sound-btn" onclick="toggleSound('exit')" title="Avisar con sonido en bucle cuando se cumpla la señal de salida (suena hasta que lo desactives)">🔔</button>
       </div>
       <div class="big" id="out-pct">–</div>
       <div class="usd" id="out-usd">–</div>
-      <div class="note">Vende objetivo (bid) / cubre corto (ask) · positivo = gap sigue abierto</div>
       <div class="last-ref"><span>Ref. last</span><b id="out-last">–</b></div>
     </div>
   </div>
@@ -500,10 +506,13 @@ function ingestQuote(symbol, q){
 }
 
 // ── Aviso sonoro por señal (entrada/salida) ──
-// Cada botón se "arma" manualmente; en cuanto suena, se desarma solo
-// (modo cooldown) para no repetir el aviso hasta que el usuario lo
-// vuelva a activar.
+// El botón se "arma" manualmente. En cuanto se cumple la condición, el
+// aviso suena EN BUCLE indefinidamente — no se detiene solo aunque la
+// condición deje de cumplirse — hasta que el usuario pulsa el botón
+// para desactivarlo manualmente.
 let soundArmed = { entry:false, exit:false };
+let alarmInterval = { entry:null, exit:null };
+const ALARM_LOOP_MS = 1300;
 let sharedAudioCtx = null;
 
 function getAudioCtx(){
@@ -541,23 +550,42 @@ function playAlertSound(kind){
   }
 }
 
+function startAlarmLoop(kind){
+  if(alarmInterval[kind]) return; // ya está sonando
+  playAlertSound(kind);
+  alarmInterval[kind] = setInterval(() => playAlertSound(kind), ALARM_LOOP_MS);
+  updateSoundButtons();
+}
+
+function stopAlarmLoop(kind){
+  if(alarmInterval[kind]){
+    clearInterval(alarmInterval[kind]);
+    alarmInterval[kind] = null;
+  }
+}
+
 function toggleSound(which){
   soundArmed[which] = !soundArmed[which];
-  // Desbloquea el audio en el primer gesto del usuario (requisito de los navegadores)
-  if(soundArmed[which]) getAudioCtx();
+  if(soundArmed[which]){
+    getAudioCtx(); // desbloquea el audio en el gesto del usuario
+  } else {
+    stopAlarmLoop(which); // desactivación manual: para el bucle si estaba sonando
+  }
   updateSoundButtons();
 }
 
 function updateSoundButtons(){
-  document.getElementById('entry-sound-btn').classList.toggle('active', soundArmed.entry);
-  document.getElementById('exit-sound-btn').classList.toggle('active', soundArmed.exit);
+  const entryBtn = document.getElementById('entry-sound-btn');
+  const exitBtn = document.getElementById('exit-sound-btn');
+  entryBtn.classList.toggle('active', soundArmed.entry);
+  entryBtn.classList.toggle('alerting', !!alarmInterval.entry);
+  exitBtn.classList.toggle('active', soundArmed.exit);
+  exitBtn.classList.toggle('alerting', !!alarmInterval.exit);
 }
 
 function triggerSignalSound(which, isHit){
   if(isHit && soundArmed[which]){
-    playAlertSound(which);
-    soundArmed[which] = false; // cooldown: se desactiva tras sonar
-    updateSoundButtons();
+    startAlarmLoop(which); // arranca el bucle; seguirá hasta apagado manual
   }
 }
 
