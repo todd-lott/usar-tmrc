@@ -66,7 +66,18 @@
     background:var(--card); border:1px solid var(--line); border-radius:14px;
     padding:22px 24px; transition:border-color .25s, background .25s;
   }
+  .spread-card .card-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
   .spread-card .tag{ font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-dim); }
+  .sound-btn{
+    flex:0 0 auto; width:30px; height:30px; border-radius:8px; border:1px solid var(--line);
+    background:#0c0f16; color:var(--ink-dim); font-size:.95rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:all .18s; line-height:1;
+  }
+  .sound-btn:hover{ border-color:var(--ink-dim); color:var(--ink); }
+  .sound-btn.active{
+    background:var(--accent-dim); border-color:var(--accent); color:var(--accent);
+    box-shadow:0 0 0 3px rgba(46,224,163,.12);
+  }
   .spread-card .big{ font-family:var(--font-mono); font-weight:800; font-size:2.6rem; line-height:1.15; margin-top:6px; }
   .spread-card .usd{ font-family:var(--font-mono); font-weight:600; font-size:1rem; margin-top:2px; color:var(--ink-dim); }
   .spread-card .note{ font-size:.76rem; color:var(--ink-dim); margin-top:10px; }
@@ -233,14 +244,20 @@
   <!-- ── SPREADS: lo único que importa a simple vista ── -->
   <div class="spread-grid">
     <div class="spread-card" id="entry-card">
-      <div class="tag">Spread de entrada</div>
+      <div class="card-top">
+        <div class="tag">Spread de entrada</div>
+        <button class="sound-btn" id="entry-sound-btn" onclick="toggleSound('entry')" title="Avisar con sonido cuando se cumpla la señal de entrada (se desactiva tras sonar)">🔔</button>
+      </div>
       <div class="big" id="in-pct">–</div>
       <div class="usd" id="in-usd">–</div>
       <div class="note">Compra objetivo (ask) / corto adquirente (bid)</div>
       <div class="last-ref"><span>Ref. last</span><b id="in-last">–</b></div>
     </div>
     <div class="spread-card" id="exit-card">
-      <div class="tag">Spread de salida</div>
+      <div class="card-top">
+        <div class="tag">Spread de salida</div>
+        <button class="sound-btn" id="exit-sound-btn" onclick="toggleSound('exit')" title="Avisar con sonido cuando se cumpla la señal de salida (se desactiva tras sonar)">🔔</button>
+      </div>
       <div class="big" id="out-pct">–</div>
       <div class="usd" id="out-usd">–</div>
       <div class="note">Vende objetivo (bid) / cubre corto (ask) · positivo = gap sigue abierto</div>
@@ -482,6 +499,68 @@ function ingestQuote(symbol, q){
   if(!isNaN(vol)){  store.vol  = vol;  store.volTs  = ts; }
 }
 
+// ── Aviso sonoro por señal (entrada/salida) ──
+// Cada botón se "arma" manualmente; en cuanto suena, se desarma solo
+// (modo cooldown) para no repetir el aviso hasta que el usuario lo
+// vuelva a activar.
+let soundArmed = { entry:false, exit:false };
+let sharedAudioCtx = null;
+
+function getAudioCtx(){
+  if(!sharedAudioCtx){
+    sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if(sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
+  return sharedAudioCtx;
+}
+
+function beep(freq, delay, duration){
+  const ac = getAudioCtx();
+  const start = ac.currentTime + delay;
+  const o = ac.createOscillator();
+  const g = ac.createGain();
+  o.type = 'sine';
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, start);
+  g.gain.exponentialRampToValueAtTime(0.35, start + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  o.connect(g); g.connect(ac.destination);
+  o.start(start);
+  o.stop(start + duration + 0.05);
+}
+
+function playAlertSound(kind){
+  // Dos tonos ascendentes para "entrada", dos descendentes para "salida",
+  // así se distinguen de oído sin mirar la pantalla.
+  if(kind === 'entry'){
+    beep(740, 0,   0.28);
+    beep(1180, 0.16, 0.32);
+  } else {
+    beep(1180, 0,   0.28);
+    beep(740, 0.16, 0.32);
+  }
+}
+
+function toggleSound(which){
+  soundArmed[which] = !soundArmed[which];
+  // Desbloquea el audio en el primer gesto del usuario (requisito de los navegadores)
+  if(soundArmed[which]) getAudioCtx();
+  updateSoundButtons();
+}
+
+function updateSoundButtons(){
+  document.getElementById('entry-sound-btn').classList.toggle('active', soundArmed.entry);
+  document.getElementById('exit-sound-btn').classList.toggle('active', soundArmed.exit);
+}
+
+function triggerSignalSound(which, isHit){
+  if(isHit && soundArmed[which]){
+    playAlertSound(which);
+    soundArmed[which] = false; // cooldown: se desactiva tras sonar
+    updateSoundButtons();
+  }
+}
+
 function updateExchangeExplainer(){
   const {aBid, tAsk} = priceCache;
   document.getElementById('ex-ratio').innerText = RATIO.toFixed(4);
@@ -516,8 +595,10 @@ function recalc(){
     pEl.style.color = inPct>0 ? 'var(--green)' : 'var(--red)';
     document.getElementById('in-usd').innerText=fmt(usd);
 
+    const entryHit = (inPct*100) >= threshold;
     const card = document.getElementById('entry-card');
-    card.classList.toggle('entry-hit', (inPct*100) >= threshold);
+    card.classList.toggle('entry-hit', entryHit);
+    triggerSignalSound('entry', entryHit);
   }
   if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
     const inLast = (RATIO*aLast)/tLast - 1;
@@ -533,8 +614,10 @@ function recalc(){
     pEl.style.color = outPct>0 ? 'var(--red)' : 'var(--green)';
     document.getElementById('out-usd').innerText=fmt(usd);
 
+    const exitHit = (outPct*100) <= thresholdExit;
     const exitCard = document.getElementById('exit-card');
-    exitCard.classList.toggle('exit-hit', (outPct*100) <= thresholdExit);
+    exitCard.classList.toggle('exit-hit', exitHit);
+    triggerSignalSound('exit', exitHit);
   }
   if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
     const outLast = (RATIO*aLast)/tLast - 1;
