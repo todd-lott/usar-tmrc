@@ -192,6 +192,7 @@ const STALE_MS = 60000;
 const SITUATIONS = [
   {
     id: 'tmrc-usar',
+    type: 'ratio',            // canje de acciones: dos símbolos + ratio de canje
     targetSymbol: 'TMRC',
     targetName: 'Texas Mineral',
     acquirerSymbol: 'USAR',
@@ -200,6 +201,17 @@ const SITUATIONS = [
     threshold: 9,        // % — umbral de entrada de esta situación
     thresholdExit: 5,    // % — umbral de salida de esta situación
     detailUrl: 'tmrc-usar.html',
+  },
+  {
+    id: 'gbcs',
+    type: 'fixed',             // OPA en efectivo: un solo símbolo + precio de oferta fijo
+    targetSymbol: 'GBCS',
+    targetName: 'Selectis Health (GBCS)',
+    acquirerName: 'Black Pearl Equities (efectivo)',
+    offerPrice: 5.75,    // $ por acción en efectivo, según el Merger Agreement
+    threshold: 6,        // % — umbral de entrada de esta situación
+    thresholdExit: 2,    // % — umbral de salida de esta situación
+    detailUrl: 'gbcs.html',
   },
 ];
 
@@ -392,7 +404,7 @@ function renderRow(sit, computed){
         <div class="s-pair">${sit.targetName} <span class="arrow">→</span> ${sit.acquirerName}</div>
         <div class="s-tags">
           <span class="s-tag">${sit.targetSymbol}${tExch ? ' · '+tExch : ''}</span>
-          <span class="s-tag">${sit.acquirerSymbol}${aExch ? ' · '+aExch : ''}</span>
+          ${sit.acquirerSymbol ? `<span class="s-tag">${sit.acquirerSymbol}${aExch ? ' · '+aExch : ''}</span>` : `<span class="s-tag">OPA en efectivo</span>`}
         </div>
         <div class="s-meta">${fr.texto}</div>
       </div>
@@ -427,28 +439,34 @@ async function updateBoard(){
   const body = document.getElementById('board-body');
 
   try{
-    const allSymbols = [...new Set(SITUATIONS.flatMap(s => [s.targetSymbol, s.acquirerSymbol]))];
+    const allSymbols = [...new Set(SITUATIONS.flatMap(s => s.acquirerSymbol ? [s.targetSymbol, s.acquirerSymbol] : [s.targetSymbol]))];
     const bySymbol = await fetchAllQuotes(allSymbols);
 
     const computedList = SITUATIONS.map(sit => {
       const t = bySymbol[sit.targetSymbol] || {};
-      const a = bySymbol[sit.acquirerSymbol] || {};
-      const aBid = cleanQuote(a.bid);
-      const aAsk = cleanQuote(a.ask);
-      const tBid = cleanQuote(t.bid);
-      const tAsk = cleanQuote(t.ask);
+      let inPct = NaN, outPct = NaN, aExch = null, freshestStamps = [];
 
-      let inPct = NaN;
-      if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0){
-        inPct = (sit.ratio*aBid)/tAsk - 1;
-      }
-      let outPct = NaN;
-      if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0){
-        outPct = (sit.ratio*aAsk)/tBid - 1;
+      if(sit.type === 'fixed'){
+        // OPA en efectivo: spread = precio de oferta fijo / ask (o bid) - 1
+        const ask = cleanQuote(t.ask);
+        const bid = cleanQuote(t.bid);
+        if(!isNaN(ask) && ask>0) inPct = sit.offerPrice/ask - 1;
+        if(!isNaN(bid) && bid>0) outPct = sit.offerPrice/bid - 1;
+        freshestStamps = [t.ib_timestamp || t.inserted_at];
+      } else {
+        // Canje de acciones: spread = ratio * precio del adquirente / precio del objetivo - 1
+        const a = bySymbol[sit.acquirerSymbol] || {};
+        const aBid = cleanQuote(a.bid);
+        const aAsk = cleanQuote(a.ask);
+        const tBid = cleanQuote(t.bid);
+        const tAsk = cleanQuote(t.ask);
+        if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0) inPct = (sit.ratio*aBid)/tAsk - 1;
+        if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0) outPct = (sit.ratio*aAsk)/tBid - 1;
+        aExch = a.primary_exchange;
+        freshestStamps = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at];
       }
 
-      const stamps = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at]
-        .filter(Boolean).map(x => new Date(x).getTime());
+      const stamps = freshestStamps.filter(Boolean).map(x => new Date(x).getTime());
       const freshest = stamps.length ? new Date(Math.max(...stamps)).toISOString() : null;
 
       const fr = tiempoDesde(freshest);
@@ -457,7 +475,7 @@ async function updateBoard(){
       triggerSignalSound(sit.id+'-entry', hit && !fr.stale);
       triggerSignalSound(sit.id+'-exit', exitHit && !fr.stale);
 
-      return { sit, inPct, outPct, aExch: a.primary_exchange, tExch: t.primary_exchange, freshest, fr };
+      return { sit, inPct, outPct, aExch, tExch: t.primary_exchange, freshest, fr };
     });
 
     // Orden por rentabilidad de entrada, de mayor a menor (las que no
