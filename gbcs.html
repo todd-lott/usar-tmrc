@@ -253,7 +253,7 @@
     <div class="order-title">Orden a introducir</div>
     <div class="order-grid">
       <div class="order-leg">
-        <span class="ol-lbl">Comprar (largo, sin pata corta — OPA en efectivo)</span>
+        <span class="ol-lbl">Comprar</span>
         <span class="ol-val" id="ord-buy">–</span>
         <span class="ol-price" id="ord-buy-price">–</span>
       </div>
@@ -301,7 +301,7 @@
 
   <div class="explain-card">
     <div class="explain-title">Cómo se calcula el spread</div>
-    <div class="explain-sub">A diferencia de un canje de acciones, aquí el "precio de destino" es fijo: la oferta en efectivo de Black Pearl Equities. No hay un segundo símbolo ni ratio de canje.</div>
+    <div class="explain-sub">El precio de destino es fijo: la oferta en efectivo de Black Pearl Equities por cada acción de GBCS.</div>
     <div class="explain-flow">
       <div class="ex-step">
         <div class="ex-lbl">① Precio de oferta (fijo)</div>
@@ -560,16 +560,16 @@ function triggerSignalSound(which, isHit){
 }
 
 function updateExchangeExplainer(){
-  const { tAsk } = priceCache;
+  const { ask } = priceCache;
   document.getElementById('ex-offer').innerText = '$' + OFFER_PRICE.toFixed(2);
 
-  if(isNaN(tAsk) || tAsk<=0){
+  if(isNaN(ask) || ask<=0){
     document.getElementById('ex-task').innerText = '–';
     document.getElementById('ex-result').innerText = '–';
     return;
   }
-  const spread = OFFER_PRICE / tAsk - 1;
-  document.getElementById('ex-task').innerText = '$' + tAsk.toFixed(4);
+  const spread = OFFER_PRICE / ask - 1;
+  document.getElementById('ex-task').innerText = '$' + ask.toFixed(4);
   const resEl = document.getElementById('ex-result');
   resEl.innerText = fmtPct(spread);
   resEl.style.color = spread>0 ? 'var(--green)' : 'var(--red)';
