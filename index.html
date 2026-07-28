@@ -61,21 +61,22 @@
   /* ── BOARD HEADER ROW (column labels, terminal-style) ── */
   .board{ display:flex; flex-direction:column; gap:10px; }
   .board-head{
-    display:grid; grid-template-columns:38px 1fr 92px 92px 128px 72px;
+    display:grid; grid-template-columns:38px 1fr 150px 150px;
     padding:0 20px; font-size:.66rem; font-weight:700; text-transform:uppercase;
     letter-spacing:.07em; color:var(--ink-dim); font-family:var(--font-mono);
   }
-  .board-head span:nth-child(3), .board-head span:nth-child(4){ text-align:right; }
-  .board-head span:nth-child(5), .board-head span:nth-child(6){ text-align:center; }
+  .board-head span:nth-child(3), .board-head span:nth-child(4){ text-align:center; }
 
-  /* ── SITUATION ROW ──────────────────────────── */
+  /* ── SITUATION ROW (ya no es <a>: la navegación se dispara por JS
+       y se ignora si el click viene de un input/botón interactivo) ── */
   .situation{
-    display:grid; grid-template-columns:38px 1fr 92px 92px 128px 72px; align-items:center;
+    display:grid; grid-template-columns:38px 1fr 150px 150px; align-items:center;
     background:var(--card); border:1px solid var(--line); border-radius:12px;
-    padding:16px 20px; cursor:pointer; text-decoration:none; color:inherit; gap:6px;
+    padding:16px 20px; cursor:pointer; gap:10px;
     transition:border-color .18s, background .18s, transform .12s;
   }
   .situation:hover{ border-color:#333c4d; background:var(--card-hi); transform:translateY(-1px); }
+  .situation.armed-exit{ border-color:var(--amber); }
   .situation.armed{ border-color:var(--green); box-shadow:0 0 0 1px rgba(46,224,163,.12); }
   .situation.armed:hover{ border-color:var(--green); }
 
@@ -89,27 +90,23 @@
   .s-tag{ font-family:var(--font-mono); font-size:.66rem; color:var(--ink-dim); background:#1c2230; padding:2px 6px; border-radius:4px; }
   .s-meta{ font-size:.72rem; color:var(--ink-dim); font-family:var(--font-mono); }
 
-  .s-spread{ text-align:right; font-family:var(--font-mono); font-weight:800; font-size:1.2rem; }
-  .s-spread.up{ color:var(--green); }
-  .s-spread.down{ color:var(--red); }
-  .s-spread.pending{ color:var(--ink-dim); font-weight:600; font-size:.95rem; }
-
-  /* ── UMBRALES EDITABLES ───────────────────────── */
-  .s-thresh{ display:flex; flex-direction:column; gap:4px; }
-  .th-row{ display:flex; align-items:center; justify-content:flex-end; gap:6px; }
-  .th-row span{ font-size:.66rem; color:var(--ink-dim); font-family:var(--font-mono); text-transform:uppercase; }
-  .th-input{
-    width:52px; font-family:var(--font-mono); font-size:.8rem; font-weight:600; color:var(--ink);
+  /* ── BLOQUE ENTRADA / SALIDA: spread + umbral + alarma juntos ── */
+  .s-side{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .side-spread{ font-family:var(--font-mono); font-weight:800; font-size:1.15rem; }
+  .side-spread.up{ color:var(--green); }
+  .side-spread.down{ color:var(--red); }
+  .side-spread.pending{ color:var(--ink-dim); font-weight:600; font-size:.9rem; }
+  .side-ctrl{ display:flex; align-items:center; gap:6px; }
+  .side-ctrl .th-input{
+    width:48px; font-family:var(--font-mono); font-size:.78rem; font-weight:600; color:var(--ink);
     background:#0c0f16; border:1px solid var(--line); border-radius:6px; padding:3px 5px;
-    outline:none; text-align:right;
+    outline:none; text-align:center;
   }
-  .th-input:focus{ border-color:var(--accent); }
+  .side-ctrl .th-input:focus{ border-color:var(--accent); }
 
-  /* ── BOTONES DE SONIDO (entrada/salida) ───────── */
-  .s-sounds{ display:flex; gap:6px; justify-content:center; }
   .sound-btn{
-    flex:0 0 auto; width:30px; height:30px; border-radius:8px;
-    border:1px solid var(--line); background:#0c0f16; color:var(--ink-dim); font-size:.95rem;
+    flex:0 0 auto; width:28px; height:28px; border-radius:8px;
+    border:1px solid var(--line); background:#0c0f16; color:var(--ink-dim); font-size:.85rem;
     cursor:pointer; display:flex; align-items:center; justify-content:center;
     transition:all .18s; line-height:1;
   }
@@ -140,11 +137,8 @@
 
   @media(max-width:640px){
     .board-head{ display:none; }
-    .situation{ grid-template-columns:28px 1fr 72px; grid-template-rows:auto auto auto; row-gap:10px; padding:14px 16px; }
-    .s-spread{ grid-column:2; text-align:left; font-size:1.3rem; }
-    .s-thresh{ grid-column:2; grid-row:3; }
-    .th-row{ justify-content:flex-start; }
-    .s-sounds{ grid-row:1; grid-column:3; align-self:start; }
+    .situation{ grid-template-columns:1fr 1fr; grid-template-rows:auto auto; row-gap:12px; padding:14px 16px; }
+    .s-name{ grid-column:1 / -1; }
   }
 </style>
 </head>
@@ -174,8 +168,6 @@
       <span>Situación</span>
       <span>Entrada</span>
       <span>Salida</span>
-      <span>Umbrales</span>
-      <span>Alarmas</span>
     </div>
     <div id="board-body"><!-- filas insertadas por JS --></div>
   </div>
@@ -289,6 +281,21 @@ function triggerSignalSound(id, isHit){
   }
 }
 
+// La fila entera es "clicable" para ir al detalle, pero si el click
+// (o el Enter) viene de un input, botón o label —umbrales, alarmas—
+// se ignora la navegación. Así los controles nunca abren el detalle,
+// incluso con las flechitas del spinner del <input type="number">.
+function goToDetail(ev, url){
+  if(ev.target.closest('input, button, label, select')) return;
+  window.location.href = url;
+}
+function goToDetailKey(ev, url){
+  if(ev.key !== 'Enter' && ev.key !== ' ') return;
+  if(ev.target.closest('input, button, label, select')) return;
+  ev.preventDefault();
+  window.location.href = url;
+}
+
 // Cambia el umbral de una situación desde el input de la fila. No
 // vuelve a consultar Supabase: recalcula con los últimos datos ya
 // cargados (lastComputedList) para no perder el foco del input.
@@ -314,7 +321,10 @@ function updateRowVisuals(id){
   triggerSignalSound(id+'-exit', exitHit && live);
 
   const row = document.getElementById('row-'+id);
-  if(row) row.classList.toggle('armed', hit && live);
+  if(row){
+    row.classList.toggle('armed', hit && live);
+    row.classList.toggle('armed-exit', exitHit && live && !(hit && live));
+  }
 
   const entryBtn = document.getElementById('sound-'+id+'-entry');
   const exitBtn = document.getElementById('sound-'+id+'-exit');
@@ -362,15 +372,21 @@ function renderRow(sit, computed){
   const outText = hasOut ? fmtPct(outPct) : 'sin datos';
 
   const hit = hasIn && (inPct*100) >= sit.threshold;
-  const armed = hit && !fr.stale;
+  const exitHit = hasOut && (outPct*100) <= sit.thresholdExit;
+  const live = !fr.stale;
 
   const entryArmedManually = !!soundArmed[sit.id+'-entry'];
   const entryAlerting = !!alarmInterval[sit.id+'-entry'];
   const exitArmedManually = !!soundArmed[sit.id+'-exit'];
   const exitAlerting = !!alarmInterval[sit.id+'-exit'];
 
+  let borderClass = '';
+  if(hit && live) borderClass = 'armed';
+  else if(exitHit && live) borderClass = 'armed-exit';
+
   return `
-    <a class="situation ${armed ? 'armed' : ''}" href="${sit.detailUrl}" id="row-${sit.id}">
+    <div class="situation ${borderClass}" id="row-${sit.id}" tabindex="0" role="link"
+      onclick="goToDetail(event, '${sit.detailUrl}')" onkeydown="goToDetailKey(event, '${sit.detailUrl}')">
       <div class="s-rank">${computed.rank}</div>
       <div class="s-name">
         <div class="s-pair">${sit.targetName} <span class="arrow">→</span> ${sit.acquirerName}</div>
@@ -380,23 +396,29 @@ function renderRow(sit, computed){
         </div>
         <div class="s-meta">${fr.texto}</div>
       </div>
-      <div class="s-spread ${inClass}">${inText}</div>
-      <div class="s-spread ${outClass}">${outText}</div>
-      <div class="s-thresh">
-        <div class="th-row"><span>In</span><input class="th-input" type="number" step="0.1" value="${sit.threshold}"
-          onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','entry',this.value)"></div>
-        <div class="th-row"><span>Out</span><input class="th-input" type="number" step="0.1" value="${sit.thresholdExit}"
-          onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','exit',this.value)"></div>
+
+      <div class="s-side">
+        <div class="side-spread ${inClass}">${inText}</div>
+        <div class="side-ctrl">
+          <input class="th-input" type="number" step="0.1" value="${sit.threshold}"
+            onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','entry',this.value)">
+          <button class="sound-btn ${entryArmedManually?'active':''} ${entryAlerting?'alerting':''}" id="sound-${sit.id}-entry"
+            onclick="toggleSound('${sit.id}-entry', event)"
+            title="Avisar con sonido en bucle cuando el spread de entrada supere el umbral (suena hasta que lo desactives)">🔔</button>
+        </div>
       </div>
-      <div class="s-sounds">
-        <button class="sound-btn ${entryArmedManually?'active':''} ${entryAlerting?'alerting':''}" id="sound-${sit.id}-entry"
-          onclick="toggleSound('${sit.id}-entry', event)"
-          title="Avisar con sonido en bucle cuando el spread de entrada supere el umbral (suena hasta que lo desactives)">🔔</button>
-        <button class="sound-btn exit ${exitArmedManually?'active':''} ${exitAlerting?'alerting':''}" id="sound-${sit.id}-exit"
-          onclick="toggleSound('${sit.id}-exit', event)"
-          title="Avisar con sonido en bucle cuando el spread de salida cruce el umbral (suena hasta que lo desactives)">🔔</button>
+
+      <div class="s-side">
+        <div class="side-spread ${outClass}">${outText}</div>
+        <div class="side-ctrl">
+          <input class="th-input" type="number" step="0.1" value="${sit.thresholdExit}"
+            onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','exit',this.value)">
+          <button class="sound-btn exit ${exitArmedManually?'active':''} ${exitAlerting?'alerting':''}" id="sound-${sit.id}-exit"
+            onclick="toggleSound('${sit.id}-exit', event)"
+            title="Avisar con sonido en bucle cuando el spread de salida cruce el umbral (suena hasta que lo desactives)">🔔</button>
+        </div>
       </div>
-    </a>
+    </div>
   `;
 }
 
