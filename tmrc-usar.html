@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Situaciones Especiales — Board de Arbitraje</title>
+<title>Monitor de Spread — Arbitraje</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -37,6 +37,14 @@
   }
   .wrap{ width:100%; max-width:880px; display:flex; flex-direction:column; gap:20px; }
 
+  /* ── BACK LINK ──────────────────────────────── */
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px; font-size:.8rem; color:var(--ink-dim);
+    text-decoration:none; font-family:var(--font-mono); width:fit-content; padding:4px 0;
+    transition:color .15s;
+  }
+  .back-link:hover{ color:var(--accent); }
+
   /* ── HEADER ─────────────────────────────────── */
   .topbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
   .topbar h1{ font-size:1.25rem; font-weight:700; letter-spacing:-.01em; }
@@ -47,80 +55,36 @@
   .topbar .sub{ font-size:.8rem; color:var(--ink-dim); margin-top:2px; font-family:var(--font-mono); }
   .cfg{ display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:8px 12px; }
   .cfg label{ font-size:.68rem; color:var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:.05em; margin-right:5px; }
-  .cfg select{
+  .cfg input, .cfg select{
     font-family:var(--font-mono); font-size:.85rem; border:1px solid var(--line); border-radius:6px;
-    padding:4px 7px; background:#0c0f16; color:var(--ink); outline:none; cursor:pointer;
+    padding:4px 7px; background:#0c0f16; color:var(--ink); outline:none; width:60px;
   }
-  .cfg select:focus{ border-color:var(--accent); }
+  .cfg select{ width:auto; cursor:pointer; }
+  .cfg input:focus, .cfg select:focus{ border-color:var(--accent); }
   .btn{
     background:var(--accent); color:#08130f; border:none; font-weight:700; font-size:.82rem;
     padding:8px 16px; border-radius:7px; cursor:pointer; letter-spacing:.01em;
   }
   .btn:hover{ opacity:.88; }
+  .btn:disabled{ background:#3a4150; color:var(--ink-dim); cursor:wait; }
 
-  /* ── BOARD HEADER ROW (column labels, terminal-style) ── */
-  .board{ display:flex; flex-direction:column; gap:10px; }
-  .board-head{
-    display:grid; grid-template-columns:38px 1fr 92px 92px 128px 72px;
-    padding:0 20px; font-size:.66rem; font-weight:700; text-transform:uppercase;
-    letter-spacing:.07em; color:var(--ink-dim); font-family:var(--font-mono);
+  /* ── SPREAD CARDS ───────────────────────────── */
+  .spread-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .spread-card{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:22px 24px; transition:border-color .25s, background .25s;
   }
-  .board-head span:nth-child(3), .board-head span:nth-child(4){ text-align:right; }
-  .board-head span:nth-child(5), .board-head span:nth-child(6){ text-align:center; }
-
-  /* ── SITUATION ROW ──────────────────────────── */
-  .situation{
-    display:grid; grid-template-columns:38px 1fr 92px 92px 128px 72px; align-items:center;
-    background:var(--card); border:1px solid var(--line); border-radius:12px;
-    padding:16px 20px; cursor:pointer; text-decoration:none; color:inherit; gap:6px;
-    transition:border-color .18s, background .18s, transform .12s;
-  }
-  .situation:hover{ border-color:#333c4d; background:var(--card-hi); transform:translateY(-1px); }
-  .situation.armed{ border-color:var(--green); box-shadow:0 0 0 1px rgba(46,224,163,.12); }
-  .situation.armed:hover{ border-color:var(--green); }
-
-  .s-rank{ font-family:var(--font-mono); font-weight:700; color:var(--ink-dim); font-size:.92rem; }
-  .situation.armed .s-rank{ color:var(--accent); }
-
-  .s-name{ display:flex; flex-direction:column; gap:3px; min-width:0; }
-  .s-pair{ font-weight:700; font-size:.95rem; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
-  .s-pair .arrow{ color:var(--ink-dim); font-weight:400; }
-  .s-tags{ display:flex; gap:6px; flex-wrap:wrap; }
-  .s-tag{ font-family:var(--font-mono); font-size:.66rem; color:var(--ink-dim); background:#1c2230; padding:2px 6px; border-radius:4px; }
-  .s-meta{ font-size:.72rem; color:var(--ink-dim); font-family:var(--font-mono); }
-
-  .s-spread{ text-align:right; font-family:var(--font-mono); font-weight:800; font-size:1.2rem; }
-  .s-spread.up{ color:var(--green); }
-  .s-spread.down{ color:var(--red); }
-  .s-spread.pending{ color:var(--ink-dim); font-weight:600; font-size:.95rem; }
-
-  /* ── UMBRALES EDITABLES ───────────────────────── */
-  .s-thresh{ display:flex; flex-direction:column; gap:4px; }
-  .th-row{ display:flex; align-items:center; justify-content:flex-end; gap:6px; }
-  .th-row span{ font-size:.66rem; color:var(--ink-dim); font-family:var(--font-mono); text-transform:uppercase; }
-  .th-input{
-    width:52px; font-family:var(--font-mono); font-size:.8rem; font-weight:600; color:var(--ink);
-    background:#0c0f16; border:1px solid var(--line); border-radius:6px; padding:3px 5px;
-    outline:none; text-align:right;
-  }
-  .th-input:focus{ border-color:var(--accent); }
-
-  /* ── BOTONES DE SONIDO (entrada/salida) ───────── */
-  .s-sounds{ display:flex; gap:6px; justify-content:center; }
+  .spread-card .card-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .spread-card .tag{ font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-dim); }
   .sound-btn{
-    flex:0 0 auto; width:30px; height:30px; border-radius:8px;
-    border:1px solid var(--line); background:#0c0f16; color:var(--ink-dim); font-size:.95rem;
-    cursor:pointer; display:flex; align-items:center; justify-content:center;
-    transition:all .18s; line-height:1;
+    flex:0 0 auto; width:30px; height:30px; border-radius:8px; border:1px solid var(--line);
+    background:#0c0f16; color:var(--ink-dim); font-size:.95rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:all .18s; line-height:1;
   }
   .sound-btn:hover{ border-color:var(--ink-dim); color:var(--ink); }
   .sound-btn.active{
     background:var(--accent-dim); border-color:var(--accent); color:var(--accent);
     box-shadow:0 0 0 3px rgba(46,224,163,.12);
-  }
-  .sound-btn.exit.active{
-    background:var(--amber-bg); border-color:var(--amber); color:var(--amber);
-    box-shadow:0 0 0 3px rgba(255,182,72,.12);
   }
   .sound-btn.alerting{
     background:var(--amber-bg); border-color:var(--amber); color:var(--amber);
@@ -130,6 +94,102 @@
     0%,100%{ box-shadow:0 0 0 0 rgba(255,182,72,.45); }
     50%{ box-shadow:0 0 0 7px rgba(255,182,72,0); }
   }
+  .spread-card .big{ font-family:var(--font-mono); font-weight:800; font-size:2.6rem; line-height:1.15; margin-top:6px; }
+  .spread-card .usd{ font-family:var(--font-mono); font-weight:600; font-size:1rem; margin-top:2px; color:var(--ink-dim); }
+  .spread-card .note{ font-size:.76rem; color:var(--ink-dim); margin-top:10px; }
+  .spread-card .last-ref{ margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:.78rem; color:var(--ink-dim); display:flex; justify-content:space-between; }
+  .spread-card .last-ref b{ font-family:var(--font-mono); color:var(--ink); }
+
+  .spread-card.entry-hit{
+    border-color:var(--green); background:linear-gradient(180deg, var(--green-bg), var(--card));
+    box-shadow:0 0 0 1px rgba(46,224,163,.15), 0 8px 28px -12px rgba(46,224,163,.35);
+  }
+  .spread-card.entry-hit .tag{ color:var(--green); }
+  .spread-card.entry-hit::after{
+    content:'✓ ENTRAR — supera umbral'; display:inline-block; margin-top:10px;
+    font-size:.74rem; font-weight:700; color:#08130f; background:var(--green);
+    padding:4px 10px; border-radius:20px;
+  }
+
+  .spread-card.exit-hit{
+    border-color:var(--amber); background:linear-gradient(180deg, var(--amber-bg), var(--card));
+    box-shadow:0 0 0 1px rgba(255,182,72,.15), 0 8px 28px -12px rgba(255,182,72,.35);
+  }
+  .spread-card.exit-hit .tag{ color:var(--amber); }
+  .spread-card.exit-hit::after{
+    content:'✓ SALIR — supera umbral'; display:inline-block; margin-top:10px;
+    font-size:.74rem; font-weight:700; color:#1a1204; background:var(--amber);
+    padding:4px 10px; border-radius:20px;
+  }
+
+  /* ── TICKERS ─────────────────────────────────── */
+  .tickers{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .tcard{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .tcard .thead{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+  .tcard .tname{ font-weight:700; font-size:.92rem; }
+  .tcard .texch{ font-family:var(--font-mono); font-size:.66rem; color:var(--ink-dim); background:#1c2230; padding:2px 6px; border-radius:4px; }
+  .trow{ display:flex; justify-content:space-between; padding:4px 0; font-size:.85rem; }
+  .trow .l{ color:var(--ink-dim); }
+  .trow .v{ font-family:var(--font-mono); font-weight:600; }
+  .tfresh{ margin-top:8px; font-size:.7rem; color:var(--ink-dim); font-family:var(--font-mono); }
+  .tfresh.stale{ color:var(--amber); font-weight:600; }
+
+  /* ── CHART ───────────────────────────────────── */
+  .chart-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
+  .chart-card .chead{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+  .chart-card h3{ font-size:.85rem; font-weight:600; color:var(--ink-dim); }
+  .chart-legend{ display:flex; gap:14px; font-size:.72rem; color:var(--ink-dim); font-family:var(--font-mono); }
+  .chart-legend span{ display:flex; align-items:center; gap:6px; }
+  .chart-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; }
+  .range-tabs{ display:flex; gap:4px; background:#0c0f16; border:1px solid var(--line); border-radius:7px; padding:3px; }
+  .range-tabs button{
+    background:transparent; border:none; color:var(--ink-dim); font-family:var(--font-mono);
+    font-size:.72rem; font-weight:600; padding:4px 9px; border-radius:5px; cursor:pointer;
+  }
+  .range-tabs button.active{ background:var(--accent); color:#08130f; }
+  .range-tabs button:disabled{ opacity:.5; cursor:wait; }
+  canvas{ width:100%; height:220px; display:block; }
+
+  /* ── EXPLICADOR DEL CANJE TEÓRICO ─────────────── */
+  .explain-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
+  .explain-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
+  .explain-sub{ font-size:.78rem; color:var(--ink-dim); margin-bottom:14px; }
+  .explain-flow{ display:flex; align-items:stretch; gap:8px; flex-wrap:wrap; }
+  .ex-step{
+    background:#0c0f16; border:1px solid var(--line); border-radius:9px; padding:10px 14px;
+    flex:1 1 150px; min-width:140px; display:flex; flex-direction:column; gap:4px; justify-content:center;
+  }
+  .ex-lbl{ font-size:.66rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
+  .ex-val{ font-family:var(--font-mono); font-weight:700; font-size:1.05rem; }
+  .ex-sub2{ font-size:.7rem; color:var(--ink-dim); font-family:var(--font-mono); }
+  .ex-sub2 b{ color:var(--ink); font-weight:600; }
+  .ex-op{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:700; color:var(--ink-dim); font-size:1.15rem;
+    padding:0 2px; min-width:38px; text-align:center;
+  }
+  .ex-op-note{ font-size:.6rem; font-weight:600; color:var(--ink-dim); line-height:1.25; margin-top:2px; }
+  .ex-op-note b{ color:var(--accent); }
+  .ex-step.ex-result{ border-color:var(--accent); background:linear-gradient(180deg, var(--accent-dim), #0c0f16); }
+  .ex-big{ font-size:1.55rem; }
+  .explain-note{ margin-top:14px; font-size:.78rem; color:var(--ink-dim); line-height:1.45; }
+
+  @media(max-width:680px){
+    .explain-flow{ flex-direction:column; }
+    .ex-op{ flex-direction:row; gap:6px; padding:2px 0; }
+    .ex-op-note{ margin-top:0; }
+  }
+
+  /* ── ORDEN LISTA PARA EL BROKER ───────────────── */
+  .order-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
+  .order-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:12px; }
+  .order-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .order-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:9px; padding:12px 14px; display:flex; flex-direction:column; gap:4px; }
+  .ol-lbl{ font-size:.72rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
+  .ol-val{ font-family:var(--font-mono); font-weight:700; font-size:1.15rem; }
+  .ol-price{ font-family:var(--font-mono); font-size:.76rem; color:var(--ink-dim); }
+  .order-foot{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:.82rem; color:var(--ink-dim); }
+  .order-foot b{ font-family:var(--font-mono); color:var(--ink); }
 
   #status{ font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); text-align:center; }
   .status-ok{ color:var(--green); }
@@ -138,46 +198,189 @@
     margin-top:-6px; padding-top:14px; border-top:1px solid var(--line); width:100%;
   }
 
-  @media(max-width:640px){
-    .board-head{ display:none; }
-    .situation{ grid-template-columns:28px 1fr 72px; grid-template-rows:auto auto auto; row-gap:10px; padding:14px 16px; }
-    .s-spread{ grid-column:2; text-align:left; font-size:1.3rem; }
-    .s-thresh{ grid-column:2; grid-row:3; }
-    .th-row{ justify-content:flex-start; }
-    .s-sounds{ grid-row:1; grid-column:3; align-self:start; }
+  @media(max-width:680px){ .spread-grid, .tickers{ grid-template-columns:1fr; } }
+
+  /* ── CAPITAL SIMULADO (slider + input) ────────── */
+  .invest-box{ display:flex; justify-content:flex-end; align-items:center; gap:14px; flex-wrap:wrap; }
+  .invest-label{ font-size:.78rem; color:var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .invest-slider-wrap{ display:flex; align-items:center; gap:8px; flex:1 1 220px; max-width:280px; min-width:160px; }
+  .invest-slider-wrap span{ font-size:.68rem; color:var(--ink-dim); font-family:var(--font-mono); }
+  #invest-slider{
+    flex:1; -webkit-appearance:none; appearance:none; height:4px; border-radius:3px;
+    background:var(--line); outline:none; cursor:pointer;
+  }
+  #invest-slider::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none; width:15px; height:15px; border-radius:50%;
+    background:var(--accent); cursor:pointer; box-shadow:0 0 0 3px var(--accent-dim);
+  }
+  #invest-slider::-moz-range-thumb{
+    width:15px; height:15px; border-radius:50%; background:var(--accent); border:none;
+    cursor:pointer; box-shadow:0 0 0 3px var(--accent-dim);
+  }
+  .invest-input-wrap{
+    display:flex; align-items:center; gap:4px; background:#0c0f16; border:1px solid var(--line);
+    border-radius:7px; padding:5px 10px;
+  }
+  .invest-input-wrap span{ font-family:var(--font-mono); color:var(--ink-dim); font-size:.85rem; }
+  #invest-input{
+    font-family:var(--font-mono); font-weight:600; font-size:.9rem; color:var(--ink);
+    background:transparent; border:none; outline:none; width:100px; text-align:right;
+    -moz-appearance:textfield; appearance:textfield;
+  }
+  #invest-input::-webkit-outer-spin-button, #invest-input::-webkit-inner-spin-button{
+    -webkit-appearance:none; appearance:none; margin:0;
   }
 </style>
 </head>
 <body>
 <div class="wrap">
 
+  <a class="back-link" href="index.html">← Situaciones especiales</a>
+
   <div class="topbar">
     <div>
-      <h1>Situaciones Especiales</h1>
-      <div class="sub">Board de arbitraje de fusiones — spread de entrada en vivo</div>
+      <h1>Monitor de Arbitraje TMRC/USAR</h1>
+      <div class="sub" id="pair-sub">Objetivo / Adquirente</div>
     </div>
     <div class="cfg">
-      <label>Refresco</label>
+      <span><label>Umbral entrada</label><input type="number" id="threshold-input" value="9" step="0.1" min="0"></span>
+      <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim); margin-right:6px;">%</span>
+      <span><label>Umbral salida</label><input type="number" id="threshold-exit-input" value="5" step="0.1"></span>
+      <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim);">%</span>
       <select id="auto-interval">
         <option value="10000" selected>10s</option>
         <option value="30000">30s</option>
         <option value="60000">1min</option>
         <option value="0">Off</option>
       </select>
-      <button class="btn" onclick="updateBoard()">Actualizar</button>
+      <button class="btn" id="main-btn" onclick="updateData()">Actualizar</button>
     </div>
   </div>
 
-  <div class="board">
-    <div class="board-head">
-      <span>#</span>
-      <span>Situación</span>
-      <span>Entrada</span>
-      <span>Salida</span>
-      <span>Umbrales</span>
-      <span>Alarmas</span>
+  <!-- ── CAPITAL ─────────────────────────────────── -->
+  <div class="invest-box">
+    <span class="invest-label">Capital simulado</span>
+    <div class="invest-slider-wrap">
+      <span>$100</span>
+      <input type="range" id="invest-slider" min="0" max="1000" step="1" value="608">
+      <span>$100k</span>
     </div>
-    <div id="board-body"><!-- filas insertadas por JS --></div>
+    <div class="invest-input-wrap">
+      <span>$</span>
+      <input type="number" id="invest-input" value="1000" step="100" min="0">
+    </div>
+  </div>
+
+  <!-- ── ORDEN LISTA PARA EL BROKER ──────────────── -->
+  <div class="order-card" id="order-card">
+    <div class="order-title">Orden a introducir</div>
+    <div class="order-grid">
+      <div class="order-leg">
+        <span class="ol-lbl">Comprar (largo)</span>
+        <span class="ol-val" id="ord-buy">–</span>
+        <span class="ol-price" id="ord-buy-price">–</span>
+      </div>
+      <div class="order-leg">
+        <span class="ol-lbl">Shortear (corto)</span>
+        <span class="ol-val" id="ord-sell">–</span>
+        <span class="ol-price" id="ord-sell-price">–</span>
+      </div>
+    </div>
+    <div class="order-foot">
+      <span>Capital realmente usado: <b id="ord-capital">–</b></span>
+      <span>Beneficio neto teórico: <b id="ord-profit">–</b></span>
+    </div>
+  </div>
+
+  <!-- ── SPREADS: lo único que importa a simple vista ── -->
+  <div class="spread-grid">
+    <div class="spread-card" id="entry-card">
+      <div class="card-top">
+        <div class="tag">Spread de entrada</div>
+        <button class="sound-btn" id="entry-sound-btn" onclick="toggleSound('entry')" title="Avisar con sonido en bucle cuando se cumpla la señal de entrada (suena hasta que lo desactives)">🔔</button>
+      </div>
+      <div class="big" id="in-pct">–</div>
+      <div class="usd" id="in-usd">–</div>
+      <div class="last-ref"><span>Ref. last</span><b id="in-last">–</b></div>
+    </div>
+    <div class="spread-card" id="exit-card">
+      <div class="card-top">
+        <div class="tag">Spread de salida</div>
+        <button class="sound-btn" id="exit-sound-btn" onclick="toggleSound('exit')" title="Avisar con sonido en bucle cuando se cumpla la señal de salida (suena hasta que lo desactives)">🔔</button>
+      </div>
+      <div class="big" id="out-pct">–</div>
+      <div class="usd" id="out-usd">–</div>
+      <div class="last-ref"><span>Ref. last</span><b id="out-last">–</b></div>
+    </div>
+  </div>
+
+  <!-- ── TICKERS ─────────────────────────────────── -->
+  <div class="tickers">
+    <div class="tcard" id="card-A">
+      <div class="thead"><span class="tname" id="A-name">Objetivo</span><span class="texch" id="A-exch">—</span></div>
+      <div class="trow"><span class="l">Last</span><span class="v" id="A-last">–</span></div>
+      <div class="trow"><span class="l">Bid</span><span class="v" id="A-bid">–</span></div>
+      <div class="trow"><span class="l">Ask</span><span class="v" id="A-ask">–</span></div>
+      <div class="trow"><span class="l">Vol.</span><span class="v" id="A-vol">–</span></div>
+      <div class="tfresh" id="A-fresh">sin datos</div>
+    </div>
+    <div class="tcard" id="card-B">
+      <div class="thead"><span class="tname" id="B-name">Adquirente</span><span class="texch" id="B-exch">—</span></div>
+      <div class="trow"><span class="l">Last</span><span class="v" id="B-last">–</span></div>
+      <div class="trow"><span class="l">Bid</span><span class="v" id="B-bid">–</span></div>
+      <div class="trow"><span class="l">Ask</span><span class="v" id="B-ask">–</span></div>
+      <div class="trow"><span class="l">Vol.</span><span class="v" id="B-vol">–</span></div>
+      <div class="tfresh" id="B-fresh">sin datos</div>
+    </div>
+  </div>
+
+  <!-- ── CÓMO SE CALCULA EL CANJE TEÓRICO ─────────── -->
+  <div class="explain-card">
+    <div class="explain-title">Cómo se calcula el canje teórico</div>
+    <div class="explain-sub">Si compras 1 acción de TMRC ahora y vendes en corto su equivalente en USAR, esto es lo que pasa:</div>
+    <div class="explain-flow">
+      <div class="ex-step">
+        <div class="ex-lbl">① Vendes en corto USAR (bid)</div>
+        <div class="ex-val" id="ex-abid">–</div>
+      </div>
+      <div class="ex-op">×<div class="ex-op-note">ratio de<br>canje<br><b id="ex-ratio">–</b></div></div>
+      <div class="ex-step">
+        <div class="ex-lbl">② Equivale en acciones TMRC a</div>
+        <div class="ex-val" id="ex-equiv">–</div>
+      </div>
+      <div class="ex-op">÷</div>
+      <div class="ex-step">
+        <div class="ex-lbl">③ Compras TMRC (ask)</div>
+        <div class="ex-val" id="ex-task">–</div>
+      </div>
+      <div class="ex-op">−1</div>
+      <div class="ex-step ex-result">
+        <div class="ex-lbl">Spread de entrada</div>
+        <div class="ex-val ex-big" id="ex-result">–</div>
+      </div>
+    </div>
+    <div class="explain-note">Es la ganancia (o pérdida) teórica por cada dólar invertido si la fusión se cierra hoy a estos precios y a este ratio de canje.</div>
+  </div>
+
+  <!-- ── CHART ───────────────────────────────────── -->
+  <div class="chart-card">
+    <div class="chead">
+      <h3 id="chart-title">Evolución del spread (últimos 7 días)</h3>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="chart-legend">
+          <span><i style="background:var(--accent)"></i>Entrada</span>
+          <span><i style="background:var(--amber)"></i>Salida</span>
+        </div>
+        <div class="range-tabs" id="range-tabs">
+          <button data-days="1">1d</button>
+          <button data-days="3">3d</button>
+          <button data-days="7" class="active">7d</button>
+          <button data-days="14">14d</button>
+          <button data-days="30">30d</button>
+        </div>
+      </div>
+    </div>
+    <canvas id="chart"></canvas>
   </div>
 
   <div id="status">Iniciando…</div>
@@ -186,41 +389,198 @@
 
 <script>
 // ════════════════════════════════════════════════════════════════
-// CONFIG — añade una entrada por cada situación especial que quieras
-// listar. "detailUrl" debe apuntar al monitor detallado de esa
-// situación (una página como tmrc-usar.html).
+// CONFIG — edita esta sección para tu caso
 // ════════════════════════════════════════════════════════════════
+// Clave "anon" (pública), NUNCA la "service_role" en una página que
+// corre en el navegador. Protege las tablas con RLS de solo lectura.
 const DATA_URL = 'https://zkpvhtaktowevholyasa.supabase.co';
 const DATA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprcHZodGFrdG93ZXZob2x5YXNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MjcyMTMsImV4cCI6MjEwMDQwMzIxM30.0NMyJAPX7A4x6don1PB4siDpNtvU3bOiZruM9GwRd84';
 const db = supabase.createClient(DATA_URL, DATA_KEY);
 
-const INVALID_TICK = -1;
+const SYMBOL_TARGET   = 'TMRC';
+const SYMBOL_ACQUIRER = 'USAR';
+const NAME_TARGET     = 'Texas Mineral (TMRC)';
+const NAME_ACQUIRER   = 'USA Rare Earth (USAR)';
+
+const RATIO = 3823328 / 88339693;
+
 const STALE_MS = 60000;
 
-const SITUATIONS = [
-  {
-    id: 'tmrc-usar',
-    targetSymbol: 'TMRC',
-    targetName: 'Texas Mineral',
-    acquirerSymbol: 'USAR',
-    acquirerName: 'USA Rare Earth',
-    ratio: 3823328 / 88339693,
-    threshold: 9,        // % — umbral de entrada de esta situación
-    thresholdExit: 5,    // % — umbral de salida de esta situación
-    detailUrl: 'tmrc-usar.html',
-  },
-];
+// Valor "centinela" que usa la fuente de datos para indicar
+// bid/ask no disponible. Estos ticks se descartan por completo.
+const INVALID_TICK = -1;
 
+document.getElementById('pair-sub').innerText = `${NAME_TARGET} / ${NAME_ACQUIRER}`;
+document.getElementById('A-name').innerText = NAME_TARGET;
+document.getElementById('B-name').innerText = NAME_ACQUIRER;
+
+// ════════════════════════════════════════════════════════════════
+let INVEST = 1000;
+let threshold = 9;
+let thresholdExit = 5;
+let priceCache = {};
+let entryPts = [];   // {t, v} — historial del spread de entrada
+let exitPts = [];    // {t, v} — historial del spread de salida
+let chartDays = 7;
 let autoTimer = null;
-let lastComputedList = [];
 
-// ── Aviso sonoro por situación ──
-// Cada fila se "arma" de forma independiente. En cuanto su spread de
-// entrada supera el umbral, el aviso suena EN BUCLE indefinidamente
-// —no se detiene solo aunque la condición deje de cumplirse— hasta
-// que el usuario desactiva esa fila manualmente.
-let soundArmed = {};      // { [situationId]: boolean }
-let alarmInterval = {};   // { [situationId]: intervalId }
+// ── Capital simulado: slider logarítmico ($100 – $100,000) sincronizado
+// con un campo numérico para introducir cualquier valor exacto.
+const INVEST_MIN = 100;
+const INVEST_MAX = 100000;
+const SLIDER_MAX = 1000;
+
+function sliderToInvest(s){
+  const minLog = Math.log10(INVEST_MIN), maxLog = Math.log10(INVEST_MAX);
+  const val = Math.pow(10, minLog + (s/SLIDER_MAX)*(maxLog-minLog));
+  return Math.round(val/10)*10;
+}
+function investToSlider(v){
+  const minLog = Math.log10(INVEST_MIN), maxLog = Math.log10(INVEST_MAX);
+  const clamped = Math.min(Math.max(v, INVEST_MIN), INVEST_MAX);
+  const s = ((Math.log10(clamped)-minLog)/(maxLog-minLog))*SLIDER_MAX;
+  return Math.round(s);
+}
+
+// Guarda, por símbolo, el último bid/ask/last VÁLIDOS vistos (ignorando -1)
+// junto con la marca de tiempo de cada uno, para poder mostrar "el último
+// valor válido" en vez de N/A cuando llega un tick sin dato.
+let lastValid = {
+  [SYMBOL_TARGET]:   { bid:NaN, ask:NaN, last:NaN, vol:NaN, bidTs:null, askTs:null, lastTs:null, volTs:null },
+  [SYMBOL_ACQUIRER]: { bid:NaN, ask:NaN, last:NaN, vol:NaN, bidTs:null, askTs:null, lastTs:null, volTs:null },
+};
+
+const cvs = document.getElementById('chart');
+const ctx = cvs?.getContext('2d');
+
+function setupCanvas(){
+  if(!cvs||!ctx) return;
+  const r = cvs.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  cvs.width = r.width*dpr; cvs.height = r.height*dpr;
+  ctx.scale(dpr,dpr);
+  cvs.style.width = r.width+'px'; cvs.style.height = r.height+'px';
+}
+
+function fmtAxisTime(ms){
+  const d = new Date(ms);
+  if(chartDays <= 1){
+    return d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
+  }
+  return d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'}) + ' ' +
+         d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
+}
+
+function drawChart(){
+  if(!ctx||!cvs) return;
+  const r = cvs.getBoundingClientRect();
+  const W=r.width, H=r.height, P=46, PB=28; // PB: espacio inferior para etiquetas de tiempo
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+
+  const allPts = entryPts.concat(exitPts);
+  if(!allPts.length){
+    ctx.fillStyle='#7c8698'; ctx.font='13px Inter'; ctx.textAlign='center';
+    ctx.fillText('Esperando datos…', W/2, H/2);
+    return;
+  }
+
+  const vals = allPts.map(d=>d.v).concat([threshold, thresholdExit]);
+  const rMin=Math.min(...vals), rMax=Math.max(...vals);
+  const pad=Math.max((rMax-rMin)*0.2,0.4);
+  const mn=rMin-pad, mx=rMax+pad, rng=(mx-mn)||1;
+
+  const tVals = allPts.map(d=>d.t);
+  const tMin = Math.min(...tVals), tMax = Math.max(...tVals);
+  const tRng = (tMax-tMin) || 1;
+
+  const getY = v => H-PB-((v-mn)/rng)*(H-PB-P*0.4);
+  const getX = t => P + ((t-tMin)/tRng)*(W-P*1.3);
+
+  // Grid horizontal + etiquetas del eje Y
+  ctx.font='11px JetBrains Mono'; ctx.textAlign='right'; ctx.fillStyle='#7c8698';
+  for(let i=0;i<=4;i++){
+    const v = mn+(i/4)*rng, y=getY(v);
+    ctx.fillText(v.toFixed(2)+'%', P-8, y+4);
+    ctx.strokeStyle='rgba(255,255,255,.06)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(P,y); ctx.lineTo(W-P*0.3,y); ctx.stroke();
+  }
+
+  // Etiquetas del eje X (tiempo)
+  ctx.textAlign='center'; ctx.fillStyle='#7c8698';
+  const N_XLABELS = 5;
+  for(let i=0;i<=N_XLABELS;i++){
+    const t = tMin + (i/N_XLABELS)*tRng;
+    const x = getX(t);
+    ctx.fillText(fmtAxisTime(t), x, H-PB+16);
+  }
+
+  // Líneas de umbral
+  const yThIn = getY(threshold);
+  ctx.strokeStyle='#2ee0a3'; ctx.lineWidth=1.2; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(P,yThIn); ctx.lineTo(W-P*0.3,yThIn); ctx.stroke();
+
+  const yThOut = getY(thresholdExit);
+  ctx.strokeStyle='#ffb648'; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.moveTo(P,yThOut); ctx.lineTo(W-P*0.3,yThOut); ctx.stroke();
+  ctx.setLineDash([]);
+
+  function drawSeries(pts, color){
+    if(pts.length < 1) return;
+    ctx.strokeStyle=color; ctx.lineWidth=2.2;
+    ctx.beginPath();
+    pts.forEach((d,i)=>{ const x=getX(d.t),y=getY(d.v); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+    ctx.stroke();
+    const last = pts[pts.length-1];
+    ctx.beginPath(); ctx.arc(getX(last.t), getY(last.v), 4.5, 0, Math.PI*2);
+    ctx.fillStyle = color; ctx.fill();
+  }
+  drawSeries(entryPts, '#2ee0a3');
+  drawSeries(exitPts, '#ffb648');
+}
+
+function fmt(n){ return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n); }
+function fmtPct(n,d=3){ return (n*100).toFixed(d)+' %'; }
+function tiempoDesde(iso){
+  if(!iso) return {texto:'sin datos', stale:true};
+  const ms = Date.now()-new Date(iso).getTime();
+  const stale = ms > STALE_MS;
+  if(ms<1000) return {texto:'justo ahora', stale};
+  if(ms<60000) return {texto:`hace ${Math.round(ms/1000)}s`, stale};
+  return {texto:`hace ${Math.round(ms/60000)} min`, stale};
+}
+
+// Convierte un valor crudo de bid/ask a número, descartando el
+// centinela de "sin dato" (-1) y devolviendo NaN en ese caso.
+function cleanQuote(v){
+  const n = parseFloat(v);
+  if(isNaN(n) || n === INVALID_TICK) return NaN;
+  return n;
+}
+
+// Actualiza el store de "último valor válido" de un símbolo con un tick
+// crudo. Cada campo (bid/ask/last) se actualiza de forma independiente:
+// si un campo viene con -1, simplemente se conserva el valor anterior.
+function ingestQuote(symbol, q){
+  const store = lastValid[symbol];
+  if(!store || !q) return;
+  const ts = q.ib_timestamp || q.inserted_at || null;
+  const bid  = cleanQuote(q.bid);
+  const ask  = cleanQuote(q.ask);
+  const last = cleanQuote(q.last);
+  const vol  = cleanQuote(q.volume);
+  if(!isNaN(bid)){  store.bid  = bid;  store.bidTs  = ts; }
+  if(!isNaN(ask)){  store.ask  = ask;  store.askTs  = ts; }
+  if(!isNaN(last)){ store.last = last; store.lastTs = ts; }
+  if(!isNaN(vol)){  store.vol  = vol;  store.volTs  = ts; }
+}
+
+// ── Aviso sonoro por señal (entrada/salida) ──
+// El botón se "arma" manualmente. En cuanto se cumple la condición, el
+// aviso suena EN BUCLE indefinidamente — no se detiene solo aunque la
+// condición deje de cumplirse — hasta que el usuario pulsa el botón
+// para desactivarlo manualmente.
+let soundArmed = { entry:false, exit:false };
+let alarmInterval = { entry:null, exit:null };
 const ALARM_LOOP_MS = 1300;
 let sharedAudioCtx = null;
 
@@ -247,211 +607,361 @@ function beep(freq, delay, duration){
   o.stop(start + duration + 0.05);
 }
 
-function playAlertSound(){
-  // Dos tonos ascendentes, igual que la señal de entrada del monitor detallado.
-  beep(740, 0,   0.28);
-  beep(1180, 0.16, 0.32);
-}
-
-function startAlarmLoop(id){
-  if(alarmInterval[id]) return; // ya está sonando
-  playAlertSound();
-  alarmInterval[id] = setInterval(playAlertSound, ALARM_LOOP_MS);
-}
-
-function stopAlarmLoop(id){
-  if(alarmInterval[id]){
-    clearInterval(alarmInterval[id]);
-    alarmInterval[id] = null;
+function playAlertSound(kind){
+  // Dos tonos ascendentes para "entrada", dos descendentes para "salida",
+  // así se distinguen de oído sin mirar la pantalla.
+  if(kind === 'entry'){
+    beep(740, 0,   0.28);
+    beep(1180, 0.16, 0.32);
+  } else {
+    beep(1180, 0,   0.28);
+    beep(740, 0.16, 0.32);
   }
 }
 
-function toggleSound(id, ev){
-  ev.preventDefault();
-  ev.stopPropagation();
-  soundArmed[id] = !soundArmed[id];
-  if(soundArmed[id]){
+function startAlarmLoop(kind){
+  if(alarmInterval[kind]) return; // ya está sonando
+  playAlertSound(kind);
+  alarmInterval[kind] = setInterval(() => playAlertSound(kind), ALARM_LOOP_MS);
+  updateSoundButtons();
+}
+
+function stopAlarmLoop(kind){
+  if(alarmInterval[kind]){
+    clearInterval(alarmInterval[kind]);
+    alarmInterval[kind] = null;
+  }
+}
+
+function toggleSound(which){
+  soundArmed[which] = !soundArmed[which];
+  if(soundArmed[which]){
     getAudioCtx(); // desbloquea el audio en el gesto del usuario
   } else {
-    stopAlarmLoop(id); // desactivación manual: para el bucle si estaba sonando
+    stopAlarmLoop(which); // desactivación manual: para el bucle si estaba sonando
   }
-  // Refleja el nuevo estado en el botón sin esperar al próximo refresco de datos
-  const btn = document.getElementById('sound-'+id);
-  if(btn){
-    btn.classList.toggle('active', !!soundArmed[id]);
-    btn.classList.toggle('alerting', !!alarmInterval[id]);
+  updateSoundButtons();
+}
+
+function updateSoundButtons(){
+  const entryBtn = document.getElementById('entry-sound-btn');
+  const exitBtn = document.getElementById('exit-sound-btn');
+  entryBtn.classList.toggle('active', soundArmed.entry);
+  entryBtn.classList.toggle('alerting', !!alarmInterval.entry);
+  exitBtn.classList.toggle('active', soundArmed.exit);
+  exitBtn.classList.toggle('alerting', !!alarmInterval.exit);
+}
+
+function triggerSignalSound(which, isHit){
+  if(isHit && soundArmed[which]){
+    startAlarmLoop(which); // arranca el bucle; seguirá hasta apagado manual
   }
 }
 
-function triggerSignalSound(id, isHit){
-  if(isHit && soundArmed[id]){
-    startAlarmLoop(id); // arranca el bucle; seguirá hasta apagado manual
+function updateExchangeExplainer(){
+  const {aBid, tAsk} = priceCache;
+  document.getElementById('ex-ratio').innerText = RATIO.toFixed(4);
+
+  const ids = ['ex-abid','ex-equiv','ex-task'];
+  if(isNaN(aBid) || isNaN(tAsk) || tAsk<=0){
+    ids.forEach(id => document.getElementById(id).innerText = '–');
+    document.getElementById('ex-result').innerText = '–';
+    return;
+  }
+
+  const equiv = RATIO * aBid;
+  const spread = equiv / tAsk - 1;
+
+  document.getElementById('ex-abid').innerText = '$' + aBid.toFixed(4);
+  document.getElementById('ex-equiv').innerText = '$' + equiv.toFixed(4);
+  document.getElementById('ex-task').innerText = '$' + tAsk.toFixed(4);
+
+  const resEl = document.getElementById('ex-result');
+  resEl.innerText = fmtPct(spread);
+  resEl.style.color = spread>0 ? 'var(--green)' : 'var(--red)';
+}
+
+function recalc(){
+  const {aBid,aAsk,aLast,tBid,tAsk,tLast} = priceCache;
+
+  if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0){
+    const inPct = (RATIO*aBid)/tAsk - 1;
+    const usd = inPct*INVEST;
+    const pEl=document.getElementById('in-pct');
+    pEl.innerText=fmtPct(inPct);
+    pEl.style.color = inPct>0 ? 'var(--green)' : 'var(--red)';
+    document.getElementById('in-usd').innerText=fmt(usd);
+
+    const entryHit = (inPct*100) >= threshold;
+    const card = document.getElementById('entry-card');
+    card.classList.toggle('entry-hit', entryHit);
+    triggerSignalSound('entry', entryHit);
+  }
+  if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
+    const inLast = (RATIO*aLast)/tLast - 1;
+    document.getElementById('in-last').innerText = fmtPct(inLast);
+  }
+
+  if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0 && tAsk>0){
+    const outPct = (RATIO*aAsk)/tBid - 1;
+    const qty = INVEST/tAsk;
+    const usd = (tBid - RATIO*aAsk) * qty;
+    const pEl=document.getElementById('out-pct');
+    pEl.innerText=fmtPct(outPct);
+    pEl.style.color = outPct>0 ? 'var(--red)' : 'var(--green)';
+    document.getElementById('out-usd').innerText=fmt(usd);
+
+    const exitHit = (outPct*100) <= thresholdExit;
+    const exitCard = document.getElementById('exit-card');
+    exitCard.classList.toggle('exit-hit', exitHit);
+    triggerSignalSound('exit', exitHit);
+  }
+  if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
+    const outLast = (RATIO*aLast)/tLast - 1;
+    document.getElementById('out-last').innerText = fmtPct(outLast);
   }
 }
 
-// Cambia el umbral de una situación desde el input de la fila. No
-// vuelve a consultar Supabase: recalcula con los últimos datos ya
-// cargados (lastComputedList) para no perder el foco del input.
-function updateThreshold(id, kind, val){
-  const sit = SITUATIONS.find(s => s.id === id);
-  if(!sit) return;
-  const num = parseFloat(val);
-  if(kind === 'entry') sit.threshold = isNaN(num) ? 0 : num;
-  else sit.thresholdExit = isNaN(num) ? 0 : num;
-  updateRowVisuals(id);
+function updateOrderTicket(){
+  const {aBid, tAsk} = priceCache;
+  const buyEl = document.getElementById('ord-buy');
+  const sellEl = document.getElementById('ord-sell');
+  const buyPriceEl = document.getElementById('ord-buy-price');
+  const sellPriceEl = document.getElementById('ord-sell-price');
+  const capEl = document.getElementById('ord-capital');
+  const profitEl = document.getElementById('ord-profit');
+
+  if(isNaN(aBid) || isNaN(tAsk) || tAsk<=0){
+    buyEl.innerText = '–'; sellEl.innerText = '–';
+    buyPriceEl.innerText = '–'; sellPriceEl.innerText = '–';
+    capEl.innerText = '–'; profitEl.innerText = '–';
+    return;
+  }
+
+  const tmrcShares = Math.floor(INVEST / tAsk);
+  const usarShares = Math.round(tmrcShares * RATIO);
+  const capitalUsado = tmrcShares * tAsk;
+  const inPct = (RATIO*aBid)/tAsk - 1;
+  const netProfit = inPct * capitalUsado;
+
+  buyEl.innerText = `${tmrcShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
+  buyPriceEl.innerText = `@ $${tAsk.toFixed(4)} (ask)`;
+  sellEl.innerText = `${usarShares.toLocaleString('en-US')} acc. ${SYMBOL_ACQUIRER}`;
+  sellPriceEl.innerText = `@ $${aBid.toFixed(4)} (bid)`;
+  capEl.innerText = fmt(capitalUsado);
+  profitEl.innerText = fmt(netProfit) + ` (${(inPct*100).toFixed(2)}%)`;
+  profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
 }
 
-function updateRowVisuals(id){
-  const c = lastComputedList.find(x => x.sit.id === id);
-  if(!c) return;
-  const sit = c.sit;
+// ── Handlers del control de capital simulado ──
+function onInvestSlider(){
+  const s = parseInt(document.getElementById('invest-slider').value, 10);
+  INVEST = sliderToInvest(s);
+  document.getElementById('invest-input').value = INVEST;
+  recalc();
+  updateOrderTicket();
+}
+function onInvestInput(){
+  let v = parseFloat(document.getElementById('invest-input').value);
+  if(isNaN(v) || v < 0) v = 0;
+  INVEST = v;
+  document.getElementById('invest-slider').value = investToSlider(v);
+  recalc();
+  updateOrderTicket();
+}
+document.getElementById('invest-slider').addEventListener('input', onInvestSlider);
+document.getElementById('invest-input').addEventListener('input', onInvestInput);
 
-  const hit = !isNaN(c.inPct) && (c.inPct*100) >= sit.threshold;
-  const exitHit = !isNaN(c.outPct) && (c.outPct*100) <= sit.thresholdExit;
-  const live = !c.fr.stale;
-
-  triggerSignalSound(id+'-entry', hit && live);
-  triggerSignalSound(id+'-exit', exitHit && live);
-
-  const row = document.getElementById('row-'+id);
-  if(row) row.classList.toggle('armed', hit && live);
-
-  const entryBtn = document.getElementById('sound-'+id+'-entry');
-  const exitBtn = document.getElementById('sound-'+id+'-exit');
-  if(entryBtn) entryBtn.classList.toggle('alerting', !!alarmInterval[id+'-entry']);
-  if(exitBtn) exitBtn.classList.toggle('alerting', !!alarmInterval[id+'-exit']);
+document.getElementById('threshold-input').addEventListener('input', (e)=>{
+  threshold = parseFloat(e.target.value) || 0;
+  recalc();
+  drawChart();
+});
+document.getElementById('threshold-exit-input').addEventListener('input', (e)=>{
+  thresholdExit = parseFloat(e.target.value) || 0;
+  recalc();
+  drawChart();
+});
+document.getElementById('auto-interval').addEventListener('change', startAuto);
+function startAuto(){
+  clearInterval(autoTimer);
+  const ms = parseInt(document.getElementById('auto-interval').value);
+  if(ms>0) autoTimer = setInterval(updateData, ms);
 }
 
-function cleanQuote(v){
-  const n = parseFloat(v);
-  if(isNaN(n) || n === INVALID_TICK) return NaN;
-  return n;
-}
+// ── Selector de rango del gráfico (1d/3d/7d/14d/30d) ──
+document.querySelectorAll('#range-tabs button').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    if(btn.classList.contains('active')) return;
+    document.querySelectorAll('#range-tabs button').forEach(b=>{ b.classList.remove('active'); b.disabled=true; });
+    chartDays = parseInt(btn.dataset.days, 10);
+    btn.classList.add('active');
+    document.getElementById('chart-title').innerText = `Evolución del spread (últimos ${chartDays} día${chartDays>1?'s':''})`;
+    await loadHistoricalSpread(chartDays);
+    drawChart();
+    document.querySelectorAll('#range-tabs button').forEach(b=>{ b.disabled=false; });
+  });
+});
 
-function fmtPct(n,d=2){ return (n*100).toFixed(d)+' %'; }
-
-function tiempoDesde(iso){
-  if(!iso) return {texto:'sin datos', stale:true};
-  const ms = Date.now()-new Date(iso).getTime();
-  const stale = ms > STALE_MS;
-  if(ms<1000) return {texto:'justo ahora', stale};
-  if(ms<60000) return {texto:`hace ${Math.round(ms/1000)}s`, stale};
-  return {texto:`hace ${Math.round(ms/60000)} min`, stale};
-}
-
-async function fetchAllQuotes(symbols){
+async function fetchLatestQuotes(){
   const { data, error } = await db
     .from('latest_quotes_by_symbol')
     .select('*')
-    .in('symbol', symbols);
+    .in('symbol', [SYMBOL_TARGET, SYMBOL_ACQUIRER]);
   if(error) throw error;
   const bySymbol = {};
   (data||[]).forEach(r => bySymbol[r.symbol] = r);
   return bySymbol;
 }
 
-function renderRow(sit, computed){
-  const { inPct, outPct, aExch, tExch, fr } = computed;
+// Trae TODAS las filas del rango pidiendo por páginas (Supabase/PostgREST
+// limita cada respuesta a un máximo de filas —normalmente 1000— así que
+// un simple .limit(20000) se queda corto en silencio). Se pagina con
+// .range() hasta que una página vuelve incompleta.
+async function fetchAllHistoryRows(sinceISO){
+  const PAGE_SIZE = 1000;
+  const MAX_PAGES = 200; // límite de seguridad (200k filas)
+  let allRows = [];
+  let from = 0;
 
-  const hasIn = !isNaN(inPct);
-  const inClass = !hasIn ? 'pending' : (inPct >= 0 ? 'up' : 'down');
-  const inText = hasIn ? fmtPct(inPct) : 'sin datos';
+  for(let page=0; page<MAX_PAGES; page++){
+    const { data, error } = await db
+      .from('quotes_history')
+      .select('symbol,bid,ask,ib_timestamp,inserted_at')
+      .in('symbol', [SYMBOL_TARGET, SYMBOL_ACQUIRER])
+      .gte('inserted_at', sinceISO)
+      .order('inserted_at', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
 
-  const hasOut = !isNaN(outPct);
-  const outClass = !hasOut ? 'pending' : (outPct > 0 ? 'down' : 'up');
-  const outText = hasOut ? fmtPct(outPct) : 'sin datos';
+    if(error) throw error;
+    if(!data || !data.length) break;
 
-  const hit = hasIn && (inPct*100) >= sit.threshold;
-  const armed = hit && !fr.stale;
-
-  const entryArmedManually = !!soundArmed[sit.id+'-entry'];
-  const entryAlerting = !!alarmInterval[sit.id+'-entry'];
-  const exitArmedManually = !!soundArmed[sit.id+'-exit'];
-  const exitAlerting = !!alarmInterval[sit.id+'-exit'];
-
-  return `
-    <a class="situation ${armed ? 'armed' : ''}" href="${sit.detailUrl}" id="row-${sit.id}">
-      <div class="s-rank">${computed.rank}</div>
-      <div class="s-name">
-        <div class="s-pair">${sit.targetName} <span class="arrow">→</span> ${sit.acquirerName}</div>
-        <div class="s-tags">
-          <span class="s-tag">${sit.targetSymbol}${tExch ? ' · '+tExch : ''}</span>
-          <span class="s-tag">${sit.acquirerSymbol}${aExch ? ' · '+aExch : ''}</span>
-        </div>
-        <div class="s-meta">${fr.texto}</div>
-      </div>
-      <div class="s-spread ${inClass}">${inText}</div>
-      <div class="s-spread ${outClass}">${outText}</div>
-      <div class="s-thresh">
-        <div class="th-row"><span>In</span><input class="th-input" type="number" step="0.1" value="${sit.threshold}"
-          onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','entry',this.value)"></div>
-        <div class="th-row"><span>Out</span><input class="th-input" type="number" step="0.1" value="${sit.thresholdExit}"
-          onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','exit',this.value)"></div>
-      </div>
-      <div class="s-sounds">
-        <button class="sound-btn ${entryArmedManually?'active':''} ${entryAlerting?'alerting':''}" id="sound-${sit.id}-entry"
-          onclick="toggleSound('${sit.id}-entry', event)"
-          title="Avisar con sonido en bucle cuando el spread de entrada supere el umbral (suena hasta que lo desactives)">🔔</button>
-        <button class="sound-btn exit ${exitArmedManually?'active':''} ${exitAlerting?'alerting':''}" id="sound-${sit.id}-exit"
-          onclick="toggleSound('${sit.id}-exit', event)"
-          title="Avisar con sonido en bucle cuando el spread de salida cruce el umbral (suena hasta que lo desactives)">🔔</button>
-      </div>
-    </a>
-  `;
+    allRows = allRows.concat(data);
+    if(data.length < PAGE_SIZE) break; // última página
+    from += PAGE_SIZE;
+  }
+  return allRows;
 }
 
-async function updateBoard(){
+async function loadHistoricalSpread(days = chartDays){
+  const sinceISO = new Date(Date.now() - days*24*60*60*1000).toISOString();
+
+  let data;
+  try{
+    data = await fetchAllHistoryRows(sinceISO);
+  }catch(e){
+    console.error('Error cargando histórico:', e.message);
+    return;
+  }
+  if(!data || !data.length) return;
+
+  // Recorremos cronológicamente manteniendo el último bid/ask válido de
+  // cada símbolo, y en cada fila recalculamos AMBOS spreads (entrada y
+  // salida) con lo mejor que sepamos hasta ese instante.
+  let last = { tBid:null, tAsk:null, aBid:null, aAsk:null };
+  let lastTs = { tBid:null, tAsk:null, aBid:null, aAsk:null };
+  const inPts = [], outPts = [];
+
+  for(const row of data){
+    const rowBid = cleanQuote(row.bid);
+    const rowAsk = cleanQuote(row.ask);
+    const ts = row.ib_timestamp || row.inserted_at;
+
+    // Fila totalmente inválida (bid y ask ambos -1): no aporta ningún
+    // dato nuevo, así que la obviamos por completo en vez de repetir
+    // el último punto conocido en este instante.
+    if(isNaN(rowBid) && isNaN(rowAsk)) continue;
+
+    if(row.symbol === SYMBOL_TARGET){
+      if(!isNaN(rowBid)){ last.tBid = rowBid; lastTs.tBid = ts; }
+      if(!isNaN(rowAsk)){ last.tAsk = rowAsk; lastTs.tAsk = ts; }
+    } else if(row.symbol === SYMBOL_ACQUIRER){
+      if(!isNaN(rowBid)){ last.aBid = rowBid; lastTs.aBid = ts; }
+      if(!isNaN(rowAsk)){ last.aAsk = rowAsk; lastTs.aAsk = ts; }
+    }
+
+    if(last.aBid!=null && last.tAsk!=null && last.tAsk>0){
+      const inPct = (RATIO*last.aBid)/last.tAsk - 1;
+      inPts.push({ t: new Date(ts).getTime(), v: inPct*100 });
+    }
+    if(last.aAsk!=null && last.tBid!=null && last.tBid>0){
+      const outPct = (RATIO*last.aAsk)/last.tBid - 1;
+      outPts.push({ t: new Date(ts).getTime(), v: outPct*100 });
+    }
+  }
+
+  // Sembramos el store de "último valor válido" con lo que encontramos
+  // en el histórico, para no arrancar en N/A si el tick más reciente
+  // en vivo viniera con -1.
+  if(last.tBid != null){ lastValid[SYMBOL_TARGET].bid = last.tBid; lastValid[SYMBOL_TARGET].bidTs = lastTs.tBid; }
+  if(last.tAsk != null){ lastValid[SYMBOL_TARGET].ask = last.tAsk; lastValid[SYMBOL_TARGET].askTs = lastTs.tAsk; }
+  if(last.aBid != null){ lastValid[SYMBOL_ACQUIRER].bid = last.aBid; lastValid[SYMBOL_ACQUIRER].bidTs = lastTs.aBid; }
+  if(last.aAsk != null){ lastValid[SYMBOL_ACQUIRER].ask = last.aAsk; lastValid[SYMBOL_ACQUIRER].askTs = lastTs.aAsk; }
+
+  // Downsample para que el gráfico no se sature con miles de puntos
+  const MAX_POINTS = 400;
+  const downsample = pts => {
+    if(pts.length <= MAX_POINTS) return pts;
+    const step = Math.ceil(pts.length / MAX_POINTS);
+    return pts.filter((_,i)=> i % step === 0);
+  };
+  entryPts = downsample(inPts);
+  exitPts  = downsample(outPts);
+}
+
+async function updateData(){
   const status = document.getElementById('status');
-  const body = document.getElementById('board-body');
 
   try{
-    const allSymbols = [...new Set(SITUATIONS.flatMap(s => [s.targetSymbol, s.acquirerSymbol]))];
-    const bySymbol = await fetchAllQuotes(allSymbols);
+    const bySymbol = await fetchLatestQuotes();
+    const target = bySymbol[SYMBOL_TARGET] || {};
+    const acquirer = bySymbol[SYMBOL_ACQUIRER] || {};
 
-    const computedList = SITUATIONS.map(sit => {
-      const t = bySymbol[sit.targetSymbol] || {};
-      const a = bySymbol[sit.acquirerSymbol] || {};
-      const aBid = cleanQuote(a.bid);
-      const aAsk = cleanQuote(a.ask);
-      const tBid = cleanQuote(t.bid);
-      const tAsk = cleanQuote(t.ask);
+    // Actualiza el store de "último valor válido" con lo que llegó ahora
+    // (los campos en -1 se ignoran y se conserva lo anterior).
+    ingestQuote(SYMBOL_TARGET, target);
+    ingestQuote(SYMBOL_ACQUIRER, acquirer);
 
-      let inPct = NaN;
-      if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0){
-        inPct = (sit.ratio*aBid)/tAsk - 1;
-      }
-      let outPct = NaN;
-      if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0){
-        outPct = (sit.ratio*aAsk)/tBid - 1;
-      }
+    const paint = (pfx, symbol, q) => {
+      const store = lastValid[symbol];
+      document.getElementById(pfx+'-last').innerText = isNaN(store.last)?'N/A':store.last.toFixed(4);
+      document.getElementById(pfx+'-bid').innerText  = isNaN(store.bid)?'N/A':store.bid.toFixed(4);
+      document.getElementById(pfx+'-ask').innerText  = isNaN(store.ask)?'N/A':store.ask.toFixed(4);
+      document.getElementById(pfx+'-vol').innerText  = isNaN(store.vol)?'N/A':store.vol.toLocaleString('en-US');
+      if(q.primary_exchange) document.getElementById(pfx+'-exch').innerText = q.primary_exchange;
 
-      const stamps = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at]
-        .filter(Boolean).map(x => new Date(x).getTime());
-      const freshest = stamps.length ? new Date(Math.max(...stamps)).toISOString() : null;
+      // Frescura: tomamos la marca de tiempo más reciente entre los
+      // campos que sí tienen un valor válido guardado.
+      const stamps = [store.bidTs, store.askTs, store.lastTs, store.volTs].filter(Boolean).map(t => new Date(t).getTime());
+      const mostRecent = stamps.length ? new Date(Math.max(...stamps)).toISOString() : null;
+      const fr = tiempoDesde(mostRecent);
+      const frEl = document.getElementById(pfx+'-fresh');
+      frEl.innerText = fr.texto;
+      frEl.classList.toggle('stale', fr.stale);
+    };
+    paint('A', SYMBOL_TARGET, target);
+    paint('B', SYMBOL_ACQUIRER, acquirer);
 
-      const fr = tiempoDesde(freshest);
-      const hit = !isNaN(inPct) && (inPct*100) >= sit.threshold;
-      const exitHit = !isNaN(outPct) && (outPct*100) <= sit.thresholdExit;
-      triggerSignalSound(sit.id+'-entry', hit && !fr.stale);
-      triggerSignalSound(sit.id+'-exit', exitHit && !fr.stale);
+    priceCache = {
+      tBid: lastValid[SYMBOL_TARGET].bid,   tAsk: lastValid[SYMBOL_TARGET].ask,   tLast: lastValid[SYMBOL_TARGET].last,
+      aBid: lastValid[SYMBOL_ACQUIRER].bid, aAsk: lastValid[SYMBOL_ACQUIRER].ask, aLast: lastValid[SYMBOL_ACQUIRER].last,
+    };
+    recalc();
+    updateOrderTicket();
+    updateExchangeExplainer();
 
-      return { sit, inPct, outPct, aExch: a.primary_exchange, tExch: t.primary_exchange, freshest, fr };
-    });
-
-    // Orden por rentabilidad de entrada, de mayor a menor (las que no
-    // tienen dato válido se quedan al final).
-    computedList.sort((x,y)=>{
-      if(isNaN(x.inPct) && isNaN(y.inPct)) return 0;
-      if(isNaN(x.inPct)) return 1;
-      if(isNaN(y.inPct)) return -1;
-      return y.inPct - x.inPct;
-    });
-
-    lastComputedList = computedList;
-
-    body.innerHTML = computedList
-      .map((c, i) => renderRow(c.sit, { ...c, rank: String(i+1).padStart(2,'0') }))
-      .join('');
+    // Añadimos el punto en vivo a ambas series del gráfico
+    if(!isNaN(priceCache.aBid) && !isNaN(priceCache.tAsk) && priceCache.tAsk>0){
+      const inPct = (RATIO*priceCache.aBid)/priceCache.tAsk - 1;
+      entryPts.push({t:Date.now(), v: inPct*100});
+      if(entryPts.length>1000) entryPts.shift();
+    }
+    if(!isNaN(priceCache.aAsk) && !isNaN(priceCache.tBid) && priceCache.tBid>0){
+      const outPct = (RATIO*priceCache.aAsk)/priceCache.tBid - 1;
+      exitPts.push({t:Date.now(), v: outPct*100});
+      if(exitPts.length>1000) exitPts.shift();
+    }
+    drawChart();
 
     status.innerHTML = `<span class="status-ok">Actualizado</span> · ${new Date().toLocaleTimeString()}`;
   }catch(e){
@@ -459,17 +969,17 @@ async function updateBoard(){
   }
 }
 
-document.getElementById('auto-interval').addEventListener('change', startAuto);
-function startAuto(){
-  clearInterval(autoTimer);
-  const ms = parseInt(document.getElementById('auto-interval').value);
-  if(ms>0) autoTimer = setInterval(updateBoard, ms);
-}
-
 window.onload = async () => {
-  await updateBoard();
+  setupCanvas();
+  // Sincroniza slider y campo numérico con el valor inicial de INVEST
+  document.getElementById('invest-input').value = INVEST;
+  document.getElementById('invest-slider').value = investToSlider(INVEST);
+  await loadHistoricalSpread(chartDays);
+  drawChart();
+  await updateData();
   startAuto();
 };
+window.onresize = () => { setupCanvas(); drawChart(); };
 </script>
 </body>
 </html>
