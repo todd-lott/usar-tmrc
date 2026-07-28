@@ -230,6 +230,22 @@
   #invest-input::-webkit-outer-spin-button, #invest-input::-webkit-inner-spin-button{
     -webkit-appearance:none; appearance:none; margin:0;
   }
+
+  /* ── RESPLANDOR AL CAMBIAR UN VALOR (estilo broker) ── */
+  .value-flash{
+    border-radius:4px;
+    animation: valueGlow .7s ease-out;
+  }
+  @keyframes valueGlow{
+    0%{
+      box-shadow:0 0 0 0 var(--glow-color, rgba(255,255,255,.5));
+      background:var(--glow-bg, rgba(255,255,255,.12));
+    }
+    100%{
+      box-shadow:0 0 0 10px rgba(0,0,0,0);
+      background:transparent;
+    }
+  }
 </style>
 </head>
 <body>
@@ -574,6 +590,40 @@ function ingestQuote(symbol, q){
   if(!isNaN(vol)){  store.vol  = vol;  store.volTs  = ts; }
 }
 
+// ── Resplandor ("flash") en los valores al cambiar, estilo broker ──
+// Guarda el último valor numérico que se pintó en pantalla para cada id,
+// y compara con el nuevo cada vez que se actualiza para decidir si el
+// resplandor debe ser verde (sube), rojo (baja) o neutro (sin dirección).
+let displayedValues = {};
+
+function flashValue(el, direction){
+  if(!el || !direction) return;
+  const glow = {
+    up:      { color:'rgba(46,224,163,.65)', bg:'rgba(46,224,163,.18)' },
+    down:    { color:'rgba(255,84,112,.65)', bg:'rgba(255,84,112,.18)' },
+    neutral: { color:'rgba(255,255,255,.4)', bg:'rgba(255,255,255,.10)' },
+  }[direction];
+  el.style.setProperty('--glow-color', glow.color);
+  el.style.setProperty('--glow-bg', glow.bg);
+  el.classList.remove('value-flash');
+  void el.offsetWidth; // fuerza reflow para reiniciar la animación aunque sea la misma dirección
+  el.classList.add('value-flash');
+}
+
+// Pinta un valor numérico en el elemento indicado y dispara el flash
+// si cambió respecto al último valor mostrado para ese id.
+function setNumericText(id, newVal, decimals=4, formatter=null){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const prev = displayedValues[id];
+  const text = isNaN(newVal) ? 'N/A' : (formatter ? formatter(newVal) : newVal.toFixed(decimals));
+  el.innerText = text;
+  if(prev !== undefined && !isNaN(newVal) && !isNaN(prev) && newVal !== prev){
+    flashValue(el, newVal > prev ? 'up' : 'down');
+  }
+  if(!isNaN(newVal)) displayedValues[id] = newVal;
+}
+
 // ── Aviso sonoro por señal (entrada/salida) ──
 // El botón se "arma" manualmente. En cuanto se cumple la condición, el
 // aviso suena EN BUCLE indefinidamente — no se detiene solo aunque la
@@ -672,13 +722,18 @@ function updateExchangeExplainer(){
   const equiv = RATIO * aBid;
   const spread = equiv / tAsk - 1;
 
-  document.getElementById('ex-abid').innerText = '$' + aBid.toFixed(4);
-  document.getElementById('ex-equiv').innerText = '$' + equiv.toFixed(4);
-  document.getElementById('ex-task').innerText = '$' + tAsk.toFixed(4);
+  setNumericText('ex-abid', aBid, 4, v => '$' + v.toFixed(4));
+  setNumericText('ex-equiv', equiv, 4, v => '$' + v.toFixed(4));
+  setNumericText('ex-task', tAsk, 4, v => '$' + v.toFixed(4));
 
   const resEl = document.getElementById('ex-result');
+  const prevSpread = displayedValues['ex-result'];
   resEl.innerText = fmtPct(spread);
   resEl.style.color = spread>0 ? 'var(--green)' : 'var(--red)';
+  if(prevSpread !== undefined && spread !== prevSpread){
+    flashValue(resEl, spread > prevSpread ? 'up' : 'down');
+  }
+  displayedValues['ex-result'] = spread;
 }
 
 function recalc(){
@@ -688,9 +743,13 @@ function recalc(){
     const inPct = (RATIO*aBid)/tAsk - 1;
     const usd = inPct*INVEST;
     const pEl=document.getElementById('in-pct');
+    const prevIn = displayedValues['in-pct'];
     pEl.innerText=fmtPct(inPct);
     pEl.style.color = inPct>0 ? 'var(--green)' : 'var(--red)';
-    document.getElementById('in-usd').innerText=fmt(usd);
+    if(prevIn !== undefined && inPct !== prevIn) flashValue(pEl, inPct>prevIn?'up':'down');
+    displayedValues['in-pct'] = inPct;
+
+    setNumericText('in-usd', usd, 2, fmt);
 
     const entryHit = (inPct*100) >= threshold;
     const card = document.getElementById('entry-card');
@@ -699,7 +758,7 @@ function recalc(){
   }
   if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
     const inLast = (RATIO*aLast)/tLast - 1;
-    document.getElementById('in-last').innerText = fmtPct(inLast);
+    setNumericText('in-last', inLast, 3, fmtPct);
   }
 
   if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0 && tAsk>0){
@@ -707,9 +766,13 @@ function recalc(){
     const qty = INVEST/tAsk;
     const usd = (tBid - RATIO*aAsk) * qty;
     const pEl=document.getElementById('out-pct');
+    const prevOut = displayedValues['out-pct'];
     pEl.innerText=fmtPct(outPct);
     pEl.style.color = outPct>0 ? 'var(--red)' : 'var(--green)';
-    document.getElementById('out-usd').innerText=fmt(usd);
+    if(prevOut !== undefined && outPct !== prevOut) flashValue(pEl, outPct>prevOut?'up':'down');
+    displayedValues['out-pct'] = outPct;
+
+    setNumericText('out-usd', usd, 2, fmt);
 
     const exitHit = (outPct*100) <= thresholdExit;
     const exitCard = document.getElementById('exit-card');
@@ -718,7 +781,7 @@ function recalc(){
   }
   if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
     const outLast = (RATIO*aLast)/tLast - 1;
-    document.getElementById('out-last').innerText = fmtPct(outLast);
+    setNumericText('out-last', outLast, 3, fmtPct);
   }
 }
 
@@ -748,9 +811,17 @@ function updateOrderTicket(){
   buyPriceEl.innerText = `@ $${tAsk.toFixed(4)} (ask)`;
   sellEl.innerText = `${usarShares.toLocaleString('en-US')} acc. ${SYMBOL_ACQUIRER}`;
   sellPriceEl.innerText = `@ $${aBid.toFixed(4)} (bid)`;
+
+  const prevCap = displayedValues['ord-capital'];
   capEl.innerText = fmt(capitalUsado);
+  if(prevCap !== undefined && capitalUsado !== prevCap) flashValue(capEl, capitalUsado>prevCap?'up':'down');
+  displayedValues['ord-capital'] = capitalUsado;
+
+  const prevProfit = displayedValues['ord-profit'];
   profitEl.innerText = fmt(netProfit) + ` (${(inPct*100).toFixed(2)}%)`;
   profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
+  if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
+  displayedValues['ord-profit'] = netProfit;
 }
 
 // ── Handlers del control de capital simulado ──
@@ -924,10 +995,10 @@ async function updateData(){
 
     const paint = (pfx, symbol, q) => {
       const store = lastValid[symbol];
-      document.getElementById(pfx+'-last').innerText = isNaN(store.last)?'N/A':store.last.toFixed(4);
-      document.getElementById(pfx+'-bid').innerText  = isNaN(store.bid)?'N/A':store.bid.toFixed(4);
-      document.getElementById(pfx+'-ask').innerText  = isNaN(store.ask)?'N/A':store.ask.toFixed(4);
-      document.getElementById(pfx+'-vol').innerText  = isNaN(store.vol)?'N/A':store.vol.toLocaleString('en-US');
+      setNumericText(pfx+'-last', store.last, 4);
+      setNumericText(pfx+'-bid',  store.bid,  4);
+      setNumericText(pfx+'-ask',  store.ask,  4);
+      setNumericText(pfx+'-vol',  store.vol,  0, v => v.toLocaleString('en-US'));
       if(q.primary_exchange) document.getElementById(pfx+'-exch').innerText = q.primary_exchange;
 
       // Frescura: tomamos la marca de tiempo más reciente entre los
