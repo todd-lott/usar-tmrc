@@ -209,6 +209,22 @@
   }
 
   @media(max-width:680px){ .spread-grid{ grid-template-columns:1fr; } }
+
+  /* ── RESPLANDOR AL CAMBIAR UN VALOR (estilo broker) ── */
+  .value-flash{
+    border-radius:4px;
+    animation: valueGlow .7s ease-out;
+  }
+  @keyframes valueGlow{
+    0%{
+      box-shadow:0 0 0 0 var(--glow-color, rgba(255,255,255,.5));
+      background:var(--glow-bg, rgba(255,255,255,.12));
+    }
+    100%{
+      box-shadow:0 0 0 10px rgba(0,0,0,0);
+      background:transparent;
+    }
+  }
 </style>
 </head>
 <body>
@@ -503,6 +519,35 @@ function ingestQuote(q){
   if(!isNaN(vol)){  store.vol  = vol;  store.volTs  = ts; }
 }
 
+// ── Resplandor ("flash") en los valores al cambiar, estilo broker ──
+let displayedValues = {};
+
+function flashValue(el, direction){
+  if(!el || !direction) return;
+  const glow = {
+    up:      { color:'rgba(46,224,163,.65)', bg:'rgba(46,224,163,.18)' },
+    down:    { color:'rgba(255,84,112,.65)', bg:'rgba(255,84,112,.18)' },
+    neutral: { color:'rgba(255,255,255,.4)', bg:'rgba(255,255,255,.10)' },
+  }[direction];
+  el.style.setProperty('--glow-color', glow.color);
+  el.style.setProperty('--glow-bg', glow.bg);
+  el.classList.remove('value-flash');
+  void el.offsetWidth; // fuerza reflow para reiniciar la animación aunque sea la misma dirección
+  el.classList.add('value-flash');
+}
+
+function setNumericText(id, newVal, decimals=4, formatter=null){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const prev = displayedValues[id];
+  const text = isNaN(newVal) ? 'N/A' : (formatter ? formatter(newVal) : newVal.toFixed(decimals));
+  el.innerText = text;
+  if(prev !== undefined && !isNaN(newVal) && !isNaN(prev) && newVal !== prev){
+    flashValue(el, newVal > prev ? 'up' : 'down');
+  }
+  if(!isNaN(newVal)) displayedValues[id] = newVal;
+}
+
 // ── Aviso sonoro por señal (entrada/salida) ──
 let soundArmed = { entry:false, exit:false };
 let alarmInterval = { entry:null, exit:null };
@@ -569,10 +614,17 @@ function updateExchangeExplainer(){
     return;
   }
   const spread = OFFER_PRICE / ask - 1;
-  document.getElementById('ex-task').innerText = '$' + ask.toFixed(4);
+
+  setNumericText('ex-task', ask, 4, v => '$' + v.toFixed(4));
+
   const resEl = document.getElementById('ex-result');
+  const prevSpread = displayedValues['ex-result'];
   resEl.innerText = fmtPct(spread);
   resEl.style.color = spread>0 ? 'var(--green)' : 'var(--red)';
+  if(prevSpread !== undefined && spread !== prevSpread){
+    flashValue(resEl, spread > prevSpread ? 'up' : 'down');
+  }
+  displayedValues['ex-result'] = spread;
 }
 
 function recalc(){
@@ -582,26 +634,35 @@ function recalc(){
     const inPct = OFFER_PRICE/ask - 1;
     const usd = inPct*INVEST;
     const pEl=document.getElementById('in-pct');
+    const prevIn = displayedValues['in-pct'];
     pEl.innerText=fmtPct(inPct);
     pEl.style.color = inPct>0 ? 'var(--green)' : 'var(--red)';
-    document.getElementById('in-usd').innerText=fmt(usd);
+    if(prevIn !== undefined && inPct !== prevIn) flashValue(pEl, inPct>prevIn?'up':'down');
+    displayedValues['in-pct'] = inPct;
+
+    setNumericText('in-usd', usd, 2, fmt);
 
     const entryHit = (inPct*100) >= threshold;
     document.getElementById('entry-card').classList.toggle('entry-hit', entryHit);
     triggerSignalSound('entry', entryHit);
   }
   if(!isNaN(last) && last>0){
-    document.getElementById('in-last').innerText = fmtPct(OFFER_PRICE/last - 1);
-    document.getElementById('out-last').innerText = fmtPct(OFFER_PRICE/last - 1);
+    const lastPct = OFFER_PRICE/last - 1;
+    setNumericText('in-last', lastPct, 3, fmtPct);
+    setNumericText('out-last', lastPct, 3, fmtPct);
   }
 
   if(!isNaN(bid) && bid>0){
     const outPct = OFFER_PRICE/bid - 1;
     const usd = outPct*INVEST;
     const pEl=document.getElementById('out-pct');
+    const prevOut = displayedValues['out-pct'];
     pEl.innerText=fmtPct(outPct);
     pEl.style.color = outPct>0 ? 'var(--red)' : 'var(--green)';
-    document.getElementById('out-usd').innerText=fmt(usd);
+    if(prevOut !== undefined && outPct !== prevOut) flashValue(pEl, outPct>prevOut?'up':'down');
+    displayedValues['out-pct'] = outPct;
+
+    setNumericText('out-usd', usd, 2, fmt);
 
     const exitHit = (outPct*100) <= thresholdExit;
     document.getElementById('exit-card').classList.toggle('exit-hit', exitHit);
@@ -632,9 +693,17 @@ function updateOrderTicket(){
 
   buyEl.innerText = `${shares.toLocaleString('en-US')} acc. ${SYMBOL}`;
   buyPriceEl.innerText = `@ $${ask.toFixed(4)} (ask)`;
+
+  const prevCap = displayedValues['ord-capital'];
   capEl.innerText = fmt(capitalUsado);
+  if(prevCap !== undefined && capitalUsado !== prevCap) flashValue(capEl, capitalUsado>prevCap?'up':'down');
+  displayedValues['ord-capital'] = capitalUsado;
+
+  const prevProfit = displayedValues['ord-profit'];
   profitEl.innerText = fmt(netProfit) + ` (${(inPct*100).toFixed(2)}%)`;
   profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
+  if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
+  displayedValues['ord-profit'] = netProfit;
 }
 
 function onInvestSlider(){
@@ -766,10 +835,10 @@ async function updateData(){
     const q = await fetchLatestQuote();
     ingestQuote(q);
 
-    document.getElementById('A-last').innerText = isNaN(lastValid.last)?'N/A':lastValid.last.toFixed(4);
-    document.getElementById('A-bid').innerText  = isNaN(lastValid.bid)?'N/A':lastValid.bid.toFixed(4);
-    document.getElementById('A-ask').innerText  = isNaN(lastValid.ask)?'N/A':lastValid.ask.toFixed(4);
-    document.getElementById('A-vol').innerText  = isNaN(lastValid.vol)?'N/A':lastValid.vol.toLocaleString('en-US');
+    setNumericText('A-last', lastValid.last, 4);
+    setNumericText('A-bid',  lastValid.bid,  4);
+    setNumericText('A-ask',  lastValid.ask,  4);
+    setNumericText('A-vol',  lastValid.vol,  0, v => v.toLocaleString('en-US'));
     if(q.primary_exchange) document.getElementById('A-exch').innerText = q.primary_exchange;
 
     const stamps = [lastValid.bidTs, lastValid.askTs, lastValid.lastTs, lastValid.volTs].filter(Boolean).map(t => new Date(t).getTime());
