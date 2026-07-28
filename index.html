@@ -302,7 +302,7 @@ function goToDetailKey(ev, url){
 function updateThreshold(id, kind, val){
   const sit = SITUATIONS.find(s => s.id === id);
   if(!sit) return;
-  const num = parseFloat(val);
+  const num = Math.round(parseFloat(val));
   if(kind === 'entry') sit.threshold = isNaN(num) ? 0 : num;
   else sit.thresholdExit = isNaN(num) ? 0 : num;
   updateRowVisuals(id);
@@ -400,7 +400,7 @@ function renderRow(sit, computed){
       <div class="s-side">
         <div class="side-spread ${inClass}">${inText}</div>
         <div class="side-ctrl">
-          <input class="th-input" type="number" step="0.1" value="${sit.threshold}"
+          <input class="th-input" type="number" step="1" value="${sit.threshold}"
             onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','entry',this.value)">
           <button class="sound-btn ${entryArmedManually?'active':''} ${entryAlerting?'alerting':''}" id="sound-${sit.id}-entry"
             onclick="toggleSound('${sit.id}-entry', event)"
@@ -411,7 +411,7 @@ function renderRow(sit, computed){
       <div class="s-side">
         <div class="side-spread ${outClass}">${outText}</div>
         <div class="side-ctrl">
-          <input class="th-input" type="number" step="0.1" value="${sit.thresholdExit}"
+          <input class="th-input" type="number" step="1" value="${sit.thresholdExit}"
             onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','exit',this.value)">
           <button class="sound-btn exit ${exitArmedManually?'active':''} ${exitAlerting?'alerting':''}" id="sound-${sit.id}-exit"
             onclick="toggleSound('${sit.id}-exit', event)"
