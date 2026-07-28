@@ -61,18 +61,18 @@
   /* ── BOARD HEADER ROW (column labels, terminal-style) ── */
   .board{ display:flex; flex-direction:column; gap:10px; }
   .board-head{
-    display:grid; grid-template-columns:38px 1fr 108px 108px 92px;
+    display:grid; grid-template-columns:38px 1fr 92px 92px 128px 72px;
     padding:0 20px; font-size:.66rem; font-weight:700; text-transform:uppercase;
     letter-spacing:.07em; color:var(--ink-dim); font-family:var(--font-mono);
   }
   .board-head span:nth-child(3), .board-head span:nth-child(4){ text-align:right; }
-  .board-head span:nth-child(5){ text-align:center; }
+  .board-head span:nth-child(5), .board-head span:nth-child(6){ text-align:center; }
 
   /* ── SITUATION ROW ──────────────────────────── */
   .situation{
-    display:grid; grid-template-columns:38px 1fr 108px 108px 92px; align-items:center;
+    display:grid; grid-template-columns:38px 1fr 92px 92px 128px 72px; align-items:center;
     background:var(--card); border:1px solid var(--line); border-radius:12px;
-    padding:16px 20px; cursor:pointer; text-decoration:none; color:inherit;
+    padding:16px 20px; cursor:pointer; text-decoration:none; color:inherit; gap:6px;
     transition:border-color .18s, background .18s, transform .12s;
   }
   .situation:hover{ border-color:#333c4d; background:var(--card-hi); transform:translateY(-1px); }
@@ -89,28 +89,46 @@
   .s-tag{ font-family:var(--font-mono); font-size:.66rem; color:var(--ink-dim); background:#1c2230; padding:2px 6px; border-radius:4px; }
   .s-meta{ font-size:.72rem; color:var(--ink-dim); font-family:var(--font-mono); }
 
-  .s-spread{ text-align:right; font-family:var(--font-mono); font-weight:800; font-size:1.3rem; }
+  .s-spread{ text-align:right; font-family:var(--font-mono); font-weight:800; font-size:1.2rem; }
   .s-spread.up{ color:var(--green); }
   .s-spread.down{ color:var(--red); }
-  .s-spread.pending{ color:var(--ink-dim); font-weight:600; font-size:1rem; }
+  .s-spread.pending{ color:var(--ink-dim); font-weight:600; font-size:.95rem; }
 
-  .s-threshold{ text-align:right; font-family:var(--font-mono); font-size:.76rem; color:var(--ink-dim); }
-  .s-threshold b{ color:var(--ink); font-weight:600; }
-
-  .s-status{ display:flex; justify-content:center; }
-  .s-badge{
-    font-size:.66rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
-    padding:4px 9px; border-radius:20px; font-family:var(--font-mono); white-space:nowrap;
+  /* ── UMBRALES EDITABLES ───────────────────────── */
+  .s-thresh{ display:flex; flex-direction:column; gap:4px; }
+  .th-row{ display:flex; align-items:center; justify-content:flex-end; gap:6px; }
+  .th-row span{ font-size:.66rem; color:var(--ink-dim); font-family:var(--font-mono); text-transform:uppercase; }
+  .th-input{
+    width:52px; font-family:var(--font-mono); font-size:.8rem; font-weight:600; color:var(--ink);
+    background:#0c0f16; border:1px solid var(--line); border-radius:6px; padding:3px 5px;
+    outline:none; text-align:right;
   }
-  .s-badge.hit{ background:var(--green); color:#08130f; }
-  .s-badge.wait{ background:#1c2230; color:var(--ink-dim); }
-  .s-badge.stale{ background:var(--amber-bg); color:var(--amber); }
+  .th-input:focus{ border-color:var(--accent); }
 
-  /* ── SOON CARD (placeholder for future situations) ── */
-  .soon{
-    display:flex; align-items:center; justify-content:center; gap:8px;
-    border:1px dashed var(--line); border-radius:12px; padding:16px 20px;
-    color:var(--ink-dim); font-size:.8rem; font-family:var(--font-mono);
+  /* ── BOTONES DE SONIDO (entrada/salida) ───────── */
+  .s-sounds{ display:flex; gap:6px; justify-content:center; }
+  .sound-btn{
+    flex:0 0 auto; width:30px; height:30px; border-radius:8px;
+    border:1px solid var(--line); background:#0c0f16; color:var(--ink-dim); font-size:.95rem;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:all .18s; line-height:1;
+  }
+  .sound-btn:hover{ border-color:var(--ink-dim); color:var(--ink); }
+  .sound-btn.active{
+    background:var(--accent-dim); border-color:var(--accent); color:var(--accent);
+    box-shadow:0 0 0 3px rgba(46,224,163,.12);
+  }
+  .sound-btn.exit.active{
+    background:var(--amber-bg); border-color:var(--amber); color:var(--amber);
+    box-shadow:0 0 0 3px rgba(255,182,72,.12);
+  }
+  .sound-btn.alerting{
+    background:var(--amber-bg); border-color:var(--amber); color:var(--amber);
+    animation:soundPulse 1s ease-in-out infinite;
+  }
+  @keyframes soundPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(255,182,72,.45); }
+    50%{ box-shadow:0 0 0 7px rgba(255,182,72,0); }
   }
 
   #status{ font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); text-align:center; }
@@ -122,10 +140,11 @@
 
   @media(max-width:640px){
     .board-head{ display:none; }
-    .situation{ grid-template-columns:28px 1fr; grid-template-rows:auto auto; row-gap:10px; padding:14px 16px; }
-    .s-spread{ grid-column:2; text-align:left; font-size:1.5rem; }
-    .s-threshold{ grid-column:2; text-align:left; }
-    .s-status{ grid-column:2; justify-content:flex-start; }
+    .situation{ grid-template-columns:28px 1fr 72px; grid-template-rows:auto auto auto; row-gap:10px; padding:14px 16px; }
+    .s-spread{ grid-column:2; text-align:left; font-size:1.3rem; }
+    .s-thresh{ grid-column:2; grid-row:3; }
+    .th-row{ justify-content:flex-start; }
+    .s-sounds{ grid-row:1; grid-column:3; align-self:start; }
   }
 </style>
 </head>
@@ -153,13 +172,12 @@
     <div class="board-head">
       <span>#</span>
       <span>Situación</span>
-      <span>Spread</span>
-      <span>Umbral</span>
-      <span>Estado</span>
+      <span>Entrada</span>
+      <span>Salida</span>
+      <span>Umbrales</span>
+      <span>Alarmas</span>
     </div>
     <div id="board-body"><!-- filas insertadas por JS --></div>
-
-    <div class="soon">+ añade más situaciones editando el array SITUATIONS en el código</div>
   </div>
 
   <div id="status">Iniciando…</div>
@@ -187,20 +205,122 @@ const SITUATIONS = [
     acquirerSymbol: 'USAR',
     acquirerName: 'USA Rare Earth',
     ratio: 3823328 / 88339693,
-    threshold: 9,       // % — umbral de entrada de esta situación
+    threshold: 9,        // % — umbral de entrada de esta situación
+    thresholdExit: 5,    // % — umbral de salida de esta situación
     detailUrl: 'tmrc-usar.html',
   },
-  // Añade más situaciones aquí, por ejemplo:
-  // {
-  //   id: 'foo-bar',
-  //   targetSymbol: 'FOO', targetName: 'Foo Corp',
-  //   acquirerSymbol: 'BAR', acquirerName: 'Bar Inc',
-  //   ratio: 0.5, threshold: 7,
-  //   detailUrl: 'foo-bar.html',
-  // },
 ];
 
 let autoTimer = null;
+let lastComputedList = [];
+
+// ── Aviso sonoro por situación ──
+// Cada fila se "arma" de forma independiente. En cuanto su spread de
+// entrada supera el umbral, el aviso suena EN BUCLE indefinidamente
+// —no se detiene solo aunque la condición deje de cumplirse— hasta
+// que el usuario desactiva esa fila manualmente.
+let soundArmed = {};      // { [situationId]: boolean }
+let alarmInterval = {};   // { [situationId]: intervalId }
+const ALARM_LOOP_MS = 1300;
+let sharedAudioCtx = null;
+
+function getAudioCtx(){
+  if(!sharedAudioCtx){
+    sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if(sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
+  return sharedAudioCtx;
+}
+
+function beep(freq, delay, duration){
+  const ac = getAudioCtx();
+  const start = ac.currentTime + delay;
+  const o = ac.createOscillator();
+  const g = ac.createGain();
+  o.type = 'sine';
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, start);
+  g.gain.exponentialRampToValueAtTime(0.35, start + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  o.connect(g); g.connect(ac.destination);
+  o.start(start);
+  o.stop(start + duration + 0.05);
+}
+
+function playAlertSound(){
+  // Dos tonos ascendentes, igual que la señal de entrada del monitor detallado.
+  beep(740, 0,   0.28);
+  beep(1180, 0.16, 0.32);
+}
+
+function startAlarmLoop(id){
+  if(alarmInterval[id]) return; // ya está sonando
+  playAlertSound();
+  alarmInterval[id] = setInterval(playAlertSound, ALARM_LOOP_MS);
+}
+
+function stopAlarmLoop(id){
+  if(alarmInterval[id]){
+    clearInterval(alarmInterval[id]);
+    alarmInterval[id] = null;
+  }
+}
+
+function toggleSound(id, ev){
+  ev.preventDefault();
+  ev.stopPropagation();
+  soundArmed[id] = !soundArmed[id];
+  if(soundArmed[id]){
+    getAudioCtx(); // desbloquea el audio en el gesto del usuario
+  } else {
+    stopAlarmLoop(id); // desactivación manual: para el bucle si estaba sonando
+  }
+  // Refleja el nuevo estado en el botón sin esperar al próximo refresco de datos
+  const btn = document.getElementById('sound-'+id);
+  if(btn){
+    btn.classList.toggle('active', !!soundArmed[id]);
+    btn.classList.toggle('alerting', !!alarmInterval[id]);
+  }
+}
+
+function triggerSignalSound(id, isHit){
+  if(isHit && soundArmed[id]){
+    startAlarmLoop(id); // arranca el bucle; seguirá hasta apagado manual
+  }
+}
+
+// Cambia el umbral de una situación desde el input de la fila. No
+// vuelve a consultar Supabase: recalcula con los últimos datos ya
+// cargados (lastComputedList) para no perder el foco del input.
+function updateThreshold(id, kind, val){
+  const sit = SITUATIONS.find(s => s.id === id);
+  if(!sit) return;
+  const num = parseFloat(val);
+  if(kind === 'entry') sit.threshold = isNaN(num) ? 0 : num;
+  else sit.thresholdExit = isNaN(num) ? 0 : num;
+  updateRowVisuals(id);
+}
+
+function updateRowVisuals(id){
+  const c = lastComputedList.find(x => x.sit.id === id);
+  if(!c) return;
+  const sit = c.sit;
+
+  const hit = !isNaN(c.inPct) && (c.inPct*100) >= sit.threshold;
+  const exitHit = !isNaN(c.outPct) && (c.outPct*100) <= sit.thresholdExit;
+  const live = !c.fr.stale;
+
+  triggerSignalSound(id+'-entry', hit && live);
+  triggerSignalSound(id+'-exit', exitHit && live);
+
+  const row = document.getElementById('row-'+id);
+  if(row) row.classList.toggle('armed', hit && live);
+
+  const entryBtn = document.getElementById('sound-'+id+'-entry');
+  const exitBtn = document.getElementById('sound-'+id+'-exit');
+  if(entryBtn) entryBtn.classList.toggle('alerting', !!alarmInterval[id+'-entry']);
+  if(exitBtn) exitBtn.classList.toggle('alerting', !!alarmInterval[id+'-exit']);
+}
 
 function cleanQuote(v){
   const n = parseFloat(v);
@@ -231,21 +351,26 @@ async function fetchAllQuotes(symbols){
 }
 
 function renderRow(sit, computed){
-  const { inPct, aExch, tExch, freshest } = computed;
+  const { inPct, outPct, aExch, tExch, fr } = computed;
 
-  const hasSpread = !isNaN(inPct);
-  const spreadClass = !hasSpread ? 'pending' : (inPct >= 0 ? 'up' : 'down');
-  const spreadText = hasSpread ? fmtPct(inPct) : 'sin datos';
+  const hasIn = !isNaN(inPct);
+  const inClass = !hasIn ? 'pending' : (inPct >= 0 ? 'up' : 'down');
+  const inText = hasIn ? fmtPct(inPct) : 'sin datos';
 
-  const fr = tiempoDesde(freshest);
-  const hit = hasSpread && (inPct*100) >= sit.threshold;
+  const hasOut = !isNaN(outPct);
+  const outClass = !hasOut ? 'pending' : (outPct > 0 ? 'down' : 'up');
+  const outText = hasOut ? fmtPct(outPct) : 'sin datos';
 
-  let badgeClass = 'wait', badgeText = 'esperando';
-  if(fr.stale){ badgeClass = 'stale'; badgeText = 'desfasado'; }
-  else if(hit){ badgeClass = 'hit'; badgeText = '✓ señal'; }
+  const hit = hasIn && (inPct*100) >= sit.threshold;
+  const armed = hit && !fr.stale;
+
+  const entryArmedManually = !!soundArmed[sit.id+'-entry'];
+  const entryAlerting = !!alarmInterval[sit.id+'-entry'];
+  const exitArmedManually = !!soundArmed[sit.id+'-exit'];
+  const exitAlerting = !!alarmInterval[sit.id+'-exit'];
 
   return `
-    <a class="situation ${hit && !fr.stale ? 'armed' : ''}" href="${sit.detailUrl}">
+    <a class="situation ${armed ? 'armed' : ''}" href="${sit.detailUrl}" id="row-${sit.id}">
       <div class="s-rank">${computed.rank}</div>
       <div class="s-name">
         <div class="s-pair">${sit.targetName} <span class="arrow">→</span> ${sit.acquirerName}</div>
@@ -255,9 +380,22 @@ function renderRow(sit, computed){
         </div>
         <div class="s-meta">${fr.texto}</div>
       </div>
-      <div class="s-spread ${spreadClass}">${spreadText}</div>
-      <div class="s-threshold">entra en <b>${sit.threshold}%</b></div>
-      <div class="s-status"><span class="s-badge ${badgeClass}">${badgeText}</span></div>
+      <div class="s-spread ${inClass}">${inText}</div>
+      <div class="s-spread ${outClass}">${outText}</div>
+      <div class="s-thresh">
+        <div class="th-row"><span>In</span><input class="th-input" type="number" step="0.1" value="${sit.threshold}"
+          onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','entry',this.value)"></div>
+        <div class="th-row"><span>Out</span><input class="th-input" type="number" step="0.1" value="${sit.thresholdExit}"
+          onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','exit',this.value)"></div>
+      </div>
+      <div class="s-sounds">
+        <button class="sound-btn ${entryArmedManually?'active':''} ${entryAlerting?'alerting':''}" id="sound-${sit.id}-entry"
+          onclick="toggleSound('${sit.id}-entry', event)"
+          title="Avisar con sonido en bucle cuando el spread de entrada supere el umbral (suena hasta que lo desactives)">🔔</button>
+        <button class="sound-btn exit ${exitArmedManually?'active':''} ${exitAlerting?'alerting':''}" id="sound-${sit.id}-exit"
+          onclick="toggleSound('${sit.id}-exit', event)"
+          title="Avisar con sonido en bucle cuando el spread de salida cruce el umbral (suena hasta que lo desactives)">🔔</button>
+      </div>
     </a>
   `;
 }
@@ -274,18 +412,30 @@ async function updateBoard(){
       const t = bySymbol[sit.targetSymbol] || {};
       const a = bySymbol[sit.acquirerSymbol] || {};
       const aBid = cleanQuote(a.bid);
+      const aAsk = cleanQuote(a.ask);
+      const tBid = cleanQuote(t.bid);
       const tAsk = cleanQuote(t.ask);
 
       let inPct = NaN;
       if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0){
         inPct = (sit.ratio*aBid)/tAsk - 1;
       }
+      let outPct = NaN;
+      if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0){
+        outPct = (sit.ratio*aAsk)/tBid - 1;
+      }
 
       const stamps = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at]
         .filter(Boolean).map(x => new Date(x).getTime());
       const freshest = stamps.length ? new Date(Math.max(...stamps)).toISOString() : null;
 
-      return { sit, inPct, aExch: a.primary_exchange, tExch: t.primary_exchange, freshest };
+      const fr = tiempoDesde(freshest);
+      const hit = !isNaN(inPct) && (inPct*100) >= sit.threshold;
+      const exitHit = !isNaN(outPct) && (outPct*100) <= sit.thresholdExit;
+      triggerSignalSound(sit.id+'-entry', hit && !fr.stale);
+      triggerSignalSound(sit.id+'-exit', exitHit && !fr.stale);
+
+      return { sit, inPct, outPct, aExch: a.primary_exchange, tExch: t.primary_exchange, freshest, fr };
     });
 
     // Orden por rentabilidad de entrada, de mayor a menor (las que no
@@ -296,6 +446,8 @@ async function updateBoard(){
       if(isNaN(y.inPct)) return -1;
       return y.inPct - x.inPct;
     });
+
+    lastComputedList = computedList;
 
     body.innerHTML = computedList
       .map((c, i) => renderRow(c.sit, { ...c, rank: String(i+1).padStart(2,'0') }))
