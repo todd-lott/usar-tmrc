@@ -92,7 +92,7 @@
 
   /* ── BLOQUE ENTRADA / SALIDA: spread + umbral + alarma juntos ── */
   .s-side{ display:flex; flex-direction:column; align-items:center; gap:6px; }
-  .side-spread{ font-family:var(--font-mono); font-weight:800; font-size:1.15rem; }
+  .side-spread{ font-family:var(--font-mono); font-weight:800; font-size:1.15rem; padding:1px 6px; }
   .side-spread.up{ color:var(--green); }
   .side-spread.down{ color:var(--red); }
   .side-spread.pending{ color:var(--ink-dim); font-weight:600; font-size:.9rem; }
@@ -139,6 +139,27 @@
     .board-head{ display:none; }
     .situation{ grid-template-columns:1fr 1fr; grid-template-rows:auto auto; row-gap:12px; padding:14px 16px; }
     .s-name{ grid-column:1 / -1; }
+  }
+
+  /* ── RESPLANDOR AL CAMBIAR UN VALOR (estilo broker) ──
+     Las filas se regeneran por completo en cada refresco (innerHTML),
+     así que el "cambio" no se detecta comparando el DOM, sino que se
+     decide de antemano en JS (comparando con el valor anterior) y se
+     inserta ya con la clase puesta: al insertar un nodo nuevo con esta
+     clase, la animación se dispara igualmente desde el principio. */
+  .value-flash{
+    border-radius:4px;
+    animation: valueGlow .9s ease-out;
+  }
+  @keyframes valueGlow{
+    0%{
+      box-shadow:0 0 0 0 var(--glow-color, rgba(255,255,255,.5));
+      background:var(--glow-bg, rgba(255,255,255,.16));
+    }
+    100%{
+      box-shadow:0 0 0 10px rgba(0,0,0,0);
+      background:transparent;
+    }
   }
 </style>
 </head>
@@ -217,6 +238,11 @@ const SITUATIONS = [
 
 let autoTimer = null;
 let lastComputedList = [];
+
+// Último spread (en %, ya multiplicado por 100) mostrado para cada
+// situación, para poder decidir si el nuevo valor sube o baja y así
+// disparar el resplandor con el color correcto en el próximo render.
+let lastShownSpread = {};   // { [situationId]: { in: number, out: number } }
 
 // ── Aviso sonoro por situación ──
 // Cada fila se "arma" de forma independiente. En cuanto su spread de
@@ -372,16 +398,32 @@ async function fetchAllQuotes(symbols){
   return bySymbol;
 }
 
+// Calcula, para un valor nuevo frente al último mostrado, qué clase de
+// resplandor debe llevar el elemento y con qué variables de color, ya
+// listas para insertar directamente en el HTML de la fila.
+function flashAttrs(id, field, newVal){
+  if(isNaN(newVal)) return '';
+  const prevStore = lastShownSpread[id];
+  const prev = prevStore ? prevStore[field] : undefined;
+  if(prev === undefined || isNaN(prev) || newVal === prev) return '';
+  const up = newVal > prev;
+  const color = up ? 'rgba(46,224,163,.65)' : 'rgba(255,84,112,.65)';
+  const bg    = up ? 'rgba(46,224,163,.18)' : 'rgba(255,84,112,.18)';
+  return ` value-flash" style="--glow-color:${color}; --glow-bg:${bg};`;
+}
+
 function renderRow(sit, computed){
   const { inPct, outPct, aExch, tExch, fr } = computed;
 
   const hasIn = !isNaN(inPct);
   const inClass = !hasIn ? 'pending' : (inPct >= 0 ? 'up' : 'down');
   const inText = hasIn ? fmtPct(inPct) : 'sin datos';
+  const inFlash = hasIn ? flashAttrs(sit.id, 'in', inPct) : '';
 
   const hasOut = !isNaN(outPct);
   const outClass = !hasOut ? 'pending' : (outPct > 0 ? 'down' : 'up');
   const outText = hasOut ? fmtPct(outPct) : 'sin datos';
+  const outFlash = hasOut ? flashAttrs(sit.id, 'out', outPct) : '';
 
   const hit = hasIn && (inPct*100) >= sit.threshold;
   const exitHit = hasOut && (outPct*100) <= sit.thresholdExit;
@@ -410,7 +452,7 @@ function renderRow(sit, computed){
       </div>
 
       <div class="s-side">
-        <div class="side-spread ${inClass}">${inText}</div>
+        <div class="side-spread ${inClass}${inFlash}">${inText}</div>
         <div class="side-ctrl">
           <input class="th-input" type="number" step="1" value="${sit.threshold}"
             onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','entry',this.value)">
@@ -421,7 +463,7 @@ function renderRow(sit, computed){
       </div>
 
       <div class="s-side">
-        <div class="side-spread ${outClass}">${outText}</div>
+        <div class="side-spread ${outClass}${outFlash}">${outText}</div>
         <div class="side-ctrl">
           <input class="th-input" type="number" step="1" value="${sit.thresholdExit}"
             onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','exit',this.value)">
@@ -492,6 +534,12 @@ async function updateBoard(){
     body.innerHTML = computedList
       .map((c, i) => renderRow(c.sit, { ...c, rank: String(i+1).padStart(2,'0') }))
       .join('');
+
+    // Guardamos los valores recién mostrados como referencia para
+    // detectar la próxima subida/bajada y disparar el resplandor.
+    computedList.forEach(c => {
+      lastShownSpread[c.sit.id] = { in: c.inPct, out: c.outPct };
+    });
 
     status.innerHTML = `<span class="status-ok">Actualizado</span> · ${new Date().toLocaleTimeString()}`;
   }catch(e){
