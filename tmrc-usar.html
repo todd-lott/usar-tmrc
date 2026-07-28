@@ -243,9 +243,9 @@
       <div class="sub" id="pair-sub">Objetivo / Adquirente</div>
     </div>
     <div class="cfg">
-      <span><label>Umbral entrada</label><input type="number" id="threshold-input" value="9" step="0.1" min="0"></span>
+      <span><label>Umbral entrada</label><input type="number" id="threshold-input" value="9" step="1" min="0"></span>
       <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim); margin-right:6px;">%</span>
-      <span><label>Umbral salida</label><input type="number" id="threshold-exit-input" value="5" step="0.1"></span>
+      <span><label>Umbral salida</label><input type="number" id="threshold-exit-input" value="5" step="1"></span>
       <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim);">%</span>
       <select id="auto-interval">
         <option value="10000" selected>10s</option>
@@ -773,12 +773,12 @@ document.getElementById('invest-slider').addEventListener('input', onInvestSlide
 document.getElementById('invest-input').addEventListener('input', onInvestInput);
 
 document.getElementById('threshold-input').addEventListener('input', (e)=>{
-  threshold = parseFloat(e.target.value) || 0;
+  threshold = Math.round(parseFloat(e.target.value)) || 0;
   recalc();
   drawChart();
 });
 document.getElementById('threshold-exit-input').addEventListener('input', (e)=>{
-  thresholdExit = parseFloat(e.target.value) || 0;
+  thresholdExit = Math.round(parseFloat(e.target.value)) || 0;
   recalc();
   drawChart();
 });
