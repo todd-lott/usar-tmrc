@@ -867,6 +867,11 @@ async function loadHistoricalSpread(days = chartDays){
     const rowAsk = cleanQuote(row.ask);
     const ts = row.ib_timestamp || row.inserted_at;
 
+    // Fila totalmente inválida (bid y ask ambos -1): no aporta ningún
+    // dato nuevo, así que la obviamos por completo en vez de repetir
+    // el último punto conocido en este instante.
+    if(isNaN(rowBid) && isNaN(rowAsk)) continue;
+
     if(row.symbol === SYMBOL_TARGET){
       if(!isNaN(rowBid)){ last.tBid = rowBid; lastTs.tBid = ts; }
       if(!isNaN(rowAsk)){ last.tAsk = rowAsk; lastTs.tAsk = ts; }
