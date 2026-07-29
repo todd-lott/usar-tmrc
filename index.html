@@ -234,6 +234,19 @@ const SITUATIONS = [
     thresholdExit: 2,    // % — umbral de salida de esta situación
     detailUrl: 'gbcs.html',
   },
+  {
+    id: 'nee-d',
+    type: 'ratio_cash',       // canje de acciones + cash sweetener fijo por acción
+    targetSymbol: 'D',
+    targetName: 'Dominion Energy',
+    acquirerSymbol: 'NEE',
+    acquirerName: 'NextEra Energy',
+    ratio: 0.8138,
+    cashPerShare: 0.42,  // $360M / ~853-865M acciones de D en circulación (aprox., confirmar en el S-4)
+    threshold: 4,        // % — umbral de entrada de esta situación
+    thresholdExit: 1,    // % — umbral de salida de esta situación
+    detailUrl: 'nee-d.html',
+  },
 ];
 
 let autoTimer = null;
@@ -495,8 +508,20 @@ async function updateBoard(){
         if(!isNaN(ask) && ask>0) inPct = sit.offerPrice/ask - 1;
         if(!isNaN(bid) && bid>0) outPct = sit.offerPrice/bid - 1;
         freshestStamps = [t.ib_timestamp || t.inserted_at];
+      } else if(sit.type === 'ratio_cash'){
+        // Canje de acciones + cash fijo por acción:
+        // spread = (ratio*precio_adquirente + cashPerShare) / precio_objetivo - 1
+        const a = bySymbol[sit.acquirerSymbol] || {};
+        const aBid = cleanQuote(a.bid);
+        const aAsk = cleanQuote(a.ask);
+        const tBid = cleanQuote(t.bid);
+        const tAsk = cleanQuote(t.ask);
+        if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0) inPct = (sit.ratio*aBid + sit.cashPerShare)/tAsk - 1;
+        if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0) outPct = (sit.ratio*aAsk + sit.cashPerShare)/tBid - 1;
+        aExch = a.primary_exchange;
+        freshestStamps = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at];
       } else {
-        // Canje de acciones: spread = ratio * precio del adquirente / precio del objetivo - 1
+        // Canje de acciones puro: spread = ratio * precio del adquirente / precio del objetivo - 1
         const a = bySymbol[sit.acquirerSymbol] || {};
         const aBid = cleanQuote(a.bid);
         const aAsk = cleanQuote(a.ask);
