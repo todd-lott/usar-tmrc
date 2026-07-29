@@ -398,7 +398,8 @@
       <div class="trow"><span class="l">Last</span><span class="v" id="A-last">–</span></div>
       <div class="trow"><span class="l">Bid</span><span class="v" id="A-bid">–</span></div>
       <div class="trow"><span class="l">Ask</span><span class="v" id="A-ask">–</span></div>
-      <div class="trow"><span class="l">Vol.</span><span class="v" id="A-vol">–</span></div>
+      <div class="trow"><span class="l">Bid size</span><span class="v" id="A-bidsize">–</span></div>
+      <div class="trow"><span class="l">Ask size</span><span class="v" id="A-asksize">–</span></div>
       <div class="tfresh" id="A-fresh">sin datos</div>
     </div>
     <div class="tcard" id="card-B">
@@ -406,7 +407,8 @@
       <div class="trow"><span class="l">Last</span><span class="v" id="B-last">–</span></div>
       <div class="trow"><span class="l">Bid</span><span class="v" id="B-bid">–</span></div>
       <div class="trow"><span class="l">Ask</span><span class="v" id="B-ask">–</span></div>
-      <div class="trow"><span class="l">Vol.</span><span class="v" id="B-vol">–</span></div>
+      <div class="trow"><span class="l">Bid size</span><span class="v" id="B-bidsize">–</span></div>
+      <div class="trow"><span class="l">Ask size</span><span class="v" id="B-asksize">–</span></div>
       <div class="tfresh" id="B-fresh">sin datos</div>
     </div>
   </div>
@@ -587,12 +589,13 @@ function investToSlider(v){
   return Math.round(s);
 }
 
-// Guarda, por símbolo, el último bid/ask/last VÁLIDOS vistos (ignorando -1)
-// junto con la marca de tiempo de cada uno, para poder mostrar "el último
-// valor válido" en vez de N/A cuando llega un tick sin dato.
+// Guarda, por símbolo, el último bid/ask/last/bidSize/askSize VÁLIDOS
+// vistos (ignorando -1) junto con la marca de tiempo de cada uno, para
+// poder mostrar "el último valor válido" en vez de N/A cuando llega un
+// tick sin dato.
 let lastValid = {
-  [SYMBOL_TARGET]:   { bid:NaN, ask:NaN, last:NaN, vol:NaN, bidTs:null, askTs:null, lastTs:null, volTs:null },
-  [SYMBOL_ACQUIRER]: { bid:NaN, ask:NaN, last:NaN, vol:NaN, bidTs:null, askTs:null, lastTs:null, volTs:null },
+  [SYMBOL_TARGET]:   { bid:NaN, ask:NaN, last:NaN, bidSize:NaN, askSize:NaN, bidTs:null, askTs:null, lastTs:null, bidSizeTs:null, askSizeTs:null },
+  [SYMBOL_ACQUIRER]: { bid:NaN, ask:NaN, last:NaN, bidSize:NaN, askSize:NaN, bidTs:null, askTs:null, lastTs:null, bidSizeTs:null, askSizeTs:null },
 };
 
 const cvs = document.getElementById('chart');
@@ -703,20 +706,23 @@ function cleanQuote(v){
 }
 
 // Actualiza el store de "último valor válido" de un símbolo con un tick
-// crudo. Cada campo (bid/ask/last) se actualiza de forma independiente:
-// si un campo viene con -1, simplemente se conserva el valor anterior.
+// crudo. Cada campo (bid/ask/last/bidSize/askSize) se actualiza de forma
+// independiente: si un campo viene con -1 o vacío, simplemente se
+// conserva el valor anterior.
 function ingestQuote(symbol, q){
   const store = lastValid[symbol];
   if(!store || !q) return;
   const ts = q.ib_timestamp || q.inserted_at || null;
-  const bid  = cleanQuote(q.bid);
-  const ask  = cleanQuote(q.ask);
-  const last = cleanQuote(q.last);
-  const vol  = cleanQuote(q.volume);
-  if(!isNaN(bid)){  store.bid  = bid;  store.bidTs  = ts; }
-  if(!isNaN(ask)){  store.ask  = ask;  store.askTs  = ts; }
-  if(!isNaN(last)){ store.last = last; store.lastTs = ts; }
-  if(!isNaN(vol)){  store.vol  = vol;  store.volTs  = ts; }
+  const bid     = cleanQuote(q.bid);
+  const ask     = cleanQuote(q.ask);
+  const last    = cleanQuote(q.last);
+  const bidSize = cleanQuote(q.bid_size);
+  const askSize = cleanQuote(q.ask_size);
+  if(!isNaN(bid)){     store.bid     = bid;     store.bidTs     = ts; }
+  if(!isNaN(ask)){     store.ask     = ask;     store.askTs     = ts; }
+  if(!isNaN(last)){    store.last    = last;    store.lastTs    = ts; }
+  if(!isNaN(bidSize)){ store.bidSize = bidSize; store.bidSizeTs = ts; }
+  if(!isNaN(askSize)){ store.askSize = askSize; store.askSizeTs = ts; }
 }
 
 // ── Resplandor ("flash") en los valores al cambiar, estilo broker ──
@@ -1265,12 +1271,13 @@ async function updateData(){
       setNumericText(pfx+'-last', store.last, 4);
       setNumericText(pfx+'-bid',  store.bid,  4);
       setNumericText(pfx+'-ask',  store.ask,  4);
-      setNumericText(pfx+'-vol',  store.vol,  0, v => v.toLocaleString('en-US'));
+      setNumericText(pfx+'-bidsize', store.bidSize, 0, v => v.toLocaleString('en-US'));
+      setNumericText(pfx+'-asksize', store.askSize, 0, v => v.toLocaleString('en-US'));
       if(q.primary_exchange) document.getElementById(pfx+'-exch').innerText = q.primary_exchange;
 
       // Frescura: tomamos la marca de tiempo más reciente entre los
       // campos que sí tienen un valor válido guardado.
-      const stamps = [store.bidTs, store.askTs, store.lastTs, store.volTs].filter(Boolean).map(t => new Date(t).getTime());
+      const stamps = [store.bidTs, store.askTs, store.lastTs, store.bidSizeTs, store.askSizeTs].filter(Boolean).map(t => new Date(t).getTime());
       const mostRecent = stamps.length ? new Date(Math.max(...stamps)).toISOString() : null;
       const fr = tiempoDesde(mostRecent);
       const frEl = document.getElementById(pfx+'-fresh');
