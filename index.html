@@ -247,6 +247,17 @@ const SITUATIONS = [
     thresholdExit: 1,    // % — umbral de salida de esta situación
     detailUrl: 'nee-d.html',
   },
+  {
+    id: 'smwn',
+    type: 'fixed',             // OPA en efectivo: un solo símbolo + precio de oferta fijo (IBIS, EUR)
+    targetSymbol: 'SMWN',
+    targetName: 'SMWN (IBIS, EUR)',
+    acquirerName: 'Oferta en efectivo (€4.60)',
+    offerPrice: 4.60,    // € por acción, oferta sobre la mesa
+    threshold: 4.55,     // % — equivale aprox. a un ask de €4.40 (umbral de entrada solicitado)
+    thresholdExit: 1.5,  // % — umbral de salida orientativo (no hay lógica de salida específica pedida)
+    detailUrl: 'smwn.html',
+  },
 ];
 
 let autoTimer = null;
