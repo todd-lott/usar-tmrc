@@ -246,6 +246,67 @@
       background:transparent;
     }
   }
+
+  /* ── BOTÓN FLOTANTE + MODAL (posición simulada) ─── */
+  .pos-fab{
+    position:fixed; right:20px; bottom:20px; z-index:900;
+    background:var(--accent); color:#08130f; border:none; font-weight:700; font-size:.85rem;
+    padding:12px 18px; border-radius:30px; cursor:pointer; letter-spacing:.01em;
+    box-shadow:0 8px 24px -6px rgba(46,224,163,.5), 0 0 0 1px rgba(46,224,163,.25);
+    display:flex; align-items:center; gap:8px;
+  }
+  .pos-fab:hover{ opacity:.92; }
+
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(6,8,13,.72);
+    backdrop-filter:blur(2px); z-index:1000; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-overlay.active{ display:flex; }
+  .modal-box{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    max-width:440px; width:100%; max-height:88vh; overflow-y:auto; padding:24px 22px;
+    position:relative; box-shadow:0 24px 60px -20px rgba(0,0,0,.6);
+    animation:modalPop .16s ease-out;
+  }
+  @keyframes modalPop{
+    from{ opacity:0; transform:translateY(8px) scale(.98); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+  .modal-close{
+    position:absolute; top:14px; right:14px; width:28px; height:28px; border-radius:8px;
+    border:1px solid var(--line); background:#0c0f16; color:var(--ink-dim); font-size:.95rem;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;
+  }
+  .modal-close:hover{ color:var(--ink); border-color:var(--ink-dim); }
+
+  .position-card{ display:flex; flex-direction:column; gap:14px; padding-right:6px; }
+  .position-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
+  .position-sub{ font-size:.76rem; color:var(--ink-dim); margin-top:-8px; line-height:1.4; }
+
+  .pos-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
+  .pos-leg-head{ display:flex; justify-content:space-between; align-items:center; }
+  .pos-leg-name{ font-size:.78rem; font-weight:700; }
+  .pos-leg-name.long{ color:var(--green); }
+  .pos-leg-name.short{ color:var(--red); }
+  .pos-field{ display:flex; flex-direction:column; gap:3px; }
+  .pos-field label{ font-size:.66rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
+  .pos-field-row{ display:flex; gap:6px; align-items:center; }
+  .pos-field-row input{
+    flex:1; font-family:var(--font-mono); font-size:.85rem; color:var(--ink);
+    background:#0b0e14; border:1px solid var(--line); border-radius:6px; padding:6px 8px; outline:none; width:100%;
+  }
+  .pos-field-row input:focus{ border-color:var(--accent); }
+  .pos-mini-btn{
+    flex:0 0 auto; font-family:var(--font-mono); font-size:.64rem; font-weight:600; color:var(--ink-dim);
+    background:#171c27; border:1px solid var(--line); border-radius:6px; padding:6px 7px; cursor:pointer; white-space:nowrap;
+  }
+  .pos-mini-btn:hover{ color:var(--accent); border-color:var(--accent); }
+
+  .pos-results{ display:flex; flex-direction:column; gap:8px; padding-top:8px; border-top:1px solid var(--line); }
+  .pos-result-row{ display:flex; justify-content:space-between; align-items:baseline; font-size:.8rem; color:var(--ink-dim); gap:10px; }
+  .pos-result-row b{ font-family:var(--font-mono); color:var(--ink); font-size:.92rem; text-align:right; }
+  .pos-result-row.pos-pnl-row b{ font-size:1.15rem; }
+  .pos-be-note{ font-size:.68rem; color:var(--ink-dim); line-height:1.4; }
 </style>
 </head>
 <body>
@@ -401,6 +462,74 @@
 
   <div id="status">Iniciando…</div>
   <div id="footer-credit">Monitor de arbitraje de situaciones especiales por Todd Lott y Phyera</div>
+</div>
+
+<button class="pos-fab" id="pos-fab" onclick="openPositionModal()">📊 Simular posición</button>
+
+<div class="modal-overlay" id="pos-modal-overlay" onclick="closePositionModalOnOverlay(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closePositionModal()" aria-label="Cerrar">✕</button>
+    <div class="position-card">
+    <div class="position-title">Posición simulada</div>
+    <div class="position-sub">Introduce lo que has comprado/vendido y a qué precio piensas cerrar. Los botones rellenan con el bid/ask actual.</div>
+
+    <div class="pos-leg">
+      <div class="pos-leg-head"><span class="pos-leg-name long">Largo TMRC</span></div>
+      <div class="pos-field">
+        <label>Acciones compradas</label>
+        <div class="pos-field-row"><input type="number" id="pos-t-qty" placeholder="0" min="0" step="1"></div>
+      </div>
+      <div class="pos-field">
+        <label>Precio de compra (entrada)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-t-entry" placeholder="0.0000" min="0" step="0.0001">
+          <button class="pos-mini-btn" onclick="fillPosPrice('pos-t-entry','tAsk')" title="Usar el ask actual">ask act.</button>
+        </div>
+      </div>
+      <div class="pos-field">
+        <label>Precio objetivo de venta (cierre)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-t-exit" placeholder="0.0000" min="0" step="0.0001">
+          <button class="pos-mini-btn" onclick="fillPosPrice('pos-t-exit','tBid')" title="Usar el bid actual">bid act.</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pos-leg">
+      <div class="pos-leg-head"><span class="pos-leg-name short">Corto USAR</span></div>
+      <div class="pos-field">
+        <label>Acciones vendidas en corto</label>
+        <div class="pos-field-row"><input type="number" id="pos-a-qty" placeholder="0" min="0" step="1"></div>
+      </div>
+      <div class="pos-field">
+        <label>Precio de venta corto (entrada)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-a-entry" placeholder="0.0000" min="0" step="0.0001">
+          <button class="pos-mini-btn" onclick="fillPosPrice('pos-a-entry','aBid')" title="Usar el bid actual">bid act.</button>
+        </div>
+      </div>
+      <div class="pos-field">
+        <label>Precio objetivo de recompra (cierre)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-a-exit" placeholder="0.0000" min="0" step="0.0001">
+          <button class="pos-mini-btn" onclick="fillPosPrice('pos-a-exit','aAsk')" title="Usar el ask actual">ask act.</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pos-results">
+      <div class="pos-result-row"><span>Capital empleado</span><b id="pos-capital">–</b></div>
+      <div class="pos-result-row pos-pnl-row"><span>Beneficio total al cierre</span><b id="pos-pnl">–</b></div>
+      <div class="pos-result-row"><span>Spread de entrada (tu posición)</span><b id="pos-spread-entry">–</b></div>
+      <div class="pos-result-row"><span>Spread de salida (objetivo)</span><b id="pos-spread-exit">–</b></div>
+      <div class="pos-result-row"><span>Cobertura vs. ratio oficial</span><b id="pos-hedge-ratio">–</b></div>
+      <div class="pos-be-note" id="pos-hedge-note"></div>
+      <div class="pos-result-row"><span>Breakeven venta TMRC ($)</span><b id="pos-be-t">–</b></div>
+      <div class="pos-result-row"><span>Breakeven recompra USAR ($)</span><b id="pos-be-a">–</b></div>
+      <div class="pos-be-note">Si estás cubierto al ratio oficial y mantienes hasta el cierre de la fusión (o el precio de TMRC no se mueve), tu breakeven es simplemente tu spread de entrada: entra y sal al mismo spread y el resultado neto es ≈0. Los precios de breakeven de abajo son la versión más general — sirven también para una salida anticipada en mercado, aunque tu cobertura no sea exacta.</div>
+    </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -823,6 +952,139 @@ function updateOrderTicket(){
   if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
   displayedValues['ord-profit'] = netProfit;
 }
+
+// ── MODAL: simulador de posición ──
+function openPositionModal(){
+  document.getElementById('pos-modal-overlay').classList.add('active');
+}
+function closePositionModal(){
+  document.getElementById('pos-modal-overlay').classList.remove('active');
+}
+function closePositionModalOnOverlay(e){
+  if(e.target.id === 'pos-modal-overlay') closePositionModal();
+}
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape') closePositionModal();
+});
+
+// ── SIMULADOR DE POSICIÓN ABIERTA (tarjeta lateral) ──
+// El usuario introduce lo que ha comprado/vendido y a qué precio piensa
+// cerrar cada pata. Con eso calculamos: capital empleado, beneficio total
+// (en $ y %), y el "breakeven" de cada pata — el precio al que esa pata,
+// manteniendo fijo el precio objetivo de la otra, deja el beneficio neto
+// exactamente en cero.
+function posNum(id){
+  const v = parseFloat(document.getElementById(id).value);
+  return isNaN(v) ? 0 : v;
+}
+
+function fillPosPrice(id, key){
+  const v = priceCache ? priceCache[key] : undefined;
+  if(v===undefined || v===null || isNaN(v)) return;
+  document.getElementById(id).value = v.toFixed(4);
+  updatePositionCard();
+}
+
+function updatePositionCard(){
+  const qtyT   = posNum('pos-t-qty');
+  const entryT = posNum('pos-t-entry');
+  const exitT  = posNum('pos-t-exit');
+  const qtyA   = posNum('pos-a-qty');
+  const entryA = posNum('pos-a-entry');
+  const exitA  = posNum('pos-a-exit');
+
+  const capitalEl = document.getElementById('pos-capital');
+  const pnlEl = document.getElementById('pos-pnl');
+  const beTEl = document.getElementById('pos-be-t');
+  const beAEl = document.getElementById('pos-be-a');
+  const spreadEntryEl = document.getElementById('pos-spread-entry');
+  const spreadExitEl = document.getElementById('pos-spread-exit');
+  const hedgeEl = document.getElementById('pos-hedge-ratio');
+  const hedgeNoteEl = document.getElementById('pos-hedge-note');
+
+  const hasPosition = qtyT>0 && entryT>0 && qtyA>0 && entryA>0;
+  if(!hasPosition){
+    capitalEl.innerText = '–';
+    pnlEl.innerText = '–'; pnlEl.style.color = '';
+    beTEl.innerText = '–';
+    beAEl.innerText = '–';
+    spreadEntryEl.innerText = '–';
+    spreadExitEl.innerText = '–';
+    hedgeEl.innerText = '–'; hedgeEl.style.color = '';
+    hedgeNoteEl.innerText = '';
+    return;
+  }
+
+  // Capital empleado: coste de la pata larga + valor nominal de la pata
+  // corta (aproximación habitual para dimensionar la operación conjunta).
+  const capital = qtyT*entryT + qtyA*entryA;
+
+  // Beneficio total al cerrar ambas patas a los precios objetivo:
+  //  - Largo TMRC: (precio de venta − precio de compra) × acciones
+  //  - Corto USAR: (precio de venta corto − precio de recompra) × acciones
+  const pnl = qtyT*(exitT - entryT) + qtyA*(entryA - exitA);
+  const pnlPct = capital>0 ? (pnl/capital)*100 : NaN;
+
+  setNumericText('pos-capital', capital, 2, fmt);
+
+  const prevPnl = displayedValues['pos-pnl'];
+  pnlEl.innerText = fmt(pnl) + (isNaN(pnlPct) ? '' : ` (${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%)`);
+  pnlEl.style.color = pnl>=0 ? 'var(--green)' : 'var(--red)';
+  if(prevPnl !== undefined && pnl !== prevPnl) flashValue(pnlEl, pnl>prevPnl?'up':'down');
+  displayedValues['pos-pnl'] = pnl;
+
+  // Spread de entrada de TU posición, con el mismo criterio que la tarjeta
+  // "spread de entrada" de arriba pero usando tus propios precios de
+  // entrada. Si estás cubierto al ratio oficial y mantienes la posición
+  // hasta el cierre de la fusión (o TMRC no se mueve), este número ES tu
+  // breakeven: entrar y salir al mismo spread deja el resultado en ≈0.
+  if(entryT>0){
+    const spreadEntry = (RATIO*entryA)/entryT - 1;
+    setNumericText('pos-spread-entry', spreadEntry, 3, fmtPct);
+  } else {
+    spreadEntryEl.innerText = '–';
+  }
+  if(exitT>0){
+    const spreadExit = (RATIO*exitA)/exitT - 1;
+    setNumericText('pos-spread-exit', spreadExit, 3, fmtPct);
+  } else {
+    spreadExitEl.innerText = '–';
+  }
+
+  // Cobertura: ¿tu ratio de acciones (USAR vendidas / TMRC compradas)
+  // coincide con el ratio oficial de canje? Si no, el atajo de arriba
+  // (breakeven = spread de entrada) deja de ser exacto.
+  const effRatio = qtyA/qtyT;
+  const hedgePct = (effRatio/RATIO)*100;
+  hedgeEl.innerText = hedgePct.toFixed(1)+'%';
+  const wellHedged = Math.abs(hedgePct-100) < 2;
+  hedgeEl.style.color = wellHedged ? 'var(--green)' : 'var(--amber)';
+  hedgeNoteEl.innerText = wellHedged
+    ? 'Tu ratio de acciones coincide con el oficial: el atajo "breakeven = spread de entrada" aplica bien.'
+    : 'Tu ratio de acciones se desvía del oficial, así que ese atajo es solo aproximado; usa los precios de breakeven de abajo para más precisión.';
+
+  // Breakeven de la pata TMRC: a qué precio de venta, manteniendo fijo
+  // el precio objetivo de recompra de USAR, el beneficio total es 0.
+  if(qtyT>0){
+    const beT = entryT + (qtyA/qtyT)*(exitA - entryA);
+    setNumericText('pos-be-t', beT, 4, v => '$'+v.toFixed(4));
+  } else {
+    beTEl.innerText = '–';
+  }
+
+  // Breakeven de la pata USAR: a qué precio de recompra, manteniendo fijo
+  // el precio objetivo de venta de TMRC, el beneficio total es 0.
+  if(qtyA>0){
+    const beA = entryA - (qtyT/qtyA)*(exitT - entryT);
+    setNumericText('pos-be-a', beA, 4, v => '$'+v.toFixed(4));
+  } else {
+    beAEl.innerText = '–';
+  }
+}
+
+['pos-t-qty','pos-t-entry','pos-t-exit','pos-a-qty','pos-a-entry','pos-a-exit'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', updatePositionCard);
+});
 
 // ── Handlers del control de capital simulado ──
 function onInvestSlider(){
