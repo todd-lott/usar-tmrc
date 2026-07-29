@@ -339,12 +339,12 @@
     <span class="invest-label">Capital simulado</span>
     <div class="invest-slider-wrap">
       <span>$100</span>
-      <input type="range" id="invest-slider" min="0" max="1000" step="1" value="608">
+      <input type="range" id="invest-slider" min="0" max="1000" step="1" value="492">
       <span>$100k</span>
     </div>
     <div class="invest-input-wrap">
       <span>$</span>
-      <input type="number" id="invest-input" value="1000" step="100" min="0">
+      <input type="number" id="invest-input" value="3000" step="100" min="0">
     </div>
   </div>
 
@@ -374,7 +374,7 @@
     <div class="spread-card" id="entry-card">
       <div class="card-top">
         <div class="tag">Spread de entrada</div>
-        <button class="sound-btn" id="entry-sound-btn" onclick="toggleSound('entry')" title="Avisar con sonido en bucle cuando se cumpla la señal de entrada (suena hasta que lo desactives)">🔔</button>
+        <button class="sound-btn" id="entry-sound-btn" onclick="toggleSound('entry')" title="Avisar con sonido en bucle mientras se cumpla la señal de entrada (se detiene solo si deja de cumplirse, pero queda armado)">🔔</button>
       </div>
       <div class="big" id="in-pct">–</div>
       <div class="usd" id="in-usd">–</div>
@@ -383,7 +383,7 @@
     <div class="spread-card" id="exit-card">
       <div class="card-top">
         <div class="tag">Spread de salida</div>
-        <button class="sound-btn" id="exit-sound-btn" onclick="toggleSound('exit')" title="Avisar con sonido en bucle cuando se cumpla la señal de salida (suena hasta que lo desactives)">🔔</button>
+        <button class="sound-btn" id="exit-sound-btn" onclick="toggleSound('exit')" title="Avisar con sonido en bucle mientras se cumpla la señal de salida (se detiene solo si deja de cumplirse, pero queda armado)">🔔</button>
       </div>
       <div class="big" id="out-pct">–</div>
       <div class="usd" id="out-usd">–</div>
@@ -471,18 +471,18 @@
     <button class="modal-close" onclick="closePositionModal()" aria-label="Cerrar">✕</button>
     <div class="position-card">
     <div class="position-title">Posición simulada</div>
-    <div class="position-sub">Introduce lo que has comprado/vendido y a qué precio piensas cerrar. Los botones rellenan con el bid/ask actual.</div>
+    <div class="position-sub">Introduce lo que has comprado/vendido y a qué precio piensas cerrar. Los botones rellenan con el bid/ask actual. <br>Prellenado con tu posición: 4.122 TMRC @ 0,5699 + 3.000 TMRC @ 0,54 (promedio 0,5573) y 308 USAR en corto @ 13,885.</div>
 
     <div class="pos-leg">
       <div class="pos-leg-head"><span class="pos-leg-name long">Largo TMRC</span></div>
       <div class="pos-field">
         <label>Acciones compradas</label>
-        <div class="pos-field-row"><input type="number" id="pos-t-qty" placeholder="0" min="0" step="1"></div>
+        <div class="pos-field-row"><input type="number" id="pos-t-qty" placeholder="0" min="0" step="1" value="7122"></div>
       </div>
       <div class="pos-field">
         <label>Precio de compra (entrada)</label>
         <div class="pos-field-row">
-          <input type="number" id="pos-t-entry" placeholder="0.0000" min="0" step="0.0001">
+          <input type="number" id="pos-t-entry" placeholder="0.0000" min="0" step="0.0001" value="0.5573">
           <button class="pos-mini-btn" onclick="fillPosPrice('pos-t-entry','tAsk')" title="Usar el ask actual">ask act.</button>
         </div>
       </div>
@@ -499,12 +499,12 @@
       <div class="pos-leg-head"><span class="pos-leg-name short">Corto USAR</span></div>
       <div class="pos-field">
         <label>Acciones vendidas en corto</label>
-        <div class="pos-field-row"><input type="number" id="pos-a-qty" placeholder="0" min="0" step="1"></div>
+        <div class="pos-field-row"><input type="number" id="pos-a-qty" placeholder="0" min="0" step="1" value="308"></div>
       </div>
       <div class="pos-field">
         <label>Precio de venta corto (entrada)</label>
         <div class="pos-field-row">
-          <input type="number" id="pos-a-entry" placeholder="0.0000" min="0" step="0.0001">
+          <input type="number" id="pos-a-entry" placeholder="0.0000" min="0" step="0.0001" value="13.885">
           <button class="pos-mini-btn" onclick="fillPosPrice('pos-a-entry','aBid')" title="Usar el bid actual">bid act.</button>
         </div>
       </div>
@@ -560,7 +560,7 @@ document.getElementById('A-name').innerText = NAME_TARGET;
 document.getElementById('B-name').innerText = NAME_ACQUIRER;
 
 // ════════════════════════════════════════════════════════════════
-let INVEST = 1000;
+let INVEST = 3000;
 let threshold = 9;
 let thresholdExit = 5;
 let priceCache = {};
@@ -754,10 +754,11 @@ function setNumericText(id, newVal, decimals=4, formatter=null){
 }
 
 // ── Aviso sonoro por señal (entrada/salida) ──
-// El botón se "arma" manualmente. En cuanto se cumple la condición, el
-// aviso suena EN BUCLE indefinidamente — no se detiene solo aunque la
-// condición deje de cumplirse — hasta que el usuario pulsa el botón
-// para desactivarlo manualmente.
+// El botón se "arma" manualmente. Mientras esté armado, el aviso suena
+// EN BUCLE cada vez que la condición se cumple, y se detiene solo en
+// cuanto deja de cumplirse — pero el botón sigue armado, así que volverá
+// a sonar automáticamente si la condición se vuelve a cumplir. Solo se
+// desarma pulsando el botón de nuevo.
 let soundArmed = { entry:false, exit:false };
 let alarmInterval = { entry:null, exit:null };
 const ALARM_LOOP_MS = 1300;
@@ -810,6 +811,7 @@ function stopAlarmLoop(kind){
     clearInterval(alarmInterval[kind]);
     alarmInterval[kind] = null;
   }
+  updateSoundButtons();
 }
 
 function toggleSound(which){
@@ -832,8 +834,11 @@ function updateSoundButtons(){
 }
 
 function triggerSignalSound(which, isHit){
-  if(isHit && soundArmed[which]){
-    startAlarmLoop(which); // arranca el bucle; seguirá hasta apagado manual
+  if(!soundArmed[which]) return;
+  if(isHit){
+    startAlarmLoop(which); // arranca el bucle mientras se cumpla la condición
+  } else {
+    stopAlarmLoop(which); // deja de sonar en cuanto deja de cumplirse, pero sigue armado
   }
 }
 
@@ -1307,6 +1312,7 @@ window.onload = async () => {
   // Sincroniza slider y campo numérico con el valor inicial de INVEST
   document.getElementById('invest-input').value = INVEST;
   document.getElementById('invest-slider').value = investToSlider(INVEST);
+  updatePositionCard();
   await loadHistoricalSpread(chartDays);
   drawChart();
   await updateData();
