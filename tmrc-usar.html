@@ -365,7 +365,8 @@
     </div>
     <div class="order-foot">
       <span>Capital realmente usado: <b id="ord-capital">–</b></span>
-      <span>Beneficio neto teórico: <b id="ord-profit">–</b></span>
+      <span>Comisiones estimadas (apertura): <b id="ord-commission">–</b></span>
+      <span>Beneficio neto teórico (tras comisiones): <b id="ord-profit">–</b></span>
     </div>
   </div>
 
@@ -378,6 +379,7 @@
       </div>
       <div class="big" id="in-pct">–</div>
       <div class="usd" id="in-usd">–</div>
+      <div class="note" id="in-usd-net">–</div>
       <div class="last-ref"><span>Ref. last</span><b id="in-last">–</b></div>
     </div>
     <div class="spread-card" id="exit-card">
@@ -387,6 +389,7 @@
       </div>
       <div class="big" id="out-pct">–</div>
       <div class="usd" id="out-usd">–</div>
+      <div class="note" id="out-usd-net">–</div>
       <div class="last-ref"><span>Ref. last</span><b id="out-last">–</b></div>
     </div>
   </div>
@@ -521,14 +524,16 @@
 
     <div class="pos-results">
       <div class="pos-result-row"><span>Capital empleado</span><b id="pos-capital">–</b></div>
-      <div class="pos-result-row pos-pnl-row"><span>Beneficio total al cierre</span><b id="pos-pnl">–</b></div>
+      <div class="pos-result-row"><span>Comisiones estimadas (4 patas)</span><b id="pos-commissions">–</b></div>
+      <div class="pos-result-row"><span>Beneficio bruto (sin comisiones)</span><b id="pos-pnl-gross">–</b></div>
+      <div class="pos-result-row pos-pnl-row"><span>Beneficio neto de comisiones</span><b id="pos-pnl">–</b></div>
       <div class="pos-result-row"><span>Spread de entrada (tu posición)</span><b id="pos-spread-entry">–</b></div>
       <div class="pos-result-row"><span>Spread de salida (objetivo)</span><b id="pos-spread-exit">–</b></div>
       <div class="pos-result-row"><span>Cobertura vs. ratio oficial</span><b id="pos-hedge-ratio">–</b></div>
       <div class="pos-be-note" id="pos-hedge-note"></div>
       <div class="pos-result-row"><span>Breakeven venta TMRC ($)</span><b id="pos-be-t">–</b></div>
       <div class="pos-result-row"><span>Breakeven recompra USAR ($)</span><b id="pos-be-a">–</b></div>
-      <div class="pos-be-note">Si estás cubierto al ratio oficial y mantienes hasta el cierre de la fusión (o el precio de TMRC no se mueve), tu breakeven es simplemente tu spread de entrada: entra y sal al mismo spread y el resultado neto es ≈0. Los precios de breakeven de abajo son la versión más general — sirven también para una salida anticipada en mercado, aunque tu cobertura no sea exacta.</div>
+      <div class="pos-be-note">Los precios de breakeven de abajo ya incluyen el impacto estimado de las comisiones de las 4 patas (apertura y cierre de ambas posiciones), así que necesitas un pelín más de spread del que marca el spread de entrada "a pelo" para cubrir gastos. Si estás cubierto al ratio oficial y mantienes hasta el cierre de la fusión, tu breakeven neto de comisiones es aproximadamente tu spread de entrada menos el coste de comisiones dividido entre tu capital.</div>
     </div>
     </div>
   </div>
@@ -550,6 +555,15 @@ const NAME_TARGET     = 'Texas Mineral (TMRC)';
 const NAME_ACQUIRER   = 'USA Rare Earth (USAR)';
 
 const RATIO = 3823328 / 88339693;
+
+// ── Comisiones de Interactive Brokers (plan "Tiered", tramo ≤300.000
+// acciones/mes) ──
+// USD 0.0035 por acción, mínimo USD 0.35 por orden, máximo 1% del valor
+// de la operación. Se usa para estimar el impacto de comisiones en el
+// spread, en la orden y en el simulador de posición.
+const COMMISSION_RATE_PER_SHARE = 0.0035;
+const COMMISSION_MIN_PER_ORDER = 0.35;
+const COMMISSION_MAX_PCT_OF_TRADE = 0.01;
 
 const STALE_MS = 60000;
 
@@ -695,6 +709,18 @@ function tiempoDesde(iso){
   if(ms<1000) return {texto:'justo ahora', stale};
   if(ms<60000) return {texto:`hace ${Math.round(ms/1000)}s`, stale};
   return {texto:`hace ${Math.round(ms/60000)} min`, stale};
+}
+
+// Comisión estimada de IBKR (plan Tiered) para una orden de `qty`
+// acciones a precio `price`: USD 0.0035/acción, con mínimo de USD 0.35
+// y máximo del 1% del valor de la operación. Devuelve 0 si qty o price
+// no son válidos (orden vacía o precio desconocido).
+function commissionForOrder(qty, price){
+  if(!qty || qty<=0 || isNaN(price) || price<=0) return 0;
+  const raw = qty * COMMISSION_RATE_PER_SHARE;
+  const maxCap = qty * price * COMMISSION_MAX_PCT_OF_TRADE;
+  const capped = Math.min(raw, maxCap);
+  return Math.max(capped, COMMISSION_MIN_PER_ORDER);
 }
 
 // Convierte un valor crudo de bid/ask a número, descartando el
@@ -891,6 +917,16 @@ function recalc(){
 
     setNumericText('in-usd', usd, 2, fmt);
 
+    // Comisiones estimadas de abrir la posición ahora mismo: comprar
+    // TMRC al ask + shortear USAR al bid, para el capital simulado.
+    const qtyT_in = INVEST/tAsk;
+    const qtyA_in = qtyT_in*RATIO;
+    const commIn = commissionForOrder(qtyT_in, tAsk) + commissionForOrder(qtyA_in, aBid);
+    const usdNetIn = usd - commIn;
+    const netInEl = document.getElementById('in-usd-net');
+    netInEl.innerText = `Neto de comisiones (≈${fmt(commIn)}): ${fmt(usdNetIn)}`;
+    netInEl.style.color = usdNetIn>0 ? 'var(--green)' : 'var(--red)';
+
     const entryHit = (inPct*100) >= threshold;
     const card = document.getElementById('entry-card');
     card.classList.toggle('entry-hit', entryHit);
@@ -914,6 +950,16 @@ function recalc(){
 
     setNumericText('out-usd', usd, 2, fmt);
 
+    // Comisiones estimadas de cerrar la posición ahora mismo: vender
+    // TMRC al bid + recomprar el corto de USAR al ask.
+    const qtyT_out = INVEST/tAsk;
+    const qtyA_out = qtyT_out*RATIO;
+    const commOut = commissionForOrder(qtyT_out, tBid) + commissionForOrder(qtyA_out, aAsk);
+    const usdNetOut = usd - commOut;
+    const netOutEl = document.getElementById('out-usd-net');
+    netOutEl.innerText = `Neto de comisiones (≈${fmt(commOut)}): ${fmt(usdNetOut)}`;
+    netOutEl.style.color = usdNetOut>0 ? 'var(--red)' : 'var(--green)';
+
     const exitHit = (outPct*100) <= thresholdExit;
     const exitCard = document.getElementById('exit-card');
     exitCard.classList.toggle('exit-hit', exitHit);
@@ -932,12 +978,13 @@ function updateOrderTicket(){
   const buyPriceEl = document.getElementById('ord-buy-price');
   const sellPriceEl = document.getElementById('ord-sell-price');
   const capEl = document.getElementById('ord-capital');
+  const commEl = document.getElementById('ord-commission');
   const profitEl = document.getElementById('ord-profit');
 
   if(isNaN(aBid) || isNaN(tAsk) || tAsk<=0){
     buyEl.innerText = '–'; sellEl.innerText = '–';
     buyPriceEl.innerText = '–'; sellPriceEl.innerText = '–';
-    capEl.innerText = '–'; profitEl.innerText = '–';
+    capEl.innerText = '–'; commEl.innerText = '–'; profitEl.innerText = '–';
     return;
   }
 
@@ -945,7 +992,13 @@ function updateOrderTicket(){
   const usarShares = Math.round(tmrcShares * RATIO);
   const capitalUsado = tmrcShares * tAsk;
   const inPct = (RATIO*aBid)/tAsk - 1;
-  const netProfit = inPct * capitalUsado;
+  const grossProfit = inPct * capitalUsado;
+
+  // Comisión de abrir las dos patas ahora mismo (comprar TMRC + shortear
+  // USAR). No se resta comisión de cierre porque, en un arbitraje de
+  // fusión, la conversión al ratio oficial no requiere una nueva orden.
+  const commOpen = commissionForOrder(tmrcShares, tAsk) + commissionForOrder(usarShares, aBid);
+  const netProfit = grossProfit - commOpen;
 
   buyEl.innerText = `${tmrcShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
   buyPriceEl.innerText = `@ $${tAsk.toFixed(4)} (ask)`;
@@ -956,6 +1009,8 @@ function updateOrderTicket(){
   capEl.innerText = fmt(capitalUsado);
   if(prevCap !== undefined && capitalUsado !== prevCap) flashValue(capEl, capitalUsado>prevCap?'up':'down');
   displayedValues['ord-capital'] = capitalUsado;
+
+  setNumericText('ord-commission', commOpen, 2, fmt);
 
   const prevProfit = displayedValues['ord-profit'];
   profitEl.innerText = fmt(netProfit) + ` (${(inPct*100).toFixed(2)}%)`;
@@ -1005,6 +1060,8 @@ function updatePositionCard(){
   const exitA  = posNum('pos-a-exit');
 
   const capitalEl = document.getElementById('pos-capital');
+  const commEl = document.getElementById('pos-commissions');
+  const pnlGrossEl = document.getElementById('pos-pnl-gross');
   const pnlEl = document.getElementById('pos-pnl');
   const beTEl = document.getElementById('pos-be-t');
   const beAEl = document.getElementById('pos-be-a');
@@ -1016,6 +1073,8 @@ function updatePositionCard(){
   const hasPosition = qtyT>0 && entryT>0 && qtyA>0 && entryA>0;
   if(!hasPosition){
     capitalEl.innerText = '–';
+    commEl.innerText = '–';
+    pnlGrossEl.innerText = '–';
     pnlEl.innerText = '–'; pnlEl.style.color = '';
     beTEl.innerText = '–';
     beAEl.innerText = '–';
@@ -1030,13 +1089,24 @@ function updatePositionCard(){
   // corta (aproximación habitual para dimensionar la operación conjunta).
   const capital = qtyT*entryT + qtyA*entryA;
 
-  // Beneficio total al cerrar ambas patas a los precios objetivo:
+  // Beneficio bruto al cerrar ambas patas a los precios objetivo:
   //  - Largo TMRC: (precio de venta − precio de compra) × acciones
   //  - Corto USAR: (precio de venta corto − precio de recompra) × acciones
-  const pnl = qtyT*(exitT - entryT) + qtyA*(entryA - exitA);
+  const pnlGross = qtyT*(exitT - entryT) + qtyA*(entryA - exitA);
+
+  // Comisiones de las 4 patas: comprar TMRC (entrada), vender TMRC
+  // (salida), shortear USAR (entrada), recomprar USAR (salida). Si el
+  // precio de salida de una pata todavía no se ha rellenado, esa
+  // comisión concreta no se cuenta (commissionForOrder devuelve 0).
+  const totalComm = commissionForOrder(qtyT, entryT) + commissionForOrder(qtyT, exitT)
+                   + commissionForOrder(qtyA, entryA) + commissionForOrder(qtyA, exitA);
+
+  const pnl = pnlGross - totalComm;
   const pnlPct = capital>0 ? (pnl/capital)*100 : NaN;
 
   setNumericText('pos-capital', capital, 2, fmt);
+  setNumericText('pos-commissions', totalComm, 2, fmt);
+  setNumericText('pos-pnl-gross', pnlGross, 2, fmt);
 
   const prevPnl = displayedValues['pos-pnl'];
   pnlEl.innerText = fmt(pnl) + (isNaN(pnlPct) ? '' : ` (${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%)`);
@@ -1075,18 +1145,25 @@ function updatePositionCard(){
     : 'Tu ratio de acciones se desvía del oficial, así que ese atajo es solo aproximado; usa los precios de breakeven de abajo para más precisión.';
 
   // Breakeven de la pata TMRC: a qué precio de venta, manteniendo fijo
-  // el precio objetivo de recompra de USAR, el beneficio total es 0.
+  // el precio objetivo de recompra de USAR, el beneficio NETO (tras
+  // comisiones) es 0. Como la comisión es prácticamente un importe fijo
+  // por acción (no depende del precio, salvo que se toque el mínimo o
+  // el tope del 1%), subir el precio de venta necesario para cubrir
+  // esas comisiones es simplemente sumar totalComm/qtyT al breakeven
+  // "bruto".
   if(qtyT>0){
-    const beT = entryT + (qtyA/qtyT)*(exitA - entryA);
+    const beT = entryT + (qtyA/qtyT)*(exitA - entryA) + totalComm/qtyT;
     setNumericText('pos-be-t', beT, 4, v => '$'+v.toFixed(4));
   } else {
     beTEl.innerText = '–';
   }
 
   // Breakeven de la pata USAR: a qué precio de recompra, manteniendo fijo
-  // el precio objetivo de venta de TMRC, el beneficio total es 0.
+  // el precio objetivo de venta de TMRC, el beneficio NETO es 0. Aquí
+  // hay que recomprar más barato (restar) para compensar las mismas
+  // comisiones totales.
   if(qtyA>0){
-    const beA = entryA - (qtyT/qtyA)*(exitT - entryT);
+    const beA = entryA - (qtyT/qtyA)*(exitT - entryT) - totalComm/qtyA;
     setNumericText('pos-be-a', beA, 4, v => '$'+v.toFixed(4));
   } else {
     beAEl.innerText = '–';
