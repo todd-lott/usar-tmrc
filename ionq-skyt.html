@@ -86,6 +86,18 @@
   .vwap-tabs button.active{ background:var(--accent); color:#08130f; }
   .vwap-tabs button.active.scenario-alto{ background:var(--amber); color:#1a1204; }
   .vwap-tabs button.active.scenario-bajo{ background:var(--purple); color:#1c1330; }
+  .vwap-tabs button.active.scenario-manual{ background:#5aa9ff; color:#04101f; }
+  .vwap-manual-input{
+    display:none; align-items:center; gap:8px; background:#0c0f16; border:1px solid var(--line);
+    border-radius:8px; padding:6px 10px; font-family:var(--font-mono); font-size:.78rem; color:var(--ink-dim);
+  }
+  .vwap-manual-input.visible{ display:flex; }
+  .vwap-manual-input input{
+    font-family:var(--font-mono); font-weight:700; font-size:.85rem; color:var(--ink);
+    background:transparent; border:none; outline:none; width:90px; text-align:right;
+    border-bottom:1px solid var(--line);
+  }
+  .vwap-manual-input input:focus{ border-color:#5aa9ff; }
   .vwap-note{ font-size:.74rem; color:var(--ink-dim); line-height:1.5; }
   .vwap-note b{ color:var(--ink); }
   .collar-bar{
@@ -97,6 +109,7 @@
     background:var(--ink); border:2px solid var(--bg); transform:translateX(-50%);
     box-shadow:0 0 0 2px rgba(255,255,255,.25); transition:left .3s ease;
   }
+  .collar-bar .dot.manual{ background:#5aa9ff; }
   .collar-labels{ display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:.66rem; color:var(--ink-dim); margin-top:2px; }
 
   /* ── SPREAD CARDS ───────────────────────────── */
@@ -410,6 +423,11 @@
         <button data-scenario="bajo" class="scenario-bajo">Collar bajo fijo (0.5265)</button>
         <button data-scenario="flotante" class="active">Flotante (precio actual)</button>
         <button data-scenario="alto" class="scenario-alto">Collar alto fijo (0.3326)</button>
+        <button data-scenario="manual" class="scenario-manual">Manual (ratio fijo)</button>
+      </div>
+      <div class="vwap-manual-input" id="vwap-manual-input">
+        <label for="manual-ratio-input">Ratio</label>
+        <input type="number" id="manual-ratio-input" value="0.4866" step="0.0001" min="0">
       </div>
     </div>
     <div class="collar-bar"><div class="dot" id="collar-dot" style="left:50%"></div></div>
@@ -417,8 +435,9 @@
     <div class="vwap-note" id="vwap-note">
       "Flotante" usa el precio actual de IONQ como aproximación del VWAP de 20 días que fijará el ratio real 3 días
       hábiles antes del cierre (recorta automáticamente a 0.5265 / 0.3326 si el precio sale de la banda $37.99–$60.13).
-      Los otros dos escenarios fijan el ratio en su valor extremo del collar, útiles para ver el mejor/peor caso
-      independientemente de dónde esté IONQ hoy.
+      "Manual" te deja fijar el ratio a mano (por ejemplo, el que ya hayas calculado con tu propio VWAP), ignorando
+      el precio actual de IONQ por completo. Los escenarios de collar fijo (alto/bajo) muestran el mejor/peor caso
+      contractual, independientemente de dónde esté IONQ hoy.
     </div>
   </div>
 
@@ -640,7 +659,7 @@
       <div class="pos-compare-winner" id="cmp-winner">Rellena tu posición para ver la comparación.</div>
     </div>
 
-    <!-- ── SIMULACIÓN OPCIONAL: probar un precio de cierre distinto al de mercado ── -->
+    <!-- ── SIMULACIÓN OPCIONAL: probar un precio de cierre distinto al actual ── -->
     <div class="pos-optional">
       <div class="pos-optional-head">Opcional: simular un precio de cierre distinto al actual</div>
       <div class="pos-field">
@@ -722,13 +741,21 @@ const RATIO_FIJO_BAJO       = 0.5265;  // acciones IONQ/SKYT si VWAP <= COLLAR_B
 //  'bajo'     -> fuerza el ratio fijo del collar bajo (0.5265), el
 //                escenario donde IONQ termina barato y SKYT recibe más
 //                acciones.
+//  'manual'   -> ratio fijado a mano por el usuario (MANUAL_RATIO),
+//                ignorando el precio actual de IONQ. Útil para meter el
+//                ratio ya calculado con tu propio VWAP de 20 días.
 let vwapScenario = 'flotante';
+
+// Ratio introducido a mano en el escenario "manual". Se sincroniza con
+// el input #manual-ratio-input.
+let MANUAL_RATIO = 0.4866;
 
 // Ratio de canje IONQ/SKYT dado un precio de referencia de IONQ (bid o
 // ask, según la pata que se esté calculando) y el escenario activo.
 function computeRatio(precioIonQ, scenario){
   if(scenario === 'alto') return RATIO_FIJO_ALTO;
   if(scenario === 'bajo') return RATIO_FIJO_BAJO;
+  if(scenario === 'manual') return (!isNaN(MANUAL_RATIO) && MANUAL_RATIO>0) ? MANUAL_RATIO : NaN;
   // 'flotante': usa el precio actual como proxy del VWAP de 20 días
   if(isNaN(precioIonQ) || precioIonQ<=0) return NaN;
   if(precioIonQ >= COLLAR_ALTO) return RATIO_FIJO_ALTO;
@@ -1083,25 +1110,63 @@ document.querySelectorAll('#vwap-tabs button').forEach(btn=>{
     document.querySelectorAll('#vwap-tabs button').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     vwapScenario = btn.dataset.scenario;
-    document.getElementById('ex-ratio-tag').innerText =
-      vwapScenario === 'flotante' ? 'flotante' : (vwapScenario === 'alto' ? 'collar alto fijo' : 'collar bajo fijo');
+
+    const manualInputWrap = document.getElementById('vwap-manual-input');
+    manualInputWrap.classList.toggle('visible', vwapScenario === 'manual');
+
+    const tagBySc = { flotante:'flotante', alto:'collar alto fijo', bajo:'collar bajo fijo', manual:'manual' };
+    document.getElementById('ex-ratio-tag').innerText = tagBySc[vwapScenario] || vwapScenario;
+
     updateCollarBar();
     recalc();
     updateOrderTicket();
     updateExchangeExplainer();
     recomputeSpreadsFromRawHistory();
     drawChart();
+    updatePositionCard();
   });
+});
+
+// Input del ratio manual: se aplica al vuelo mientras se escribe, solo
+// tiene efecto cuando el escenario activo es "manual".
+document.getElementById('manual-ratio-input').addEventListener('input', (e)=>{
+  const v = parseFloat(e.target.value);
+  MANUAL_RATIO = (!isNaN(v) && v>0) ? v : NaN;
+  if(vwapScenario === 'manual'){
+    updateCollarBar();
+    recalc();
+    updateOrderTicket();
+    updateExchangeExplainer();
+    recomputeSpreadsFromRawHistory();
+    drawChart();
+    updatePositionCard();
+  }
 });
 
 function updateCollarBar(){
   const dot = document.getElementById('collar-dot');
+  dot.classList.toggle('manual', vwapScenario === 'manual');
   const price = priceCache ? priceCache.aBid : NaN;
   let pos;
   if(vwapScenario === 'alto'){
     pos = 89; // dentro del tramo ámbar (collar alto)
   } else if(vwapScenario === 'bajo'){
     pos = 11; // dentro del tramo morado (collar bajo)
+  } else if(vwapScenario === 'manual'){
+    // Posiciona el punto según el precio "implícito" que correspondería
+    // a ese ratio manual (invirtiendo VALOR_STOCK_OBJETIVO/ratio), para
+    // que la barra siga siendo una referencia visual coherente aunque
+    // el ratio se haya fijado a mano en vez de leerse del precio actual.
+    if(!isNaN(MANUAL_RATIO) && MANUAL_RATIO>0){
+      let impliedPrice;
+      if(MANUAL_RATIO >= RATIO_FIJO_BAJO) impliedPrice = COLLAR_BAJO;
+      else if(MANUAL_RATIO <= RATIO_FIJO_ALTO) impliedPrice = COLLAR_ALTO;
+      else impliedPrice = VALOR_STOCK_OBJETIVO / MANUAL_RATIO;
+      const clamped = Math.min(Math.max(impliedPrice, COLLAR_BAJO*0.85), COLLAR_ALTO*1.15);
+      pos = ((clamped - COLLAR_BAJO*0.85) / (COLLAR_ALTO*1.15 - COLLAR_BAJO*0.85)) * 100;
+    } else {
+      pos = 50;
+    }
   } else if(!isNaN(price) && price>0){
     const clamped = Math.min(Math.max(price, COLLAR_BAJO*0.85), COLLAR_ALTO*1.15);
     pos = ((clamped - COLLAR_BAJO*0.85) / (COLLAR_ALTO*1.15 - COLLAR_BAJO*0.85)) * 100;
