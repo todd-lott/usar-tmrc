@@ -336,6 +336,33 @@
   .pos-mini-btn:hover{ color:var(--accent); border-color:var(--accent); }
 
   .pos-results{ display:flex; flex-direction:column; gap:8px; padding-top:8px; border-top:1px solid var(--line); }
+  .pos-subhead{
+    font-size:.68rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em;
+    margin-top:6px; padding-top:8px; border-top:1px dashed var(--line);
+  }
+
+  /* ── COMPARACIÓN EN VIVO ─────────────────────── */
+  .pos-compare{ display:flex; flex-direction:column; gap:10px; }
+  .pos-compare-head{ font-size:.78rem; font-weight:700; color:var(--ink); }
+  .pos-compare-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .pos-compare-card{
+    background:#0c0f16; border:1px solid var(--line); border-radius:10px; padding:12px 14px;
+    display:flex; flex-direction:column; gap:4px; transition:border-color .2s, box-shadow .2s;
+  }
+  .pos-compare-lbl{ font-size:.68rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; font-weight:600; }
+  .pos-compare-val{ font-family:var(--font-mono); font-weight:800; font-size:1.25rem; }
+  .pos-compare-sub{ font-size:.68rem; color:var(--ink-dim); font-family:var(--font-mono); }
+  .pos-compare-card.winner{
+    border-color:var(--accent); box-shadow:0 0 0 1px rgba(46,224,163,.18), 0 6px 20px -10px rgba(46,224,163,.4);
+  }
+  .pos-compare-winner{ font-size:.76rem; color:var(--ink-dim); text-align:center; line-height:1.4; }
+  .pos-compare-winner b{ color:var(--accent); }
+
+  /* ── SIMULACIÓN OPCIONAL DE PRECIO DE CIERRE ─── */
+  .pos-optional{
+    display:flex; flex-direction:column; gap:8px; padding-top:10px; border-top:1px dashed var(--line);
+  }
+  .pos-optional-head{ font-size:.72rem; color:var(--ink-dim); font-weight:600; }
   .pos-result-row{ display:flex; justify-content:space-between; align-items:baseline; font-size:.8rem; color:var(--ink-dim); gap:10px; }
   .pos-result-row b{ font-family:var(--font-mono); color:var(--ink); font-size:.92rem; text-align:right; }
   .pos-result-row.pos-pnl-row b{ font-size:1.15rem; }
@@ -538,7 +565,7 @@
     <button class="modal-close" onclick="closePositionModal()" aria-label="Cerrar">✕</button>
     <div class="position-card">
     <div class="position-title">Posición simulada</div>
-    <div class="position-sub">Introduce lo que has comprado/vendido y a qué precio piensas cerrar. Los botones rellenan con el bid/ask actual. El cash fijo de $15.00/acción SKYT no se incluye aquí (se cobra automáticamente al cierre de la fusión si mantienes hasta entonces); esta calculadora es solo para el resultado de comprar/vender en el mercado abierto.</div>
+    <div class="position-sub">Introduce lo que has comprado/vendido (cantidades y precios de entrada). Con eso, abajo verás siempre la comparación en vivo entre cerrar ya en mercado o mantener hasta el cierre de la fusión — no hace falta rellenar ningún precio de cierre para verla.</div>
 
     <div class="pos-leg">
       <div class="pos-leg-head"><span class="pos-leg-name long">Largo SKYT</span></div>
@@ -551,13 +578,6 @@
         <div class="pos-field-row">
           <input type="number" id="pos-t-entry" placeholder="0.0000" min="0" step="0.0001">
           <button class="pos-mini-btn" onclick="fillPosPrice('pos-t-entry','tAsk')" title="Usar el ask actual">ask act.</button>
-        </div>
-      </div>
-      <div class="pos-field">
-        <label>Precio objetivo de venta (cierre)</label>
-        <div class="pos-field-row">
-          <input type="number" id="pos-t-exit" placeholder="0.0000" min="0" step="0.0001">
-          <button class="pos-mini-btn" onclick="fillPosPrice('pos-t-exit','tBid')" title="Usar el bid actual">bid act.</button>
         </div>
       </div>
     </div>
@@ -575,8 +595,38 @@
           <button class="pos-mini-btn" onclick="fillPosPrice('pos-a-entry','aBid')" title="Usar el bid actual">bid act.</button>
         </div>
       </div>
+    </div>
+
+    <!-- ── COMPARACIÓN EN VIVO: siempre visible, se actualiza sola ── -->
+    <div class="pos-compare">
+      <div class="pos-compare-head">¿Qué conviene más ahora mismo?</div>
+      <div class="pos-compare-grid">
+        <div class="pos-compare-card" id="cmp-now-card">
+          <div class="pos-compare-lbl">Cerrar YA en mercado</div>
+          <div class="pos-compare-val" id="cmp-now-val">–</div>
+          <div class="pos-compare-sub" id="cmp-now-sub">–</div>
+        </div>
+        <div class="pos-compare-card" id="cmp-held-card">
+          <div class="pos-compare-lbl">Mantener al cierre del merger</div>
+          <div class="pos-compare-val" id="cmp-held-val">–</div>
+          <div class="pos-compare-sub" id="cmp-held-sub">–</div>
+        </div>
+      </div>
+      <div class="pos-compare-winner" id="cmp-winner">Rellena tu posición para ver la comparación.</div>
+    </div>
+
+    <!-- ── SIMULACIÓN OPCIONAL: probar un precio de cierre distinto al de mercado ── -->
+    <div class="pos-optional">
+      <div class="pos-optional-head">Opcional: simular un precio de cierre distinto al actual</div>
       <div class="pos-field">
-        <label>Precio objetivo de recompra (cierre)</label>
+        <label>Precio objetivo de venta SKYT</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-t-exit" placeholder="0.0000" min="0" step="0.0001">
+          <button class="pos-mini-btn" onclick="fillPosPrice('pos-t-exit','tBid')" title="Usar el bid actual">bid act.</button>
+        </div>
+      </div>
+      <div class="pos-field">
+        <label>Precio objetivo de recompra IONQ</label>
         <div class="pos-field-row">
           <input type="number" id="pos-a-exit" placeholder="0.0000" min="0" step="0.0001">
           <button class="pos-mini-btn" onclick="fillPosPrice('pos-a-exit','aAsk')" title="Usar el ask actual">ask act.</button>
@@ -586,16 +636,22 @@
 
     <div class="pos-results">
       <div class="pos-result-row"><span>Capital empleado</span><b id="pos-capital">–</b></div>
+
+      <div class="pos-subhead">① Cerrar en mercado abierto (sin $15 cash)</div>
       <div class="pos-result-row"><span>Comisiones estimadas (4 patas)</span><b id="pos-commissions">–</b></div>
-      <div class="pos-result-row"><span>Beneficio bruto (sin comisiones)</span><b id="pos-pnl-gross">–</b></div>
-      <div class="pos-result-row pos-pnl-row"><span>Beneficio neto de comisiones</span><b id="pos-pnl">–</b></div>
-      <div class="pos-result-row"><span>Spread de entrada (tu posición)</span><b id="pos-spread-entry">–</b></div>
-      <div class="pos-result-row"><span>Spread de salida (objetivo)</span><b id="pos-spread-exit">–</b></div>
-      <div class="pos-result-row"><span>Cobertura vs. ratio del escenario</span><b id="pos-hedge-ratio">–</b></div>
-      <div class="pos-be-note" id="pos-hedge-note"></div>
+      <div class="pos-result-row"><span>Beneficio neto — a precios actuales</span><b id="pos-pnl">–</b></div>
+      <div class="pos-result-row" id="pos-pnl-target-row" style="display:none;"><span>Beneficio neto — a tu precio objetivo</span><b id="pos-pnl-target">–</b></div>
       <div class="pos-result-row"><span>Breakeven venta SKYT ($)</span><b id="pos-be-t">–</b></div>
       <div class="pos-result-row"><span>Breakeven recompra IONQ ($)</span><b id="pos-be-a">–</b></div>
-      <div class="pos-be-note">Los precios de breakeven de abajo YA incluyen el impacto estimado de las comisiones de las 4 patas (apertura y cierre de ambas posiciones) y NO incluyen los $15.00 en efectivo del cierre de la fusión (que solo se cobran si mantienes hasta entonces, no si cierras antes en mercado abierto).</div>
+      <div class="pos-be-note">Los breakeven usan tu precio objetivo si lo has rellenado arriba (si no, el precio de mercado actual), YA incluyen las comisiones de las 4 patas, y NO incluyen los $15.00 en efectivo (que solo se cobran si mantienes hasta el cierre real de la fusión).</div>
+
+      <div class="pos-subhead">② Mantener hasta el cierre de la fusión (con $15 cash)</div>
+      <div class="pos-result-row"><span>Spread de entrada (tu posición)</span><b id="pos-spread-entry">–</b></div>
+      <div class="pos-result-row"><span>Cobertura vs. ratio del escenario</span><b id="pos-hedge-ratio">–</b></div>
+      <div class="pos-be-note" id="pos-hedge-note"></div>
+      <div class="pos-result-row"><span>Comisiones estimadas (solo apertura, 2 patas)</span><b id="pos-commissions-held">–</b></div>
+      <div class="pos-result-row pos-pnl-row"><span>Beneficio neto estimado al cierre</span><b id="pos-pnl-held">–</b></div>
+      <div class="pos-be-note">Al completarse la fusión recibes $15.00/acción SKYT en efectivo más acciones de IONQ, que cubren tu corto directamente — no hace falta comprarlas ni venderlas, así que tampoco hay comisión de cierre en este escenario (salvo pequeños ajustes que puedan surgir si tu cobertura no coincide exactamente con el ratio real).</div>
     </div>
     </div>
   </div>
@@ -1190,13 +1246,14 @@ document.addEventListener('keydown', (e)=>{
 });
 
 // ── SIMULADOR DE POSICIÓN ABIERTA (tarjeta lateral) ──
-// El usuario introduce lo que ha comprado/vendido y a qué precio piensa
-// cerrar cada pata. Con eso calculamos: capital empleado, beneficio total
-// (en $ y %), y el "breakeven" de cada pata — el precio al que esa pata,
-// manteniendo fijo el precio objetivo de la otra, deja el beneficio neto
-// exactamente en cero. El componente de cash ($15/acción SKYT) NO se
-// incluye aquí porque solo se cobra si se mantiene la posición hasta el
-// cierre real de la fusión, no si se cierra en mercado abierto.
+// El usuario introduce solo lo que ha comprado/vendido y a qué precio de
+// ENTRADA. Con eso, comparamos siempre dos escenarios en vivo:
+//   ① Cerrar YA en mercado — usando el bid/ask actuales (sin $15 cash)
+//   ② Mantener hasta el cierre de la fusión — con $15 cash + acciones,
+//      sin necesidad de comprar/vender nada (el corto se cubre solo)
+// Opcionalmente, el usuario puede además probar un precio de cierre
+// distinto al de mercado para el escenario ① (por ejemplo, para ver qué
+// pasaría si pusiera una orden límite a un nivel concreto).
 function posNum(id){
   const v = parseFloat(document.getElementById(id).value);
   return isNaN(v) ? 0 : v;
@@ -1209,127 +1266,197 @@ function fillPosPrice(id, key){
   updatePositionCard();
 }
 
+// Beneficio neto de cerrar la pata larga (SKYT) al precio `closeT` y la
+// pata corta (IONQ) al precio `closeA`, descontando comisiones de las 4
+// patas (apertura + cierre). Es el cálculo puro de "vender/recomprar en
+// mercado", sin ningún componente de cash de la fusión.
+function calcMarketClosePnl(qtyT, entryT, qtyA, entryA, closeT, closeA){
+  if(isNaN(closeT) || isNaN(closeA) || closeT<=0 || closeA<=0) return null;
+  const gross = qtyT*(closeT - entryT) + qtyA*(entryA - closeA);
+  const comm = commissionForOrder(qtyT, entryT) + commissionForOrder(qtyT, closeT)
+             + commissionForOrder(qtyA, entryA) + commissionForOrder(qtyA, closeA);
+  return { gross, comm, net: gross - comm };
+}
+
 function updatePositionCard(){
   const qtyT   = posNum('pos-t-qty');
   const entryT = posNum('pos-t-entry');
-  const exitT  = posNum('pos-t-exit');
+  const exitT  = posNum('pos-t-exit');   // opcional
   const qtyA   = posNum('pos-a-qty');
   const entryA = posNum('pos-a-entry');
-  const exitA  = posNum('pos-a-exit');
+  const exitA  = posNum('pos-a-exit');   // opcional
 
   const capitalEl = document.getElementById('pos-capital');
   const commEl = document.getElementById('pos-commissions');
-  const pnlGrossEl = document.getElementById('pos-pnl-gross');
   const pnlEl = document.getElementById('pos-pnl');
+  const pnlTargetRow = document.getElementById('pos-pnl-target-row');
+  const pnlTargetEl = document.getElementById('pos-pnl-target');
   const beTEl = document.getElementById('pos-be-t');
   const beAEl = document.getElementById('pos-be-a');
   const spreadEntryEl = document.getElementById('pos-spread-entry');
-  const spreadExitEl = document.getElementById('pos-spread-exit');
   const hedgeEl = document.getElementById('pos-hedge-ratio');
   const hedgeNoteEl = document.getElementById('pos-hedge-note');
+  const commHeldEl = document.getElementById('pos-commissions-held');
+  const pnlHeldEl = document.getElementById('pos-pnl-held');
+
+  const cmpNowCard = document.getElementById('cmp-now-card');
+  const cmpHeldCard = document.getElementById('cmp-held-card');
+  const cmpNowVal = document.getElementById('cmp-now-val');
+  const cmpNowSub = document.getElementById('cmp-now-sub');
+  const cmpHeldVal = document.getElementById('cmp-held-val');
+  const cmpHeldSub = document.getElementById('cmp-held-sub');
+  const cmpWinner = document.getElementById('cmp-winner');
 
   const hasPosition = qtyT>0 && entryT>0 && qtyA>0 && entryA>0;
   if(!hasPosition){
     capitalEl.innerText = '–';
     commEl.innerText = '–';
-    pnlGrossEl.innerText = '–';
     pnlEl.innerText = '–'; pnlEl.style.color = '';
+    pnlTargetRow.style.display = 'none';
     beTEl.innerText = '–';
     beAEl.innerText = '–';
     spreadEntryEl.innerText = '–';
-    spreadExitEl.innerText = '–';
     hedgeEl.innerText = '–'; hedgeEl.style.color = '';
     hedgeNoteEl.innerText = '';
+    commHeldEl.innerText = '–';
+    pnlHeldEl.innerText = '–'; pnlHeldEl.style.color = '';
+    cmpNowVal.innerText = '–'; cmpNowSub.innerText = 'Rellena ambas patas arriba';
+    cmpHeldVal.innerText = '–'; cmpHeldSub.innerText = 'Rellena ambas patas arriba';
+    cmpNowCard.classList.remove('winner'); cmpHeldCard.classList.remove('winner');
+    cmpWinner.innerHTML = 'Rellena tu posición para ver la comparación.';
     return;
   }
 
   // Capital empleado: coste de la pata larga + valor nominal de la pata
   // corta (aproximación habitual para dimensionar la operación conjunta).
   const capital = qtyT*entryT + qtyA*entryA;
-
-  // Beneficio bruto al cerrar ambas patas a los precios objetivo:
-  //  - Largo SKYT: (precio de venta − precio de compra) × acciones
-  //  - Corto IONQ: (precio de venta corto − precio de recompra) × acciones
-  const pnlGross = qtyT*(exitT - entryT) + qtyA*(entryA - exitA);
-
-  // Comisiones de las 4 patas: comprar SKYT (entrada), vender SKYT
-  // (salida), shortear IONQ (entrada), recomprar IONQ (salida). Si el
-  // precio de salida de una pata todavía no se ha rellenado, esa
-  // comisión concreta no se cuenta (commissionForOrder devuelve 0).
-  const totalComm = commissionForOrder(qtyT, entryT) + commissionForOrder(qtyT, exitT)
-                   + commissionForOrder(qtyA, entryA) + commissionForOrder(qtyA, exitA);
-
-  const pnl = pnlGross - totalComm;
-  const pnlPct = capital>0 ? (pnl/capital)*100 : NaN;
-
   setNumericText('pos-capital', capital, 2, fmt);
-  setNumericText('pos-commissions', totalComm, 2, fmt);
-  setNumericText('pos-pnl-gross', pnlGross, 2, fmt);
 
-  const prevPnl = displayedValues['pos-pnl'];
-  pnlEl.innerText = fmt(pnl) + (isNaN(pnlPct) ? '' : ` (${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%)`);
-  pnlEl.style.color = pnl>=0 ? 'var(--green)' : 'var(--red)';
-  if(prevPnl !== undefined && pnl !== prevPnl) flashValue(pnlEl, pnl>prevPnl?'up':'down');
-  displayedValues['pos-pnl'] = pnl;
+  // ── ① Cerrar YA en mercado, con los precios de mercado actuales ──
+  const liveTBid = priceCache ? priceCache.tBid : NaN;
+  const liveAAsk = priceCache ? priceCache.aAsk : NaN;
+  const nowCalc = calcMarketClosePnl(qtyT, entryT, qtyA, entryA, liveTBid, liveAAsk);
 
-  // Spread de entrada/salida DE TU POSICIÓN, con la misma fórmula que las
-  // tarjetas de arriba pero usando tus propios precios, e incluyendo el
-  // componente de cash ($15) porque estos números sí representan el
-  // spread teórico completo si se mantiene hasta el cierre de la fusión
-  // (a diferencia del P&L de arriba, que es solo compra/venta en mercado).
-  if(entryT>0 && qtyT>0){
-    const ratioTuyo = qtyA/qtyT;
-    const spreadEntry = (CASH_PER_SHARE + ratioTuyo*entryA)/entryT - 1;
-    setNumericText('pos-spread-entry', spreadEntry, 3, fmtPct);
+  if(nowCalc){
+    const pnlPct = capital>0 ? (nowCalc.net/capital)*100 : NaN;
+    setNumericText('pos-commissions', nowCalc.comm, 2, fmt);
+
+    const prevPnl = displayedValues['pos-pnl'];
+    pnlEl.innerText = fmt(nowCalc.net) + (isNaN(pnlPct) ? '' : ` (${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%)`);
+    pnlEl.style.color = nowCalc.net>=0 ? 'var(--green)' : 'var(--red)';
+    if(prevPnl !== undefined && nowCalc.net !== prevPnl) flashValue(pnlEl, nowCalc.net>prevPnl?'up':'down');
+    displayedValues['pos-pnl'] = nowCalc.net;
+
+    const prevCmpNow = displayedValues['cmp-now-val'];
+    cmpNowVal.innerText = fmt(nowCalc.net);
+    cmpNowVal.style.color = nowCalc.net>=0 ? 'var(--green)' : 'var(--red)';
+    cmpNowSub.innerText = `vender SKYT @ $${liveTBid.toFixed(4)} · recomprar IONQ @ $${liveAAsk.toFixed(4)}`;
+    if(prevCmpNow !== undefined && nowCalc.net !== prevCmpNow) flashValue(cmpNowVal, nowCalc.net>prevCmpNow?'up':'down');
+    displayedValues['cmp-now-val'] = nowCalc.net;
   } else {
-    spreadEntryEl.innerText = '–';
+    commEl.innerText = '–';
+    pnlEl.innerText = '–'; pnlEl.style.color = '';
+    cmpNowVal.innerText = '–'; cmpNowSub.innerText = 'Esperando cotización en vivo…';
   }
-  if(exitT>0 && qtyT>0){
-    const ratioTuyo = qtyA/qtyT;
-    const spreadExit = (CASH_PER_SHARE + ratioTuyo*exitA)/exitT - 1;
-    setNumericText('pos-spread-exit', spreadExit, 3, fmtPct);
+
+  // ── Precio objetivo opcional (si el usuario lo ha rellenado) ──
+  const targetCalc = (exitT>0 && exitA>0) ? calcMarketClosePnl(qtyT, entryT, qtyA, entryA, exitT, exitA) : null;
+  if(targetCalc){
+    pnlTargetRow.style.display = '';
+    const pnlPct = capital>0 ? (targetCalc.net/capital)*100 : NaN;
+    setNumericText('pos-pnl-target', targetCalc.net, 2, fmt);
+    pnlTargetEl.innerText = fmt(targetCalc.net) + (isNaN(pnlPct) ? '' : ` (${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%)`);
+    pnlTargetEl.style.color = targetCalc.net>=0 ? 'var(--green)' : 'var(--red)';
   } else {
-    spreadExitEl.innerText = '–';
+    pnlTargetRow.style.display = 'none';
   }
+
+  // Referencia para los breakeven: tu precio objetivo si lo has puesto,
+  // si no el precio de mercado actual.
+  const refT = exitT>0 ? exitT : liveTBid;
+  const refA = exitA>0 ? exitA : liveAAsk;
+  const refCalc = calcMarketClosePnl(qtyT, entryT, qtyA, entryA, refT, refA);
+  const totalComm = refCalc ? refCalc.comm : NaN;
+
+  // Spread de entrada DE TU POSICIÓN (con $15 cash), representando el
+  // escenario ② de mantener hasta el cierre de la fusión.
+  const ratioTuyo = qtyT>0 ? qtyA/qtyT : NaN;
+  const spreadEntry = (CASH_PER_SHARE + ratioTuyo*entryA)/entryT - 1;
+  setNumericText('pos-spread-entry', spreadEntry, 3, fmtPct);
 
   // Cobertura: ¿tu ratio de acciones (IONQ vendidas / SKYT compradas)
-  // coincide con el ratio del escenario VWAP seleccionado arriba? Si no,
-  // el atajo "breakeven = spread de entrada" deja de ser exacto.
+  // coincide con el ratio del escenario VWAP seleccionado arriba?
   const ratioEscenario = computeRatio(priceCache ? priceCache.aBid : NaN, vwapScenario);
-  const effRatio = qtyA/qtyT;
   if(!isNaN(ratioEscenario) && ratioEscenario>0){
-    const hedgePct = (effRatio/ratioEscenario)*100;
+    const hedgePct = (ratioTuyo/ratioEscenario)*100;
     hedgeEl.innerText = hedgePct.toFixed(1)+'%';
     const wellHedged = Math.abs(hedgePct-100) < 2;
     hedgeEl.style.color = wellHedged ? 'var(--green)' : 'var(--amber)';
     hedgeNoteEl.innerText = wellHedged
-      ? 'Tu ratio de acciones coincide con el del escenario seleccionado.'
-      : 'Tu ratio de acciones se desvía del escenario seleccionado (o del ratio real, que solo se fija 3 días antes del cierre), así que el atajo de breakeven es solo aproximado.';
+      ? 'Tu ratio de acciones coincide con el del escenario seleccionado: al cierre, las acciones de IONQ que recibas por tus SKYT cubrirán tu corto casi exactamente.'
+      : 'Tu ratio de acciones se desvía del escenario seleccionado (o del ratio real, que solo se fija 3 días antes del cierre): al cierre te sobrarán o faltarán acciones de IONQ para cubrir el corto exacto, y esa diferencia habría que comprarla/venderla en mercado a un precio aún desconocido. El beneficio de abajo asume que no hay ese desajuste.';
   } else {
     hedgeEl.innerText = '–'; hedgeEl.style.color = '';
     hedgeNoteEl.innerText = '';
   }
 
+  // ── ② Mantener hasta el cierre real de la fusión ──
+  // No hay compra/venta en mercado en ninguna de las dos patas: recibes
+  // $15.00/acción SKYT en efectivo más acciones de IONQ (a razón del
+  // ratio de canje real), y esas acciones cubren directamente el corto
+  // abierto. Por eso solo se descuentan las comisiones de ABRIR las dos
+  // patas (no hay comisión de "cierre" real).
+  const pnlHeldGross = qtyT*CASH_PER_SHARE + qtyA*entryA - qtyT*entryT;
+  const commHeld = commissionForOrder(qtyT, entryT) + commissionForOrder(qtyA, entryA);
+  const pnlHeld = pnlHeldGross - commHeld;
+  const pnlHeldPct = capital>0 ? (pnlHeld/capital)*100 : NaN;
+
+  setNumericText('pos-commissions-held', commHeld, 2, fmt);
+
+  const prevPnlHeld = displayedValues['pos-pnl-held'];
+  pnlHeldEl.innerText = fmt(pnlHeld) + (isNaN(pnlHeldPct) ? '' : ` (${pnlHeldPct>=0?'+':''}${pnlHeldPct.toFixed(2)}%)`);
+  pnlHeldEl.style.color = pnlHeld>=0 ? 'var(--green)' : 'var(--red)';
+  if(prevPnlHeld !== undefined && pnlHeld !== prevPnlHeld) flashValue(pnlHeldEl, pnlHeld>prevPnlHeld?'up':'down');
+  displayedValues['pos-pnl-held'] = pnlHeld;
+
+  const prevCmpHeld = displayedValues['cmp-held-val'];
+  cmpHeldVal.innerText = fmt(pnlHeld);
+  cmpHeldVal.style.color = pnlHeld>=0 ? 'var(--green)' : 'var(--red)';
+  cmpHeldSub.innerText = `ratio ${!isNaN(ratioEscenario)?ratioEscenario.toFixed(4):'–'} · spread entrada ${fmtPct(spreadEntry)}`;
+  if(prevCmpHeld !== undefined && pnlHeld !== prevCmpHeld) flashValue(cmpHeldVal, pnlHeld>prevCmpHeld?'up':'down');
+  displayedValues['cmp-held-val'] = pnlHeld;
+
+  // ── Comparación final: ¿qué escenario gana? ──
+  cmpNowCard.classList.remove('winner'); cmpHeldCard.classList.remove('winner');
+  if(nowCalc){
+    if(nowCalc.net > pnlHeld){
+      cmpNowCard.classList.add('winner');
+      cmpWinner.innerHTML = `Ahora mismo conviene más <b>cerrar ya en mercado</b> (${fmt(nowCalc.net - pnlHeld)} más que esperando al cierre).`;
+    } else if(pnlHeld > nowCalc.net){
+      cmpHeldCard.classList.add('winner');
+      cmpWinner.innerHTML = `Ahora mismo conviene más <b>mantener hasta el cierre</b> (${fmt(pnlHeld - nowCalc.net)} más que cerrando ya).`;
+    } else {
+      cmpWinner.innerHTML = 'Ambos escenarios dan prácticamente el mismo resultado ahora mismo.';
+    }
+  } else {
+    cmpWinner.innerHTML = 'Esperando cotización en vivo para comparar con "cerrar ya en mercado".';
+  }
+
   // Breakeven de la pata SKYT: a qué precio de venta, manteniendo fijo
-  // el precio objetivo de recompra de IONQ, el beneficio NETO (tras
-  // comisiones) es 0. Como la comisión es prácticamente un importe fijo
-  // por acción (no depende del precio, salvo que se toque el mínimo o
-  // el tope del 1%), subir el precio de venta necesario para cubrir
-  // esas comisiones es simplemente sumar totalComm/qtyT al breakeven
-  // "bruto".
-  if(qtyT>0){
-    const beT = entryT + (qtyA/qtyT)*(exitA - entryA) + totalComm/qtyT;
+  // el precio de recompra de IONQ (tu objetivo si lo diste, si no el
+  // precio de mercado actual), el beneficio NETO (tras comisiones) es 0.
+  if(qtyT>0 && !isNaN(refA) && !isNaN(totalComm)){
+    const beT = entryT + (qtyA/qtyT)*(refA - entryA) + totalComm/qtyT;
     setNumericText('pos-be-t', beT, 4, v => '$'+v.toFixed(4));
   } else {
     beTEl.innerText = '–';
   }
 
-  // Breakeven de la pata IONQ: a qué precio de recompra, manteniendo fijo
-  // el precio objetivo de venta de SKYT, el beneficio NETO es 0. Aquí
-  // hay que recomprar más barato (restar) para compensar las mismas
-  // comisiones totales.
-  if(qtyA>0){
-    const beA = entryA - (qtyT/qtyA)*(exitT - entryT) - totalComm/qtyA;
+  // Breakeven de la pata IONQ: a qué precio de recompra, manteniendo
+  // fijo el precio de venta de SKYT (tu objetivo si lo diste, si no el
+  // precio de mercado actual), el beneficio NETO es 0.
+  if(qtyA>0 && !isNaN(refT) && !isNaN(totalComm)){
+    const beA = entryA - (qtyT/qtyA)*(refT - entryT) - totalComm/qtyA;
     setNumericText('pos-be-a', beA, 4, v => '$'+v.toFixed(4));
   } else {
     beAEl.innerText = '–';
