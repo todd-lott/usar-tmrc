@@ -1581,26 +1581,58 @@ function updatePositionCard(){
   // Cobertura: ¿tu ratio de acciones (IONQ vendidas / SKYT compradas)
   // coincide con el ratio del escenario VWAP seleccionado arriba?
   const ratioEscenario = computeRatio(priceCache ? priceCache.aBid : NaN, vwapScenario);
+  // Acciones de IONQ que realmente recibirías de la fusión (a razón del
+  // ratio del escenario activo) y el desajuste frente a tu corto actual.
+  // mismatchShares > 0 → te sobran acciones IONQ (las vendes al bid actual)
+  // mismatchShares < 0 → te faltan acciones IONQ (las compras al ask actual)
+  const sharesFromMerger = (!isNaN(ratioEscenario) && ratioEscenario>0) ? qtyT * ratioEscenario : NaN;
+  const mismatchShares = !isNaN(sharesFromMerger) ? sharesFromMerger - qtyA : NaN;
+
   if(!isNaN(ratioEscenario) && ratioEscenario>0){
     const hedgePct = (ratioTuyo/ratioEscenario)*100;
     hedgeEl.innerText = hedgePct.toFixed(1)+'%';
     const wellHedged = Math.abs(hedgePct-100) < 2;
     hedgeEl.style.color = wellHedged ? 'var(--green)' : 'var(--amber)';
-    hedgeNoteEl.innerText = wellHedged
-      ? 'Tu ratio de acciones coincide con el del escenario seleccionado: al cierre, las acciones de IONQ que recibas por tus SKYT cubrirán tu corto casi exactamente.'
-      : 'Tu ratio de acciones se desvía del escenario seleccionado (o del ratio real, que solo se fija 3 días antes del cierre): al cierre te sobrarán o faltarán acciones de IONQ para cubrir el corto exacto, y esa diferencia habría que comprarla/venderla en mercado a un precio aún desconocido. El beneficio de abajo asume que no hay ese desajuste.';
+    if(wellHedged){
+      hedgeNoteEl.innerText = 'Tu ratio de acciones coincide con el del escenario seleccionado: al cierre, las acciones de IONQ que recibas por tus SKYT cubrirán tu corto casi exactamente.';
+    } else {
+      const dir = mismatchShares > 0 ? 'te sobrarían' : 'te faltarían';
+      hedgeNoteEl.innerText =
+        `Tu ratio de acciones se desvía del escenario seleccionado: con este ratio, ${dir} ≈${Math.abs(mismatchShares).toFixed(0)} acciones de IONQ para cubrir el corto exacto. `+
+        `El beneficio de abajo YA valora ese desajuste al precio de mercado actual (vendiendo el excedente al bid o comprando el que falte al ask) — pero el precio real en la fecha de cierre puede ser distinto, así que esa parte sigue siendo una estimación.`;
+    }
   } else {
     hedgeEl.innerText = '–'; hedgeEl.style.color = '';
     hedgeNoteEl.innerText = '';
   }
 
   // ── ② Mantener hasta el cierre real de la fusión ──
-  // No hay compra/venta en mercado en ninguna de las dos patas: recibes
-  // $15.00/acción SKYT en efectivo más acciones de IONQ (a razón del
-  // ratio de canje real), y esas acciones cubren directamente el corto
-  // abierto. Por eso solo se descuentan las comisiones de ABRIR las dos
-  // patas (no hay comisión de "cierre" real).
-  const pnlHeldGross = qtyT*CASH_PER_SHARE + qtyA*entryA - qtyT*entryT;
+  // Recibes $15.00/acción SKYT en efectivo más `sharesFromMerger` acciones
+  // de IONQ (según el ratio del escenario activo). Esas acciones se usan
+  // primero para cubrir tu corto (qtyA); si sobran o faltan acciones tras
+  // cubrirlo, ese desajuste se valora al precio de mercado ACTUAL (bid
+  // para vender el excedente, ask para comprar lo que falte) como mejor
+  // estimación disponible, ya que el ratio real solo se fija 3 días
+  // hábiles antes del cierre. Con cobertura perfecta (mismatchShares=0)
+  // el resultado coincide con "cobrar el corto sin coste adicional".
+  let pnlHeldGross;
+  if(!isNaN(sharesFromMerger)){
+    const liveABidForHedge = priceCache ? priceCache.aBid : NaN;
+    const liveAAskForHedge = priceCache ? priceCache.aAsk : NaN;
+    let mismatchValue = 0;
+    if(mismatchShares > 0){
+      const sellPrice = !isNaN(liveABidForHedge) ? liveABidForHedge : entryA;
+      mismatchValue = mismatchShares * sellPrice;
+    } else if(mismatchShares < 0){
+      const buyPrice = !isNaN(liveAAskForHedge) ? liveAAskForHedge : entryA;
+      mismatchValue = mismatchShares * buyPrice; // ya es negativo -> resta coste
+    }
+    pnlHeldGross = qtyT*CASH_PER_SHARE + qtyA*entryA + mismatchValue - qtyT*entryT;
+  } else {
+    // Sin ratio de escenario disponible (p.ej. datos aún cargando):
+    // recae en el supuesto de cobertura perfecta como aproximación.
+    pnlHeldGross = qtyT*CASH_PER_SHARE + qtyA*entryA - qtyT*entryT;
+  }
   const commHeld = commissionForOrder(qtyT, entryT) + commissionForOrder(qtyA, entryA);
   const pnlHeld = pnlHeldGross - commHeld;
   const pnlHeldPct = capital>0 ? (pnlHeld/capital)*100 : NaN;
