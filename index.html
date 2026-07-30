@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Monitor de Spread — Arbitraje IONQ/SKYT</title>
+<title>Situaciones Especiales — Board de Arbitraje</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -25,8 +25,6 @@
     --red-bg:   rgba(255,84,112,.10);
     --amber:    #ffb648;
     --amber-bg: rgba(255,182,72,.10);
-    --purple:   #a78bfa;
-    --purple-bg: rgba(167,139,250,.10);
     --font-body:'Inter', sans-serif;
     --font-mono:'JetBrains Mono', monospace;
   }
@@ -39,14 +37,6 @@
   }
   .wrap{ width:100%; max-width:880px; display:flex; flex-direction:column; gap:20px; }
 
-  /* ── BACK LINK ──────────────────────────────── */
-  .back-link{
-    display:inline-flex; align-items:center; gap:6px; font-size:.8rem; color:var(--ink-dim);
-    text-decoration:none; font-family:var(--font-mono); width:fit-content; padding:4px 0;
-    transition:color .15s;
-  }
-  .back-link:hover{ color:var(--accent); }
-
   /* ── HEADER ─────────────────────────────────── */
   .topbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
   .topbar h1{ font-size:1.25rem; font-weight:700; letter-spacing:-.01em; }
@@ -55,67 +45,79 @@
     background:var(--accent); margin-right:9px; box-shadow:0 0 0 3px var(--accent-dim), 0 0 10px rgba(46,224,163,.7);
   }
   .topbar .sub{ font-size:.8rem; color:var(--ink-dim); margin-top:2px; font-family:var(--font-mono); }
-  .cfg{ display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:8px 12px; flex-wrap:wrap; }
+  .cfg{ display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:8px 12px; }
   .cfg label{ font-size:.68rem; color:var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:.05em; margin-right:5px; }
-  .cfg input, .cfg select{
+  .cfg select{
     font-family:var(--font-mono); font-size:.85rem; border:1px solid var(--line); border-radius:6px;
-    padding:4px 7px; background:#0c0f16; color:var(--ink); outline:none; width:60px;
+    padding:4px 7px; background:#0c0f16; color:var(--ink); outline:none; cursor:pointer;
   }
-  .cfg select{ width:auto; cursor:pointer; }
-  .cfg input:focus, .cfg select:focus{ border-color:var(--accent); }
+  .cfg select:focus{ border-color:var(--accent); }
   .btn{
     background:var(--accent); color:#08130f; border:none; font-weight:700; font-size:.82rem;
     padding:8px 16px; border-radius:7px; cursor:pointer; letter-spacing:.01em;
   }
   .btn:hover{ opacity:.88; }
-  .btn:disabled{ background:#3a4150; color:var(--ink-dim); cursor:wait; }
 
-  /* ── SWITCH DE ESCENARIO VWAP ───────────────── */
-  .vwap-card{
-    background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px;
-    display:flex; flex-direction:column; gap:10px;
+  /* ── BOARD HEADER ROW (column labels, terminal-style) ── */
+  .board{ display:flex; flex-direction:column; gap:10px; }
+  .board-head{
+    display:grid; grid-template-columns:38px 1fr 150px 150px;
+    padding:0 20px; font-size:.66rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.07em; color:var(--ink-dim); font-family:var(--font-mono);
   }
-  .vwap-head{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
-  .vwap-title{ font-size:.78rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.05em; }
-  .vwap-tabs{ display:flex; gap:4px; background:#0c0f16; border:1px solid var(--line); border-radius:8px; padding:3px; flex-wrap:wrap; }
-  .vwap-tabs button{
-    background:transparent; border:none; color:var(--ink-dim); font-family:var(--font-mono);
-    font-size:.74rem; font-weight:600; padding:6px 11px; border-radius:6px; cursor:pointer;
-    white-space:nowrap;
-  }
-  .vwap-tabs button.active{ background:var(--accent); color:#08130f; }
-  .vwap-tabs button.active.scenario-alto{ background:var(--amber); color:#1a1204; }
-  .vwap-tabs button.active.scenario-bajo{ background:var(--purple); color:#1c1330; }
-  .vwap-note{ font-size:.74rem; color:var(--ink-dim); line-height:1.5; }
-  .vwap-note b{ color:var(--ink); }
-  .collar-bar{
-    position:relative; height:8px; border-radius:4px; margin-top:4px;
-    background:linear-gradient(90deg, var(--purple) 0%, var(--purple) 22%, var(--accent) 22%, var(--accent) 78%, var(--amber) 78%, var(--amber) 100%);
-  }
-  .collar-bar .dot{
-    position:absolute; top:-4px; width:16px; height:16px; border-radius:50%;
-    background:var(--ink); border:2px solid var(--bg); transform:translateX(-50%);
-    box-shadow:0 0 0 2px rgba(255,255,255,.25); transition:left .3s ease;
-  }
-  .collar-labels{ display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:.66rem; color:var(--ink-dim); margin-top:2px; }
+  .board-head span:nth-child(3), .board-head span:nth-child(4){ text-align:center; }
 
-  /* ── SPREAD CARDS ───────────────────────────── */
-  .spread-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-  .spread-card{
-    background:var(--card); border:1px solid var(--line); border-radius:14px;
-    padding:22px 24px; transition:border-color .25s, background .25s;
+  /* ── SITUATION ROW (ya no es <a>: la navegación se dispara por JS
+       y se ignora si el click viene de un input/botón interactivo) ── */
+  .situation{
+    display:grid; grid-template-columns:38px 1fr 150px 150px; align-items:center;
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:16px 20px; cursor:pointer; gap:10px;
+    transition:border-color .18s, background .18s, transform .12s;
   }
-  .spread-card .card-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
-  .spread-card .tag{ font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-dim); }
+  .situation:hover{ border-color:#333c4d; background:var(--card-hi); transform:translateY(-1px); }
+  .situation.armed-exit{ border-color:var(--amber); }
+  .situation.armed{ border-color:var(--green); box-shadow:0 0 0 1px rgba(46,224,163,.12); }
+  .situation.armed:hover{ border-color:var(--green); }
+
+  .s-rank{ font-family:var(--font-mono); font-weight:700; color:var(--ink-dim); font-size:.92rem; }
+  .situation.armed .s-rank{ color:var(--accent); }
+
+  .s-name{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+  .s-pair{ font-weight:700; font-size:.95rem; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .s-pair .arrow{ color:var(--ink-dim); font-weight:400; }
+  .s-tags{ display:flex; gap:6px; flex-wrap:wrap; }
+  .s-tag{ font-family:var(--font-mono); font-size:.66rem; color:var(--ink-dim); background:#1c2230; padding:2px 6px; border-radius:4px; }
+  .s-meta{ font-size:.72rem; color:var(--ink-dim); font-family:var(--font-mono); }
+
+  /* ── BLOQUE ENTRADA / SALIDA: spread + umbral + alarma juntos ── */
+  .s-side{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .side-spread{ font-family:var(--font-mono); font-weight:800; font-size:1.15rem; padding:1px 6px; }
+  .side-spread.up{ color:var(--green); }
+  .side-spread.down{ color:var(--red); }
+  .side-spread.pending{ color:var(--ink-dim); font-weight:600; font-size:.9rem; }
+  .side-ctrl{ display:flex; align-items:center; gap:6px; }
+  .side-ctrl .th-input{
+    width:48px; font-family:var(--font-mono); font-size:.78rem; font-weight:600; color:var(--ink);
+    background:#0c0f16; border:1px solid var(--line); border-radius:6px; padding:3px 5px;
+    outline:none; text-align:center;
+  }
+  .side-ctrl .th-input:focus{ border-color:var(--accent); }
+
   .sound-btn{
-    flex:0 0 auto; width:30px; height:30px; border-radius:8px; border:1px solid var(--line);
-    background:#0c0f16; color:var(--ink-dim); font-size:.95rem; cursor:pointer;
-    display:flex; align-items:center; justify-content:center; transition:all .18s; line-height:1;
+    flex:0 0 auto; width:28px; height:28px; border-radius:8px;
+    border:1px solid var(--line); background:#0c0f16; color:var(--ink-dim); font-size:.85rem;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:all .18s; line-height:1;
   }
   .sound-btn:hover{ border-color:var(--ink-dim); color:var(--ink); }
   .sound-btn.active{
     background:var(--accent-dim); border-color:var(--accent); color:var(--accent);
     box-shadow:0 0 0 3px rgba(46,224,163,.12);
+  }
+  .sound-btn.exit.active{
+    background:var(--amber-bg); border-color:var(--amber); color:var(--amber);
+    box-shadow:0 0 0 3px rgba(255,182,72,.12);
   }
   .sound-btn.alerting{
     background:var(--amber-bg); border-color:var(--amber); color:var(--amber);
@@ -125,104 +127,6 @@
     0%,100%{ box-shadow:0 0 0 0 rgba(255,182,72,.45); }
     50%{ box-shadow:0 0 0 7px rgba(255,182,72,0); }
   }
-  .spread-card .big{ font-family:var(--font-mono); font-weight:800; font-size:2.6rem; line-height:1.15; margin-top:6px; }
-  .spread-card .usd{ font-family:var(--font-mono); font-weight:600; font-size:1rem; margin-top:2px; color:var(--ink-dim); }
-  .spread-card .note{ font-size:.76rem; color:var(--ink-dim); margin-top:10px; }
-  .spread-card .last-ref{ margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:.78rem; color:var(--ink-dim); display:flex; justify-content:space-between; }
-  .spread-card .last-ref b{ font-family:var(--font-mono); color:var(--ink); }
-
-  .spread-card.entry-hit{
-    border-color:var(--green); background:linear-gradient(180deg, var(--green-bg), var(--card));
-    box-shadow:0 0 0 1px rgba(46,224,163,.15), 0 8px 28px -12px rgba(46,224,163,.35);
-  }
-  .spread-card.entry-hit .tag{ color:var(--green); }
-  .spread-card.entry-hit::after{
-    content:'✓ ENTRAR — supera umbral'; display:inline-block; margin-top:10px;
-    font-size:.74rem; font-weight:700; color:#08130f; background:var(--green);
-    padding:4px 10px; border-radius:20px;
-  }
-
-  .spread-card.exit-hit{
-    border-color:var(--amber); background:linear-gradient(180deg, var(--amber-bg), var(--card));
-    box-shadow:0 0 0 1px rgba(255,182,72,.15), 0 8px 28px -12px rgba(255,182,72,.35);
-  }
-  .spread-card.exit-hit .tag{ color:var(--amber); }
-  .spread-card.exit-hit::after{
-    content:'✓ SALIR — supera umbral'; display:inline-block; margin-top:10px;
-    font-size:.74rem; font-weight:700; color:#1a1204; background:var(--amber);
-    padding:4px 10px; border-radius:20px;
-  }
-
-  /* ── TICKERS ─────────────────────────────────── */
-  .tickers{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-  .tcard{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
-  .tcard .thead{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--line); }
-  .tcard .tname{ font-weight:700; font-size:.92rem; }
-  .tcard .texch{ font-family:var(--font-mono); font-size:.66rem; color:var(--ink-dim); background:#1c2230; padding:2px 6px; border-radius:4px; }
-  .trow{ display:flex; justify-content:space-between; padding:4px 0; font-size:.85rem; }
-  .trow .l{ color:var(--ink-dim); }
-  .trow .v{ font-family:var(--font-mono); font-weight:600; }
-  .tfresh{ margin-top:8px; font-size:.7rem; color:var(--ink-dim); font-family:var(--font-mono); }
-  .tfresh.stale{ color:var(--amber); font-weight:600; }
-
-  /* ── CHART ───────────────────────────────────── */
-  .chart-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
-  .chart-card .chead{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
-  .chart-card h3{ font-size:.85rem; font-weight:600; color:var(--ink-dim); }
-  .chart-legend{ display:flex; gap:14px; font-size:.72rem; color:var(--ink-dim); font-family:var(--font-mono); }
-  .chart-legend span{ display:flex; align-items:center; gap:6px; }
-  .chart-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; }
-  .range-tabs{ display:flex; gap:4px; background:#0c0f16; border:1px solid var(--line); border-radius:7px; padding:3px; }
-  .range-tabs button{
-    background:transparent; border:none; color:var(--ink-dim); font-family:var(--font-mono);
-    font-size:.72rem; font-weight:600; padding:4px 9px; border-radius:5px; cursor:pointer;
-  }
-  .range-tabs button.active{ background:var(--accent); color:#08130f; }
-  .range-tabs button:disabled{ opacity:.5; cursor:wait; }
-  canvas{ width:100%; height:220px; display:block; }
-
-  /* ── EXPLICADOR DE LA CONTRAPRESTACIÓN TEÓRICA ─── */
-  .explain-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
-  .explain-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
-  .explain-sub{ font-size:.78rem; color:var(--ink-dim); margin-bottom:14px; }
-  .explain-flow{ display:flex; align-items:stretch; gap:8px; flex-wrap:wrap; }
-  .ex-step{
-    background:#0c0f16; border:1px solid var(--line); border-radius:9px; padding:10px 14px;
-    flex:1 1 140px; min-width:130px; display:flex; flex-direction:column; gap:4px; justify-content:center;
-  }
-  .ex-lbl{ font-size:.66rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
-  .ex-val{ font-family:var(--font-mono); font-weight:700; font-size:1.05rem; }
-  .ex-sub2{ font-size:.7rem; color:var(--ink-dim); font-family:var(--font-mono); }
-  .ex-sub2 b{ color:var(--ink); font-weight:600; }
-  .ex-op{
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    font-family:var(--font-mono); font-weight:700; color:var(--ink-dim); font-size:1.15rem;
-    padding:0 2px; min-width:34px; text-align:center;
-  }
-  .ex-op-note{ font-size:.6rem; font-weight:600; color:var(--ink-dim); line-height:1.25; margin-top:2px; }
-  .ex-op-note b{ color:var(--accent); }
-  .ex-step.ex-result{ border-color:var(--accent); background:linear-gradient(180deg, var(--accent-dim), #0c0f16); }
-  .ex-big{ font-size:1.55rem; }
-  .explain-note{ margin-top:14px; font-size:.78rem; color:var(--ink-dim); line-height:1.45; }
-
-  @media(max-width:680px){
-    .explain-flow{ flex-direction:column; }
-    .ex-op{ flex-direction:row; gap:6px; padding:2px 0; }
-    .ex-op-note{ margin-top:0; }
-  }
-
-  /* ── ORDEN LISTA PARA EL BROKER ───────────────── */
-  .order-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
-  .order-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:12px; }
-  .order-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  .order-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:9px; padding:12px 14px; display:flex; flex-direction:column; gap:4px; }
-  .ol-lbl{ font-size:.72rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
-  .ol-val{ font-family:var(--font-mono); font-weight:700; font-size:1.15rem; }
-  .ol-price{ font-family:var(--font-mono); font-size:.76rem; color:var(--ink-dim); }
-  .order-foot{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:.82rem; color:var(--ink-dim); }
-  .order-foot b{ font-family:var(--font-mono); color:var(--ink); }
-  .order-cash-note{ margin-top:10px; font-size:.76rem; color:var(--ink-dim); background:#0c0f16; border:1px solid var(--line); border-radius:8px; padding:8px 12px; }
-  .order-cash-note b{ color:var(--ink); }
 
   #status{ font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); text-align:center; }
   .status-ok{ color:var(--green); }
@@ -231,668 +135,179 @@
     margin-top:-6px; padding-top:14px; border-top:1px solid var(--line); width:100%;
   }
 
-  @media(max-width:680px){ .spread-grid, .tickers, .order-grid{ grid-template-columns:1fr; } }
-
-  /* ── CAPITAL SIMULADO (slider + input) ────────── */
-  .invest-box{ display:flex; justify-content:flex-end; align-items:center; gap:14px; flex-wrap:wrap; }
-  .invest-label{ font-size:.78rem; color:var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
-  .invest-slider-wrap{ display:flex; align-items:center; gap:8px; flex:1 1 220px; max-width:280px; min-width:160px; }
-  .invest-slider-wrap span{ font-size:.68rem; color:var(--ink-dim); font-family:var(--font-mono); }
-  #invest-slider{
-    flex:1; -webkit-appearance:none; appearance:none; height:4px; border-radius:3px;
-    background:var(--line); outline:none; cursor:pointer;
-  }
-  #invest-slider::-webkit-slider-thumb{
-    -webkit-appearance:none; appearance:none; width:15px; height:15px; border-radius:50%;
-    background:var(--accent); cursor:pointer; box-shadow:0 0 0 3px var(--accent-dim);
-  }
-  #invest-slider::-moz-range-thumb{
-    width:15px; height:15px; border-radius:50%; background:var(--accent); border:none;
-    cursor:pointer; box-shadow:0 0 0 3px var(--accent-dim);
-  }
-  .invest-input-wrap{
-    display:flex; align-items:center; gap:4px; background:#0c0f16; border:1px solid var(--line);
-    border-radius:7px; padding:5px 10px;
-  }
-  .invest-input-wrap span{ font-family:var(--font-mono); color:var(--ink-dim); font-size:.85rem; }
-  #invest-input{
-    font-family:var(--font-mono); font-weight:600; font-size:.9rem; color:var(--ink);
-    background:transparent; border:none; outline:none; width:100px; text-align:right;
-    -moz-appearance:textfield; appearance:textfield;
-  }
-  #invest-input::-webkit-outer-spin-button, #invest-input::-webkit-inner-spin-button{
-    -webkit-appearance:none; appearance:none; margin:0;
+  @media(max-width:640px){
+    .board-head{ display:none; }
+    .situation{ grid-template-columns:1fr 1fr; grid-template-rows:auto auto; row-gap:12px; padding:14px 16px; }
+    .s-name{ grid-column:1 / -1; }
   }
 
-  /* ── RESPLANDOR AL CAMBIAR UN VALOR (estilo broker) ── */
+  /* ── RESPLANDOR AL CAMBIAR UN VALOR (estilo broker) ──
+     Las filas se regeneran por completo en cada refresco (innerHTML),
+     así que el "cambio" no se detecta comparando el DOM, sino que se
+     decide de antemano en JS (comparando con el valor anterior) y se
+     inserta ya con la clase puesta: al insertar un nodo nuevo con esta
+     clase, la animación se dispara igualmente desde el principio. */
   .value-flash{
     border-radius:4px;
-    animation: valueGlow .7s ease-out;
+    animation: valueGlow .9s ease-out;
   }
   @keyframes valueGlow{
     0%{
       box-shadow:0 0 0 0 var(--glow-color, rgba(255,255,255,.5));
-      background:var(--glow-bg, rgba(255,255,255,.12));
+      background:var(--glow-bg, rgba(255,255,255,.16));
     }
     100%{
       box-shadow:0 0 0 10px rgba(0,0,0,0);
       background:transparent;
     }
   }
-
-  /* ── BOTÓN FLOTANTE + MODAL (posición simulada) ─── */
-  .pos-fab{
-    position:fixed; right:20px; bottom:20px; z-index:900;
-    background:var(--accent); color:#08130f; border:none; font-weight:700; font-size:.85rem;
-    padding:12px 18px; border-radius:30px; cursor:pointer; letter-spacing:.01em;
-    box-shadow:0 8px 24px -6px rgba(46,224,163,.5), 0 0 0 1px rgba(46,224,163,.25);
-    display:flex; align-items:center; gap:8px;
-  }
-  .pos-fab:hover{ opacity:.92; }
-
-  .modal-overlay{
-    display:none; position:fixed; inset:0; background:rgba(6,8,13,.72);
-    backdrop-filter:blur(2px); z-index:1000; align-items:center; justify-content:center; padding:20px;
-  }
-  .modal-overlay.active{ display:flex; }
-  .modal-box{
-    background:var(--card); border:1px solid var(--line); border-radius:16px;
-    max-width:440px; width:100%; max-height:88vh; overflow-y:auto; padding:24px 22px;
-    position:relative; box-shadow:0 24px 60px -20px rgba(0,0,0,.6);
-    animation:modalPop .16s ease-out;
-  }
-  @keyframes modalPop{
-    from{ opacity:0; transform:translateY(8px) scale(.98); }
-    to{ opacity:1; transform:translateY(0) scale(1); }
-  }
-  .modal-close{
-    position:absolute; top:14px; right:14px; width:28px; height:28px; border-radius:8px;
-    border:1px solid var(--line); background:#0c0f16; color:var(--ink-dim); font-size:.95rem;
-    cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;
-  }
-  .modal-close:hover{ color:var(--ink); border-color:var(--ink-dim); }
-
-  .position-card{ display:flex; flex-direction:column; gap:14px; padding-right:6px; }
-  .position-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
-  .position-sub{ font-size:.76rem; color:var(--ink-dim); margin-top:-8px; line-height:1.4; }
-
-  .pos-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
-  .pos-leg-head{ display:flex; justify-content:space-between; align-items:center; }
-  .pos-leg-name{ font-size:.78rem; font-weight:700; }
-  .pos-leg-name.long{ color:var(--green); }
-  .pos-leg-name.short{ color:var(--red); }
-  .pos-field{ display:flex; flex-direction:column; gap:3px; }
-  .pos-field label{ font-size:.66rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
-  .pos-field-row{ display:flex; gap:6px; align-items:center; }
-  .pos-field-row input{
-    flex:1; font-family:var(--font-mono); font-size:.85rem; color:var(--ink);
-    background:#0b0e14; border:1px solid var(--line); border-radius:6px; padding:6px 8px; outline:none; width:100%;
-  }
-  .pos-field-row input:focus{ border-color:var(--accent); }
-  .pos-mini-btn{
-    flex:0 0 auto; font-family:var(--font-mono); font-size:.64rem; font-weight:600; color:var(--ink-dim);
-    background:#171c27; border:1px solid var(--line); border-radius:6px; padding:6px 7px; cursor:pointer; white-space:nowrap;
-  }
-  .pos-mini-btn:hover{ color:var(--accent); border-color:var(--accent); }
-
-  .pos-results{ display:flex; flex-direction:column; gap:8px; padding-top:8px; border-top:1px solid var(--line); }
-  .pos-result-row{ display:flex; justify-content:space-between; align-items:baseline; font-size:.8rem; color:var(--ink-dim); gap:10px; }
-  .pos-result-row b{ font-family:var(--font-mono); color:var(--ink); font-size:.92rem; text-align:right; }
-  .pos-result-row.pos-pnl-row b{ font-size:1.15rem; }
-  .pos-be-note{ font-size:.68rem; color:var(--ink-dim); line-height:1.4; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <a class="back-link" href="index.html">← Situaciones especiales</a>
-
   <div class="topbar">
     <div>
-      <h1>Monitor de Arbitraje SKYT/IONQ</h1>
-      <div class="sub" id="pair-sub">Objetivo / Adquirente</div>
+      <h1>Situaciones Especiales</h1>
+      <div class="sub">Board de arbitraje de fusiones — spread de entrada en vivo</div>
     </div>
     <div class="cfg">
-      <span><label>Umbral entrada</label><input type="number" id="threshold-input" value="6" step="1" min="0"></span>
-      <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim); margin-right:6px;">%</span>
-      <span><label>Umbral salida</label><input type="number" id="threshold-exit-input" value="2" step="1"></span>
-      <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim);">%</span>
+      <label>Refresco</label>
       <select id="auto-interval">
         <option value="10000" selected>10s</option>
         <option value="30000">30s</option>
         <option value="60000">1min</option>
         <option value="0">Off</option>
       </select>
-      <button class="btn" id="main-btn" onclick="updateData()">Actualizar</button>
+      <button class="btn" onclick="updateBoard()">Actualizar</button>
     </div>
   </div>
 
-  <!-- ── SWITCH DE ESCENARIO VWAP ─────────────────── -->
-  <div class="vwap-card">
-    <div class="vwap-head">
-      <div class="vwap-title">Escenario para el ratio de canje (collar)</div>
-      <div class="vwap-tabs" id="vwap-tabs">
-        <button data-scenario="bajo" class="scenario-bajo">Collar bajo fijo (0.5265)</button>
-        <button data-scenario="flotante" class="active">Flotante (precio actual)</button>
-        <button data-scenario="alto" class="scenario-alto">Collar alto fijo (0.3326)</button>
-      </div>
+  <div class="board">
+    <div class="board-head">
+      <span>#</span>
+      <span>Situación</span>
+      <span>Entrada</span>
+      <span>Salida</span>
     </div>
-    <div class="collar-bar"><div class="dot" id="collar-dot" style="left:50%"></div></div>
-    <div class="collar-labels"><span>≤ $37.99 → 0.5265</span><span>banda flotante ($20/precio)</span><span>≥ $60.13 → 0.3326</span></div>
-    <div class="vwap-note" id="vwap-note">
-      "Flotante" usa el precio actual de IONQ como aproximación del VWAP de 20 días que fijará el ratio real 3 días
-      hábiles antes del cierre (recorta automáticamente a 0.5265 / 0.3326 si el precio sale de la banda $37.99–$60.13).
-      Los otros dos escenarios fijan el ratio en su valor extremo del collar, útiles para ver el mejor/peor caso
-      independientemente de dónde esté IONQ hoy.
-    </div>
-  </div>
-
-  <!-- ── CAPITAL ─────────────────────────────────── -->
-  <div class="invest-box">
-    <span class="invest-label">Capital simulado</span>
-    <div class="invest-slider-wrap">
-      <span>$100</span>
-      <input type="range" id="invest-slider" min="0" max="1000" step="1" value="492">
-      <span>$100k</span>
-    </div>
-    <div class="invest-input-wrap">
-      <span>$</span>
-      <input type="number" id="invest-input" value="3000" step="100" min="0">
-    </div>
-  </div>
-
-  <!-- ── ORDEN LISTA PARA EL BROKER ──────────────── -->
-  <div class="order-card" id="order-card">
-    <div class="order-title">Orden a introducir</div>
-    <div class="order-grid">
-      <div class="order-leg">
-        <span class="ol-lbl">Comprar (largo)</span>
-        <span class="ol-val" id="ord-buy">–</span>
-        <span class="ol-price" id="ord-buy-price">–</span>
-      </div>
-      <div class="order-leg">
-        <span class="ol-lbl">Shortear (corto)</span>
-        <span class="ol-val" id="ord-sell">–</span>
-        <span class="ol-price" id="ord-sell-price">–</span>
-      </div>
-    </div>
-    <div class="order-foot">
-      <span>Capital realmente usado: <b id="ord-capital">–</b></span>
-      <span>Comisiones estimadas (apertura): <b id="ord-commission">–</b></span>
-      <span>Beneficio neto teórico (tras comisiones): <b id="ord-profit">–</b></span>
-    </div>
-    <div class="order-cash-note" id="order-cash-note">
-      Además, al cierre de la fusión cada acción de SKYT da derecho a <b>$15.00 en efectivo</b> (componente fijo,
-      ya incluido en el cálculo del spread de arriba).
-    </div>
-  </div>
-
-  <!-- ── SPREADS: lo único que importa a simple vista ── -->
-  <div class="spread-grid">
-    <div class="spread-card" id="entry-card">
-      <div class="card-top">
-        <div class="tag">Spread de entrada</div>
-        <button class="sound-btn" id="entry-sound-btn" onclick="toggleSound('entry')" title="Avisar con sonido en bucle mientras se cumpla la señal de entrada (se detiene solo si deja de cumplirse, pero queda armado)">🔔</button>
-      </div>
-      <div class="big" id="in-pct">–</div>
-      <div class="usd" id="in-usd">–</div>
-      <div class="note" id="in-usd-net">–</div>
-      <div class="last-ref"><span>Ref. last</span><b id="in-last">–</b></div>
-    </div>
-    <div class="spread-card" id="exit-card">
-      <div class="card-top">
-        <div class="tag">Spread de salida</div>
-        <button class="sound-btn" id="exit-sound-btn" onclick="toggleSound('exit')" title="Avisar con sonido en bucle mientras se cumpla la señal de salida (se detiene solo si deja de cumplirse, pero queda armado)">🔔</button>
-      </div>
-      <div class="big" id="out-pct">–</div>
-      <div class="usd" id="out-usd">–</div>
-      <div class="note" id="out-usd-net">–</div>
-      <div class="last-ref"><span>Ref. last</span><b id="out-last">–</b></div>
-    </div>
-  </div>
-
-  <!-- ── TICKERS ─────────────────────────────────── -->
-  <div class="tickers">
-    <div class="tcard" id="card-A">
-      <div class="thead"><span class="tname" id="A-name">Objetivo</span><span class="texch" id="A-exch">—</span></div>
-      <div class="trow"><span class="l">Last</span><span class="v" id="A-last">–</span></div>
-      <div class="trow"><span class="l">Bid</span><span class="v" id="A-bid">–</span></div>
-      <div class="trow"><span class="l">Ask</span><span class="v" id="A-ask">–</span></div>
-      <div class="trow"><span class="l">Bid size</span><span class="v" id="A-bidsize">–</span></div>
-      <div class="trow"><span class="l">Ask size</span><span class="v" id="A-asksize">–</span></div>
-      <div class="tfresh" id="A-fresh">sin datos</div>
-    </div>
-    <div class="tcard" id="card-B">
-      <div class="thead"><span class="tname" id="B-name">Adquirente</span><span class="texch" id="B-exch">—</span></div>
-      <div class="trow"><span class="l">Last</span><span class="v" id="B-last">–</span></div>
-      <div class="trow"><span class="l">Bid</span><span class="v" id="B-bid">–</span></div>
-      <div class="trow"><span class="l">Ask</span><span class="v" id="B-ask">–</span></div>
-      <div class="trow"><span class="l">Bid size</span><span class="v" id="B-bidsize">–</span></div>
-      <div class="trow"><span class="l">Ask size</span><span class="v" id="B-asksize">–</span></div>
-      <div class="tfresh" id="B-fresh">sin datos</div>
-    </div>
-  </div>
-
-  <!-- ── CÓMO SE CALCULA LA CONTRAPRESTACIÓN TEÓRICA ── -->
-  <div class="explain-card">
-    <div class="explain-title">Cómo se calcula la contraprestación teórica</div>
-    <div class="explain-sub">Si compras 1 acción de SKYT ahora y vendes en corto su equivalente en IONQ, esto es lo que pasa:</div>
-    <div class="explain-flow">
-      <div class="ex-step">
-        <div class="ex-lbl">① Vendes en corto IONQ (bid)</div>
-        <div class="ex-val" id="ex-abid">–</div>
-      </div>
-      <div class="ex-op">×<div class="ex-op-note">ratio<br>(<span id="ex-ratio-tag">flotante</span>)<br><b id="ex-ratio">–</b></div></div>
-      <div class="ex-step">
-        <div class="ex-lbl">② Valor en acciones IONQ</div>
-        <div class="ex-val" id="ex-equiv">–</div>
-      </div>
-      <div class="ex-op">+</div>
-      <div class="ex-step">
-        <div class="ex-lbl">③ Cash fijo por acción</div>
-        <div class="ex-val" id="ex-cash">$15.0000</div>
-      </div>
-      <div class="ex-op">÷</div>
-      <div class="ex-step">
-        <div class="ex-lbl">④ Compras SKYT (ask)</div>
-        <div class="ex-val" id="ex-task">–</div>
-      </div>
-      <div class="ex-op">−1</div>
-      <div class="ex-step ex-result">
-        <div class="ex-lbl">Spread de entrada</div>
-        <div class="ex-val ex-big" id="ex-result">–</div>
-      </div>
-    </div>
-    <div class="explain-note">Es la ganancia (o pérdida) teórica por cada dólar invertido si la fusión se cierra hoy a estos precios, con el ratio de canje del escenario VWAP seleccionado arriba.</div>
-  </div>
-
-  <!-- ── CHART ───────────────────────────────────── -->
-  <div class="chart-card">
-    <div class="chead">
-      <h3 id="chart-title">Evolución del spread (último día)</h3>
-      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-        <div class="chart-legend">
-          <span><i style="background:var(--accent)"></i>Entrada</span>
-          <span><i style="background:var(--amber)"></i>Salida</span>
-        </div>
-        <div class="range-tabs" id="range-tabs">
-          <button data-days="1" class="active">1d</button>
-          <button data-days="3">3d</button>
-          <button data-days="7">7d</button>
-          <button data-days="14">14d</button>
-          <button data-days="30">30d</button>
-        </div>
-      </div>
-    </div>
-    <canvas id="chart"></canvas>
+    <div id="board-body"><!-- filas insertadas por JS --></div>
   </div>
 
   <div id="status">Iniciando…</div>
   <div id="footer-credit">Monitor de arbitraje de situaciones especiales por Todd Lott y Phyera</div>
 </div>
 
-<button class="pos-fab" id="pos-fab" onclick="openPositionModal()">📊 Simular posición</button>
-
-<div class="modal-overlay" id="pos-modal-overlay" onclick="closePositionModalOnOverlay(event)">
-  <div class="modal-box">
-    <button class="modal-close" onclick="closePositionModal()" aria-label="Cerrar">✕</button>
-    <div class="position-card">
-    <div class="position-title">Posición simulada</div>
-    <div class="position-sub">Introduce lo que has comprado/vendido y a qué precio piensas cerrar. Los botones rellenan con el bid/ask actual. El cash fijo de $15.00/acción SKYT no se incluye aquí (se cobra automáticamente al cierre de la fusión si mantienes hasta entonces); esta calculadora es solo para el resultado de comprar/vender en el mercado abierto.</div>
-
-    <div class="pos-leg">
-      <div class="pos-leg-head"><span class="pos-leg-name long">Largo SKYT</span></div>
-      <div class="pos-field">
-        <label>Acciones compradas</label>
-        <div class="pos-field-row"><input type="number" id="pos-t-qty" placeholder="0" min="0" step="1" value="0"></div>
-      </div>
-      <div class="pos-field">
-        <label>Precio de compra (entrada)</label>
-        <div class="pos-field-row">
-          <input type="number" id="pos-t-entry" placeholder="0.0000" min="0" step="0.0001">
-          <button class="pos-mini-btn" onclick="fillPosPrice('pos-t-entry','tAsk')" title="Usar el ask actual">ask act.</button>
-        </div>
-      </div>
-      <div class="pos-field">
-        <label>Precio objetivo de venta (cierre)</label>
-        <div class="pos-field-row">
-          <input type="number" id="pos-t-exit" placeholder="0.0000" min="0" step="0.0001">
-          <button class="pos-mini-btn" onclick="fillPosPrice('pos-t-exit','tBid')" title="Usar el bid actual">bid act.</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="pos-leg">
-      <div class="pos-leg-head"><span class="pos-leg-name short">Corto IONQ</span></div>
-      <div class="pos-field">
-        <label>Acciones vendidas en corto</label>
-        <div class="pos-field-row"><input type="number" id="pos-a-qty" placeholder="0" min="0" step="1" value="0"></div>
-      </div>
-      <div class="pos-field">
-        <label>Precio de venta corto (entrada)</label>
-        <div class="pos-field-row">
-          <input type="number" id="pos-a-entry" placeholder="0.0000" min="0" step="0.0001">
-          <button class="pos-mini-btn" onclick="fillPosPrice('pos-a-entry','aBid')" title="Usar el bid actual">bid act.</button>
-        </div>
-      </div>
-      <div class="pos-field">
-        <label>Precio objetivo de recompra (cierre)</label>
-        <div class="pos-field-row">
-          <input type="number" id="pos-a-exit" placeholder="0.0000" min="0" step="0.0001">
-          <button class="pos-mini-btn" onclick="fillPosPrice('pos-a-exit','aAsk')" title="Usar el ask actual">ask act.</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="pos-results">
-      <div class="pos-result-row"><span>Capital empleado</span><b id="pos-capital">–</b></div>
-      <div class="pos-result-row"><span>Comisiones estimadas (4 patas)</span><b id="pos-commissions">–</b></div>
-      <div class="pos-result-row"><span>Beneficio bruto (sin comisiones)</span><b id="pos-pnl-gross">–</b></div>
-      <div class="pos-result-row pos-pnl-row"><span>Beneficio neto de comisiones</span><b id="pos-pnl">–</b></div>
-      <div class="pos-result-row"><span>Spread de entrada (tu posición)</span><b id="pos-spread-entry">–</b></div>
-      <div class="pos-result-row"><span>Spread de salida (objetivo)</span><b id="pos-spread-exit">–</b></div>
-      <div class="pos-result-row"><span>Cobertura vs. ratio del escenario</span><b id="pos-hedge-ratio">–</b></div>
-      <div class="pos-be-note" id="pos-hedge-note"></div>
-      <div class="pos-result-row"><span>Breakeven venta SKYT ($)</span><b id="pos-be-t">–</b></div>
-      <div class="pos-result-row"><span>Breakeven recompra IONQ ($)</span><b id="pos-be-a">–</b></div>
-      <div class="pos-be-note">Los precios de breakeven de abajo YA incluyen el impacto estimado de las comisiones de las 4 patas (apertura y cierre de ambas posiciones) y NO incluyen los $15.00 en efectivo del cierre de la fusión (que solo se cobran si mantienes hasta entonces, no si cierras antes en mercado abierto).</div>
-    </div>
-    </div>
-  </div>
-</div>
-
 <script>
 // ════════════════════════════════════════════════════════════════
-// CONFIG — edita esta sección para tu caso
+// CONFIG — añade una entrada por cada situación especial que quieras
+// listar. "detailUrl" debe apuntar al monitor detallado de esa
+// situación (una página como tmrc-usar.html).
 // ════════════════════════════════════════════════════════════════
-// Clave "anon" (pública), NUNCA la "service_role" en una página que
-// corre en el navegador. Protege las tablas con RLS de solo lectura.
 const DATA_URL = 'https://zkpvhtaktowevholyasa.supabase.co';
 const DATA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprcHZodGFrdG93ZXZob2x5YXNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MjcyMTMsImV4cCI6MjEwMDQwMzIxM30.0NMyJAPX7A4x6don1PB4siDpNtvU3bOiZruM9GwRd84';
 const db = supabase.createClient(DATA_URL, DATA_KEY);
 
-const SYMBOL_TARGET   = 'SKYT';
-const SYMBOL_ACQUIRER = 'IONQ';
-const NAME_TARGET     = 'SkyWater Technology (SKYT)';
-const NAME_ACQUIRER   = 'IonQ, Inc. (IONQ)';
-
-// ── Términos de la fusión IonQ / SkyWater ──
-// Por cada acción de SKYT: $15.00 en efectivo (fijo) + $20.00 en
-// acciones de IONQ sujeto a un collar sobre el "IonQ Trading Price"
-// (VWAP de 20 días, 3 días hábiles antes del cierre):
-//   - VWAP >= COLLAR_ALTO  -> ratio fijo RATIO_FIJO_ALTO  (0.3326)
-//   - VWAP <= COLLAR_BAJO  -> ratio fijo RATIO_FIJO_BAJO  (0.5265)
-//   - en la banda intermedia -> ratio = VALOR_STOCK_OBJETIVO / VWAP
-const CASH_PER_SHARE        = 15.00;
-const VALOR_STOCK_OBJETIVO  = 20.00;
-const COLLAR_ALTO           = 60.13;
-const COLLAR_BAJO           = 37.99;
-const RATIO_FIJO_ALTO       = 0.3326;  // acciones IONQ/SKYT si VWAP >= COLLAR_ALTO
-const RATIO_FIJO_BAJO       = 0.5265;  // acciones IONQ/SKYT si VWAP <= COLLAR_BAJO
-
-// Escenario de VWAP activo para calcular el ratio de canje:
-//  'flotante' -> usa el precio actual de IONQ como proxy del VWAP,
-//                recortando automáticamente a los ratios fijos si el
-//                precio sale de la banda $37.99–$60.13 (por defecto,
-//                es la mejor aproximación disponible en tiempo real).
-//  'alto'     -> fuerza el ratio fijo del collar alto (0.3326), el
-//                escenario donde IONQ termina caro y SKYT recibe menos
-//                acciones.
-//  'bajo'     -> fuerza el ratio fijo del collar bajo (0.5265), el
-//                escenario donde IONQ termina barato y SKYT recibe más
-//                acciones.
-let vwapScenario = 'flotante';
-
-// Ratio de canje IONQ/SKYT dado un precio de referencia de IONQ (bid o
-// ask, según la pata que se esté calculando) y el escenario activo.
-function computeRatio(precioIonQ, scenario){
-  if(scenario === 'alto') return RATIO_FIJO_ALTO;
-  if(scenario === 'bajo') return RATIO_FIJO_BAJO;
-  // 'flotante': usa el precio actual como proxy del VWAP de 20 días
-  if(isNaN(precioIonQ) || precioIonQ<=0) return NaN;
-  if(precioIonQ >= COLLAR_ALTO) return RATIO_FIJO_ALTO;
-  if(precioIonQ <= COLLAR_BAJO) return RATIO_FIJO_BAJO;
-  return VALOR_STOCK_OBJETIVO / precioIonQ;
-}
-
-// ── Comisiones de Interactive Brokers (plan "Tiered", tramo ≤300.000
-// acciones/mes) ──
-// USD 0.0035 por acción, mínimo USD 0.35 por orden, máximo 1% del valor
-// de la operación. Se usa para estimar el impacto de comisiones en el
-// spread, en la orden y en el simulador de posición.
-const COMMISSION_RATE_PER_SHARE = 0.0035;
-const COMMISSION_MIN_PER_ORDER = 0.35;
-const COMMISSION_MAX_PCT_OF_TRADE = 0.01;
-
+const INVALID_TICK = -1;
 const STALE_MS = 60000;
 
-// Valor "centinela" que usa la fuente de datos para indicar
-// bid/ask no disponible. Estos ticks se descartan por completo.
-const INVALID_TICK = -1;
+const SITUATIONS = [
+  {
+    id: 'tmrc-usar',
+    type: 'ratio',            // canje de acciones: dos símbolos + ratio de canje
+    targetSymbol: 'TMRC',
+    targetName: 'Texas Mineral',
+    acquirerSymbol: 'USAR',
+    acquirerName: 'USA Rare Earth',
+    ratio: 3823328 / 88339693,
+    threshold: 9,        // % — umbral de entrada de esta situación
+    thresholdExit: 5,    // % — umbral de salida de esta situación
+    detailUrl: 'tmrc-usar.html',
+  },
+  {
+    id: 'gbcs',
+    type: 'fixed',             // OPA en efectivo: un solo símbolo + precio de oferta fijo
+    targetSymbol: 'GBCS',
+    targetName: 'Selectis Health (GBCS)',
+    acquirerName: 'Black Pearl Equities (efectivo)',
+    offerPrice: 5.75,    // $ por acción en efectivo, según el Merger Agreement
+    threshold: 6,        // % — umbral de entrada de esta situación
+    thresholdExit: 2,    // % — umbral de salida de esta situación
+    detailUrl: 'gbcs.html',
+  },
+  {
+    id: 'nee-d',
+    type: 'ratio_cash',       // canje de acciones + cash sweetener fijo por acción
+    targetSymbol: 'D',
+    targetName: 'Dominion Energy',
+    acquirerSymbol: 'NEE',
+    acquirerName: 'NextEra Energy',
+    ratio: 0.8138,
+    cashPerShare: 0.42,  // $360M / ~853-865M acciones de D en circulación (aprox., confirmar en el S-4)
+    threshold: 4,        // % — umbral de entrada de esta situación
+    thresholdExit: 1,    // % — umbral de salida de esta situación
+    detailUrl: 'nee-d.html',
+  },
+  {
+    id: 'ionq-skyt',
+    type: 'ratio_cash_collar', // canje de acciones a ratio CON COLLAR + cash fijo por acción
+    targetSymbol: 'SKYT',
+    targetName: 'SkyWater Technology',
+    acquirerSymbol: 'IONQ',
+    acquirerName: 'IonQ',
+    cashPerShare: 15.00,   // $ fijo por acción SKYT
+    stockValueTarget: 20.00, // $ objetivo del componente en acciones dentro de la banda del collar
+    collarHigh: 60.13,     // $ — VWAP de IONQ a partir de aquí -> ratio fijo bajo
+    collarLow: 37.99,      // $ — VWAP de IONQ por debajo de aquí -> ratio fijo alto
+    ratioAtHigh: 0.3326,   // acciones IONQ/SKYT si VWAP >= collarHigh
+    ratioAtLow: 0.5265,    // acciones IONQ/SKYT si VWAP <= collarLow
+    vwapScenario: 'flotante', // 'flotante' (usa el precio actual como proxy) | 'alto' | 'bajo'
+    threshold: 6,        // % — umbral de entrada de esta situación
+    thresholdExit: 2,    // % — umbral de salida de esta situación
+    detailUrl: 'ionq-skyt.html',
+  },
+  {
+    id: 'smwn',
+    type: 'fixed',             // OPA en efectivo: un solo símbolo + precio de oferta fijo (IBIS, EUR)
+    targetSymbol: 'SMWN',
+    targetName: 'SMWN (IBIS, EUR)',
+    acquirerName: 'Oferta en efectivo (€4.60)',
+    offerPrice: 4.60,    // € por acción, oferta sobre la mesa
+    threshold: 4.55,     // % — equivale aprox. a un ask de €4.40 (umbral de entrada solicitado)
+    thresholdExit: 1.5,  // % — umbral de salida orientativo (no hay lógica de salida específica pedida)
+    detailUrl: 'smwn.html',
+  },
+];
 
-document.getElementById('pair-sub').innerText = `${NAME_TARGET} / ${NAME_ACQUIRER}`;
-document.getElementById('A-name').innerText = NAME_TARGET;
-document.getElementById('B-name').innerText = NAME_ACQUIRER;
+// Ratio de canje IONQ/SKYT dado un precio de referencia de IONQ (bid o
+// ask, según la pata) y el escenario de VWAP configurado en la propia
+// situación (sit.vwapScenario). 'flotante' usa el precio actual como
+// proxy del VWAP de 20 días, recortando a los ratios fijos del collar
+// si el precio sale de la banda [collarLow, collarHigh].
+function computeCollarRatio(sit, precioAdquirente){
+  const scenario = sit.vwapScenario || 'flotante';
+  if(scenario === 'alto') return sit.ratioAtHigh;
+  if(scenario === 'bajo') return sit.ratioAtLow;
+  if(isNaN(precioAdquirente) || precioAdquirente<=0) return NaN;
+  if(precioAdquirente >= sit.collarHigh) return sit.ratioAtHigh;
+  if(precioAdquirente <= sit.collarLow) return sit.ratioAtLow;
+  return sit.stockValueTarget / precioAdquirente;
+}
 
-// ════════════════════════════════════════════════════════════════
-let INVEST = 3000;
-let threshold = 6;
-let thresholdExit = 2;
-let priceCache = {};
-let rawHistory = [];  // {t, tBid, tAsk, aBid, aAsk} forward-filled, para poder recalcular al cambiar de escenario
-let entryPts = [];     // {t, v} — historial del spread de entrada (derivado de rawHistory)
-let exitPts = [];      // {t, v} — historial del spread de salida (derivado de rawHistory)
-let chartDays = 1;
 let autoTimer = null;
+let lastComputedList = [];
 
-// ── Capital simulado: slider logarítmico ($100 – $100,000) sincronizado
-// con un campo numérico para introducir cualquier valor exacto.
-const INVEST_MIN = 100;
-const INVEST_MAX = 100000;
-const SLIDER_MAX = 1000;
+// Último spread (en %, ya multiplicado por 100) mostrado para cada
+// situación, para poder decidir si el nuevo valor sube o baja y así
+// disparar el resplandor con el color correcto en el próximo render.
+let lastShownSpread = {};   // { [situationId]: { in: number, out: number } }
 
-function sliderToInvest(s){
-  const minLog = Math.log10(INVEST_MIN), maxLog = Math.log10(INVEST_MAX);
-  const val = Math.pow(10, minLog + (s/SLIDER_MAX)*(maxLog-minLog));
-  return Math.round(val/10)*10;
-}
-function investToSlider(v){
-  const minLog = Math.log10(INVEST_MIN), maxLog = Math.log10(INVEST_MAX);
-  const clamped = Math.min(Math.max(v, INVEST_MIN), INVEST_MAX);
-  const s = ((Math.log10(clamped)-minLog)/(maxLog-minLog))*SLIDER_MAX;
-  return Math.round(s);
-}
-
-// Guarda, por símbolo, el último bid/ask/last/bidSize/askSize VÁLIDOS
-// vistos (ignorando -1) junto con la marca de tiempo de cada uno, para
-// poder mostrar "el último valor válido" en vez de N/A cuando llega un
-// tick sin dato.
-let lastValid = {
-  [SYMBOL_TARGET]:   { bid:NaN, ask:NaN, last:NaN, bidSize:NaN, askSize:NaN, bidTs:null, askTs:null, lastTs:null, bidSizeTs:null, askSizeTs:null },
-  [SYMBOL_ACQUIRER]: { bid:NaN, ask:NaN, last:NaN, bidSize:NaN, askSize:NaN, bidTs:null, askTs:null, lastTs:null, bidSizeTs:null, askSizeTs:null },
-};
-
-const cvs = document.getElementById('chart');
-const ctx = cvs?.getContext('2d');
-
-function setupCanvas(){
-  if(!cvs||!ctx) return;
-  const r = cvs.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  cvs.width = r.width*dpr; cvs.height = r.height*dpr;
-  ctx.scale(dpr,dpr);
-  cvs.style.width = r.width+'px'; cvs.style.height = r.height+'px';
-}
-
-function fmtAxisTime(ms){
-  const d = new Date(ms);
-  if(chartDays <= 1){
-    return d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
-  }
-  return d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'}) + ' ' +
-         d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
-}
-
-function drawChart(){
-  if(!ctx||!cvs) return;
-  const r = cvs.getBoundingClientRect();
-  const W=r.width, H=r.height, P=46, PB=28; // PB: espacio inferior para etiquetas de tiempo
-  ctx.clearRect(0,0,cvs.width,cvs.height);
-
-  const allPts = entryPts.concat(exitPts);
-  if(!allPts.length){
-    ctx.fillStyle='#7c8698'; ctx.font='13px Inter'; ctx.textAlign='center';
-    ctx.fillText('Esperando datos…', W/2, H/2);
-    return;
-  }
-
-  const vals = allPts.map(d=>d.v).concat([threshold, thresholdExit]);
-  const rMin=Math.min(...vals), rMax=Math.max(...vals);
-  const pad=Math.max((rMax-rMin)*0.2,0.4);
-  const mn=rMin-pad, mx=rMax+pad, rng=(mx-mn)||1;
-
-  const tVals = allPts.map(d=>d.t);
-  const tMin = Math.min(...tVals), tMax = Math.max(...tVals);
-  const tRng = (tMax-tMin) || 1;
-
-  const getY = v => H-PB-((v-mn)/rng)*(H-PB-P*0.4);
-  const getX = t => P + ((t-tMin)/tRng)*(W-P*1.3);
-
-  // Grid horizontal + etiquetas del eje Y
-  ctx.font='11px JetBrains Mono'; ctx.textAlign='right'; ctx.fillStyle='#7c8698';
-  for(let i=0;i<=4;i++){
-    const v = mn+(i/4)*rng, y=getY(v);
-    ctx.fillText(v.toFixed(2)+'%', P-8, y+4);
-    ctx.strokeStyle='rgba(255,255,255,.06)'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(P,y); ctx.lineTo(W-P*0.3,y); ctx.stroke();
-  }
-
-  // Etiquetas del eje X (tiempo)
-  ctx.textAlign='center'; ctx.fillStyle='#7c8698';
-  const N_XLABELS = 5;
-  for(let i=0;i<=N_XLABELS;i++){
-    const t = tMin + (i/N_XLABELS)*tRng;
-    const x = getX(t);
-    ctx.fillText(fmtAxisTime(t), x, H-PB+16);
-  }
-
-  // Líneas de umbral
-  const yThIn = getY(threshold);
-  ctx.strokeStyle='#2ee0a3'; ctx.lineWidth=1.2; ctx.setLineDash([5,4]);
-  ctx.beginPath(); ctx.moveTo(P,yThIn); ctx.lineTo(W-P*0.3,yThIn); ctx.stroke();
-
-  const yThOut = getY(thresholdExit);
-  ctx.strokeStyle='#ffb648'; ctx.lineWidth=1.2;
-  ctx.beginPath(); ctx.moveTo(P,yThOut); ctx.lineTo(W-P*0.3,yThOut); ctx.stroke();
-  ctx.setLineDash([]);
-
-  function drawSeries(pts, color){
-    if(pts.length < 1) return;
-    ctx.strokeStyle=color; ctx.lineWidth=2.2;
-    ctx.beginPath();
-    pts.forEach((d,i)=>{ const x=getX(d.t),y=getY(d.v); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
-    ctx.stroke();
-    const last = pts[pts.length-1];
-    ctx.beginPath(); ctx.arc(getX(last.t), getY(last.v), 4.5, 0, Math.PI*2);
-    ctx.fillStyle = color; ctx.fill();
-  }
-  drawSeries(entryPts, '#2ee0a3');
-  drawSeries(exitPts, '#ffb648');
-}
-
-function fmt(n){ return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n); }
-function fmtPct(n,d=3){ return (n*100).toFixed(d)+' %'; }
-function tiempoDesde(iso){
-  if(!iso) return {texto:'sin datos', stale:true};
-  const ms = Date.now()-new Date(iso).getTime();
-  const stale = ms > STALE_MS;
-  if(ms<1000) return {texto:'justo ahora', stale};
-  if(ms<60000) return {texto:`hace ${Math.round(ms/1000)}s`, stale};
-  return {texto:`hace ${Math.round(ms/60000)} min`, stale};
-}
-
-// Comisión estimada de IBKR (plan Tiered) para una orden de `qty`
-// acciones a precio `price`: USD 0.0035/acción, con mínimo de USD 0.35
-// y máximo del 1% del valor de la operación. Devuelve 0 si qty o price
-// no son válidos (orden vacía o precio desconocido).
-function commissionForOrder(qty, price){
-  if(!qty || qty<=0 || isNaN(price) || price<=0) return 0;
-  const raw = qty * COMMISSION_RATE_PER_SHARE;
-  const maxCap = qty * price * COMMISSION_MAX_PCT_OF_TRADE;
-  const capped = Math.min(raw, maxCap);
-  return Math.max(capped, COMMISSION_MIN_PER_ORDER);
-}
-
-// Convierte un valor crudo de bid/ask a número, descartando el
-// centinela de "sin dato" (-1) y devolviendo NaN en ese caso.
-function cleanQuote(v){
-  const n = parseFloat(v);
-  if(isNaN(n) || n === INVALID_TICK) return NaN;
-  return n;
-}
-
-// Actualiza el store de "último valor válido" de un símbolo con un tick
-// crudo. Cada campo (bid/ask/last/bidSize/askSize) se actualiza de forma
-// independiente: si un campo viene con -1 o vacío, simplemente se
-// conserva el valor anterior.
-function ingestQuote(symbol, q){
-  const store = lastValid[symbol];
-  if(!store || !q) return;
-  const ts = q.ib_timestamp || q.inserted_at || null;
-  const bid     = cleanQuote(q.bid);
-  const ask     = cleanQuote(q.ask);
-  const last    = cleanQuote(q.last);
-  const bidSize = cleanQuote(q.bid_size);
-  const askSize = cleanQuote(q.ask_size);
-  if(!isNaN(bid)){     store.bid     = bid;     store.bidTs     = ts; }
-  if(!isNaN(ask)){     store.ask     = ask;     store.askTs     = ts; }
-  if(!isNaN(last)){    store.last    = last;    store.lastTs    = ts; }
-  if(!isNaN(bidSize)){ store.bidSize = bidSize; store.bidSizeTs = ts; }
-  if(!isNaN(askSize)){ store.askSize = askSize; store.askSizeTs = ts; }
-}
-
-// ── Resplandor ("flash") en los valores al cambiar, estilo broker ──
-// Guarda el último valor numérico que se pintó en pantalla para cada id,
-// y compara con el nuevo cada vez que se actualiza para decidir si el
-// resplandor debe ser verde (sube), rojo (baja) o neutro (sin dirección).
-let displayedValues = {};
-
-function flashValue(el, direction){
-  if(!el || !direction) return;
-  const glow = {
-    up:      { color:'rgba(46,224,163,.65)', bg:'rgba(46,224,163,.18)' },
-    down:    { color:'rgba(255,84,112,.65)', bg:'rgba(255,84,112,.18)' },
-    neutral: { color:'rgba(255,255,255,.4)', bg:'rgba(255,255,255,.10)' },
-  }[direction];
-  el.style.setProperty('--glow-color', glow.color);
-  el.style.setProperty('--glow-bg', glow.bg);
-  el.classList.remove('value-flash');
-  void el.offsetWidth; // fuerza reflow para reiniciar la animación aunque sea la misma dirección
-  el.classList.add('value-flash');
-}
-
-// Pinta un valor numérico en el elemento indicado y dispara el flash
-// si cambió respecto al último valor mostrado para ese id.
-function setNumericText(id, newVal, decimals=4, formatter=null){
-  const el = document.getElementById(id);
-  if(!el) return;
-  const prev = displayedValues[id];
-  const text = isNaN(newVal) ? 'N/A' : (formatter ? formatter(newVal) : newVal.toFixed(decimals));
-  el.innerText = text;
-  if(prev !== undefined && !isNaN(newVal) && !isNaN(prev) && newVal !== prev){
-    flashValue(el, newVal > prev ? 'up' : 'down');
-  }
-  if(!isNaN(newVal)) displayedValues[id] = newVal;
-}
-
-// ── Aviso sonoro por señal (entrada/salida) ──
-// El botón se "arma" manualmente. Mientras esté armado, el aviso suena
-// EN BUCLE cada vez que la condición se cumple, y se detiene solo en
-// cuanto deja de cumplirse — pero el botón sigue armado, así que volverá
-// a sonar automáticamente si la condición se vuelve a cumplir. Solo se
-// desarma pulsando el botón de nuevo.
-let soundArmed = { entry:false, exit:false };
-let alarmInterval = { entry:null, exit:null };
+// ── Aviso sonoro por situación ──
+// Cada fila se "arma" de forma independiente. En cuanto su spread de
+// entrada supera el umbral, el aviso suena EN BUCLE indefinidamente
+// —no se detiene solo aunque la condición deje de cumplirse— hasta
+// que el usuario desactiva esa fila manualmente.
+let soundArmed = {};      // { [situationId]: boolean }
+let alarmInterval = {};   // { [situationId]: intervalId }
 const ALARM_LOOP_MS = 1300;
 let sharedAudioCtx = null;
 
@@ -919,655 +334,300 @@ function beep(freq, delay, duration){
   o.stop(start + duration + 0.05);
 }
 
-function playAlertSound(kind){
-  // Dos tonos ascendentes para "entrada", dos descendentes para "salida",
-  // así se distinguen de oído sin mirar la pantalla.
-  if(kind === 'entry'){
-    beep(740, 0,   0.28);
-    beep(1180, 0.16, 0.32);
-  } else {
-    beep(1180, 0,   0.28);
-    beep(740, 0.16, 0.32);
+function playAlertSound(){
+  // Dos tonos ascendentes, igual que la señal de entrada del monitor detallado.
+  beep(740, 0,   0.28);
+  beep(1180, 0.16, 0.32);
+}
+
+function startAlarmLoop(id){
+  if(alarmInterval[id]) return; // ya está sonando
+  playAlertSound();
+  alarmInterval[id] = setInterval(playAlertSound, ALARM_LOOP_MS);
+}
+
+function stopAlarmLoop(id){
+  if(alarmInterval[id]){
+    clearInterval(alarmInterval[id]);
+    alarmInterval[id] = null;
   }
 }
 
-function startAlarmLoop(kind){
-  if(alarmInterval[kind]) return; // ya está sonando
-  playAlertSound(kind);
-  alarmInterval[kind] = setInterval(() => playAlertSound(kind), ALARM_LOOP_MS);
-  updateSoundButtons();
-}
-
-function stopAlarmLoop(kind){
-  if(alarmInterval[kind]){
-    clearInterval(alarmInterval[kind]);
-    alarmInterval[kind] = null;
-  }
-  updateSoundButtons();
-}
-
-function toggleSound(which){
-  soundArmed[which] = !soundArmed[which];
-  if(soundArmed[which]){
+function toggleSound(id, ev){
+  ev.preventDefault();
+  ev.stopPropagation();
+  soundArmed[id] = !soundArmed[id];
+  if(soundArmed[id]){
     getAudioCtx(); // desbloquea el audio en el gesto del usuario
   } else {
-    stopAlarmLoop(which); // desactivación manual: para el bucle si estaba sonando
+    stopAlarmLoop(id); // desactivación manual: para el bucle si estaba sonando
   }
-  updateSoundButtons();
-}
-
-function updateSoundButtons(){
-  const entryBtn = document.getElementById('entry-sound-btn');
-  const exitBtn = document.getElementById('exit-sound-btn');
-  entryBtn.classList.toggle('active', soundArmed.entry);
-  entryBtn.classList.toggle('alerting', !!alarmInterval.entry);
-  exitBtn.classList.toggle('active', soundArmed.exit);
-  exitBtn.classList.toggle('alerting', !!alarmInterval.exit);
-}
-
-function triggerSignalSound(which, isHit){
-  if(!soundArmed[which]) return;
-  if(isHit){
-    startAlarmLoop(which); // arranca el bucle mientras se cumpla la condición
-  } else {
-    stopAlarmLoop(which); // deja de sonar en cuanto deja de cumplirse, pero sigue armado
+  // Refleja el nuevo estado en el botón sin esperar al próximo refresco de datos
+  const btn = document.getElementById('sound-'+id);
+  if(btn){
+    btn.classList.toggle('active', !!soundArmed[id]);
+    btn.classList.toggle('alerting', !!alarmInterval[id]);
   }
 }
 
-// ── Switch de escenario VWAP ──
-document.querySelectorAll('#vwap-tabs button').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    if(btn.classList.contains('active')) return;
-    document.querySelectorAll('#vwap-tabs button').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    vwapScenario = btn.dataset.scenario;
-    document.getElementById('ex-ratio-tag').innerText =
-      vwapScenario === 'flotante' ? 'flotante' : (vwapScenario === 'alto' ? 'collar alto fijo' : 'collar bajo fijo');
-    updateCollarBar();
-    recalc();
-    updateOrderTicket();
-    updateExchangeExplainer();
-    recomputeSpreadsFromRawHistory();
-    drawChart();
-  });
-});
-
-function updateCollarBar(){
-  const dot = document.getElementById('collar-dot');
-  const price = priceCache ? priceCache.aBid : NaN;
-  let pos;
-  if(vwapScenario === 'alto'){
-    pos = 89; // dentro del tramo ámbar (collar alto)
-  } else if(vwapScenario === 'bajo'){
-    pos = 11; // dentro del tramo morado (collar bajo)
-  } else if(!isNaN(price) && price>0){
-    const clamped = Math.min(Math.max(price, COLLAR_BAJO*0.85), COLLAR_ALTO*1.15);
-    pos = ((clamped - COLLAR_BAJO*0.85) / (COLLAR_ALTO*1.15 - COLLAR_BAJO*0.85)) * 100;
-  } else {
-    pos = 50;
-  }
-  dot.style.left = Math.min(Math.max(pos,2),98) + '%';
-}
-
-function updateExchangeExplainer(){
-  const {aBid, tAsk} = priceCache;
-  const ratio = computeRatio(aBid, vwapScenario);
-  document.getElementById('ex-ratio').innerText = isNaN(ratio) ? '–' : ratio.toFixed(4);
-
-  const ids = ['ex-abid','ex-equiv','ex-task'];
-  if(isNaN(aBid) || isNaN(tAsk) || tAsk<=0 || isNaN(ratio)){
-    ids.forEach(id => document.getElementById(id).innerText = '–');
-    document.getElementById('ex-result').innerText = '–';
-    return;
-  }
-
-  const equiv = ratio * aBid;
-  const total = equiv + CASH_PER_SHARE;
-  const spread = total / tAsk - 1;
-
-  setNumericText('ex-abid', aBid, 4, v => '$' + v.toFixed(4));
-  setNumericText('ex-equiv', equiv, 4, v => '$' + v.toFixed(4));
-  setNumericText('ex-task', tAsk, 4, v => '$' + v.toFixed(4));
-
-  const resEl = document.getElementById('ex-result');
-  const prevSpread = displayedValues['ex-result'];
-  resEl.innerText = fmtPct(spread);
-  resEl.style.color = spread>0 ? 'var(--green)' : 'var(--red)';
-  if(prevSpread !== undefined && spread !== prevSpread){
-    flashValue(resEl, spread > prevSpread ? 'up' : 'down');
-  }
-  displayedValues['ex-result'] = spread;
-}
-
-function recalc(){
-  const {aBid,aAsk,aLast,tBid,tAsk,tLast} = priceCache;
-
-  if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0){
-    const ratioEntrada = computeRatio(aBid, vwapScenario);
-    if(!isNaN(ratioEntrada)){
-      const inPct = (CASH_PER_SHARE + ratioEntrada*aBid)/tAsk - 1;
-      const usd = inPct*INVEST;
-      const pEl=document.getElementById('in-pct');
-      const prevIn = displayedValues['in-pct'];
-      pEl.innerText=fmtPct(inPct);
-      pEl.style.color = inPct>0 ? 'var(--green)' : 'var(--red)';
-      if(prevIn !== undefined && inPct !== prevIn) flashValue(pEl, inPct>prevIn?'up':'down');
-      displayedValues['in-pct'] = inPct;
-
-      setNumericText('in-usd', usd, 2, fmt);
-
-      // Comisiones estimadas de abrir la posición ahora mismo: comprar
-      // SKYT al ask + shortear IONQ al bid, para el capital simulado.
-      const qtyT_in = INVEST/tAsk;
-      const qtyA_in = qtyT_in*ratioEntrada;
-      const commIn = commissionForOrder(qtyT_in, tAsk) + commissionForOrder(qtyA_in, aBid);
-      const usdNetIn = usd - commIn;
-      const netInEl = document.getElementById('in-usd-net');
-      netInEl.innerText = `Neto de comisiones (≈${fmt(commIn)}): ${fmt(usdNetIn)}`;
-      netInEl.style.color = usdNetIn>0 ? 'var(--green)' : 'var(--red)';
-
-      const entryHit = (inPct*100) >= threshold;
-      const card = document.getElementById('entry-card');
-      card.classList.toggle('entry-hit', entryHit);
-      triggerSignalSound('entry', entryHit);
-    }
-  }
-  if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
-    const ratioLast = computeRatio(aLast, vwapScenario);
-    if(!isNaN(ratioLast)){
-      const inLast = (CASH_PER_SHARE + ratioLast*aLast)/tLast - 1;
-      setNumericText('in-last', inLast, 3, fmtPct);
-    }
-  }
-
-  if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0 && !isNaN(tAsk) && tAsk>0){
-    const ratioSalida = computeRatio(aAsk, vwapScenario);
-    if(!isNaN(ratioSalida)){
-      const outPct = (CASH_PER_SHARE + ratioSalida*aAsk)/tBid - 1;
-      // outPct ya es directamente la "distancia" al valor de la contraprestación:
-      // positivo = todavía queda spread por capturar, negativo/cero = ya converge.
-      // La convertimos a $ sobre el capital simulado invirtiendo el signo, igual
-      // que en el resto del monitor (rojo = todavía lejos, verde = ya converge).
-      const usdReal = -outPct * INVEST;
-      const pEl=document.getElementById('out-pct');
-      const prevOut = displayedValues['out-pct'];
-      pEl.innerText=fmtPct(outPct);
-      pEl.style.color = outPct>0 ? 'var(--red)' : 'var(--green)';
-      if(prevOut !== undefined && outPct !== prevOut) flashValue(pEl, outPct>prevOut?'up':'down');
-      displayedValues['out-pct'] = outPct;
-
-      setNumericText('out-usd', usdReal, 2, fmt);
-
-      // Comisiones estimadas de cerrar la posición ahora mismo: vender
-      // SKYT al bid + recomprar el corto de IONQ al ask.
-      const qtyT_out = INVEST/tAsk;
-      const qtyA_out = qtyT_out*ratioSalida;
-      const commOut = commissionForOrder(qtyT_out, tBid) + commissionForOrder(qtyA_out, aAsk);
-      const usdNetOut = usdReal - commOut;
-      const netOutEl = document.getElementById('out-usd-net');
-      netOutEl.innerText = `Neto de comisiones (≈${fmt(commOut)}): ${fmt(usdNetOut)}`;
-      netOutEl.style.color = usdNetOut>0 ? 'var(--red)' : 'var(--green)';
-
-      const exitHit = (outPct*100) <= thresholdExit;
-      const exitCard = document.getElementById('exit-card');
-      exitCard.classList.toggle('exit-hit', exitHit);
-      triggerSignalSound('exit', exitHit);
-    }
-  }
-  if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
-    const ratioLastOut = computeRatio(aLast, vwapScenario);
-    if(!isNaN(ratioLastOut)){
-      const outLast = (CASH_PER_SHARE + ratioLastOut*aLast)/tLast - 1;
-      setNumericText('out-last', outLast, 3, fmtPct);
-    }
-  }
-
-  updateCollarBar();
-}
-
-function updateOrderTicket(){
-  const {aBid, tAsk} = priceCache;
-  const buyEl = document.getElementById('ord-buy');
-  const sellEl = document.getElementById('ord-sell');
-  const buyPriceEl = document.getElementById('ord-buy-price');
-  const sellPriceEl = document.getElementById('ord-sell-price');
-  const capEl = document.getElementById('ord-capital');
-  const commEl = document.getElementById('ord-commission');
-  const profitEl = document.getElementById('ord-profit');
-
-  const ratio = computeRatio(aBid, vwapScenario);
-
-  if(isNaN(aBid) || isNaN(tAsk) || tAsk<=0 || isNaN(ratio)){
-    buyEl.innerText = '–'; sellEl.innerText = '–';
-    buyPriceEl.innerText = '–'; sellPriceEl.innerText = '–';
-    capEl.innerText = '–'; commEl.innerText = '–'; profitEl.innerText = '–';
-    return;
-  }
-
-  const skytShares = Math.floor(INVEST / tAsk);
-  const ionqShares = Math.round(skytShares * ratio);
-  const capitalUsado = skytShares * tAsk;
-  const inPct = (CASH_PER_SHARE + ratio*aBid)/tAsk - 1;
-  const grossProfit = inPct * capitalUsado;
-
-  // Comisión de abrir las dos patas ahora mismo (comprar SKYT + shortear
-  // IONQ). No se resta comisión de cierre porque, en un arbitraje de
-  // fusión, la conversión al ratio oficial no requiere una nueva orden.
-  const commOpen = commissionForOrder(skytShares, tAsk) + commissionForOrder(ionqShares, aBid);
-  const netProfit = grossProfit - commOpen;
-
-  buyEl.innerText = `${skytShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
-  buyPriceEl.innerText = `@ $${tAsk.toFixed(4)} (ask)`;
-  sellEl.innerText = `${ionqShares.toLocaleString('en-US')} acc. ${SYMBOL_ACQUIRER}`;
-  sellPriceEl.innerText = `@ $${aBid.toFixed(4)} (bid) · ratio ${ratio.toFixed(4)}`;
-
-  const prevCap = displayedValues['ord-capital'];
-  capEl.innerText = fmt(capitalUsado);
-  if(prevCap !== undefined && capitalUsado !== prevCap) flashValue(capEl, capitalUsado>prevCap?'up':'down');
-  displayedValues['ord-capital'] = capitalUsado;
-
-  setNumericText('ord-commission', commOpen, 2, fmt);
-
-  const prevProfit = displayedValues['ord-profit'];
-  profitEl.innerText = fmt(netProfit) + ` (${(inPct*100).toFixed(2)}%)`;
-  profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
-  if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
-  displayedValues['ord-profit'] = netProfit;
-}
-
-// ── MODAL: simulador de posición ──
-function openPositionModal(){
-  document.getElementById('pos-modal-overlay').classList.add('active');
-}
-function closePositionModal(){
-  document.getElementById('pos-modal-overlay').classList.remove('active');
-}
-function closePositionModalOnOverlay(e){
-  if(e.target.id === 'pos-modal-overlay') closePositionModal();
-}
-document.addEventListener('keydown', (e)=>{
-  if(e.key === 'Escape') closePositionModal();
-});
-
-// ── SIMULADOR DE POSICIÓN ABIERTA (tarjeta lateral) ──
-// El usuario introduce lo que ha comprado/vendido y a qué precio piensa
-// cerrar cada pata. Con eso calculamos: capital empleado, beneficio total
-// (en $ y %), y el "breakeven" de cada pata — el precio al que esa pata,
-// manteniendo fijo el precio objetivo de la otra, deja el beneficio neto
-// exactamente en cero. El componente de cash ($15/acción SKYT) NO se
-// incluye aquí porque solo se cobra si se mantiene la posición hasta el
-// cierre real de la fusión, no si se cierra en mercado abierto.
-function posNum(id){
-  const v = parseFloat(document.getElementById(id).value);
-  return isNaN(v) ? 0 : v;
-}
-
-function fillPosPrice(id, key){
-  const v = priceCache ? priceCache[key] : undefined;
-  if(v===undefined || v===null || isNaN(v)) return;
-  document.getElementById(id).value = v.toFixed(4);
-  updatePositionCard();
-}
-
-function updatePositionCard(){
-  const qtyT   = posNum('pos-t-qty');
-  const entryT = posNum('pos-t-entry');
-  const exitT  = posNum('pos-t-exit');
-  const qtyA   = posNum('pos-a-qty');
-  const entryA = posNum('pos-a-entry');
-  const exitA  = posNum('pos-a-exit');
-
-  const capitalEl = document.getElementById('pos-capital');
-  const commEl = document.getElementById('pos-commissions');
-  const pnlGrossEl = document.getElementById('pos-pnl-gross');
-  const pnlEl = document.getElementById('pos-pnl');
-  const beTEl = document.getElementById('pos-be-t');
-  const beAEl = document.getElementById('pos-be-a');
-  const spreadEntryEl = document.getElementById('pos-spread-entry');
-  const spreadExitEl = document.getElementById('pos-spread-exit');
-  const hedgeEl = document.getElementById('pos-hedge-ratio');
-  const hedgeNoteEl = document.getElementById('pos-hedge-note');
-
-  const hasPosition = qtyT>0 && entryT>0 && qtyA>0 && entryA>0;
-  if(!hasPosition){
-    capitalEl.innerText = '–';
-    commEl.innerText = '–';
-    pnlGrossEl.innerText = '–';
-    pnlEl.innerText = '–'; pnlEl.style.color = '';
-    beTEl.innerText = '–';
-    beAEl.innerText = '–';
-    spreadEntryEl.innerText = '–';
-    spreadExitEl.innerText = '–';
-    hedgeEl.innerText = '–'; hedgeEl.style.color = '';
-    hedgeNoteEl.innerText = '';
-    return;
-  }
-
-  // Capital empleado: coste de la pata larga + valor nominal de la pata
-  // corta (aproximación habitual para dimensionar la operación conjunta).
-  const capital = qtyT*entryT + qtyA*entryA;
-
-  // Beneficio bruto al cerrar ambas patas a los precios objetivo:
-  //  - Largo SKYT: (precio de venta − precio de compra) × acciones
-  //  - Corto IONQ: (precio de venta corto − precio de recompra) × acciones
-  const pnlGross = qtyT*(exitT - entryT) + qtyA*(entryA - exitA);
-
-  // Comisiones de las 4 patas: comprar SKYT (entrada), vender SKYT
-  // (salida), shortear IONQ (entrada), recomprar IONQ (salida). Si el
-  // precio de salida de una pata todavía no se ha rellenado, esa
-  // comisión concreta no se cuenta (commissionForOrder devuelve 0).
-  const totalComm = commissionForOrder(qtyT, entryT) + commissionForOrder(qtyT, exitT)
-                   + commissionForOrder(qtyA, entryA) + commissionForOrder(qtyA, exitA);
-
-  const pnl = pnlGross - totalComm;
-  const pnlPct = capital>0 ? (pnl/capital)*100 : NaN;
-
-  setNumericText('pos-capital', capital, 2, fmt);
-  setNumericText('pos-commissions', totalComm, 2, fmt);
-  setNumericText('pos-pnl-gross', pnlGross, 2, fmt);
-
-  const prevPnl = displayedValues['pos-pnl'];
-  pnlEl.innerText = fmt(pnl) + (isNaN(pnlPct) ? '' : ` (${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%)`);
-  pnlEl.style.color = pnl>=0 ? 'var(--green)' : 'var(--red)';
-  if(prevPnl !== undefined && pnl !== prevPnl) flashValue(pnlEl, pnl>prevPnl?'up':'down');
-  displayedValues['pos-pnl'] = pnl;
-
-  // Spread de entrada/salida DE TU POSICIÓN, con la misma fórmula que las
-  // tarjetas de arriba pero usando tus propios precios, e incluyendo el
-  // componente de cash ($15) porque estos números sí representan el
-  // spread teórico completo si se mantiene hasta el cierre de la fusión
-  // (a diferencia del P&L de arriba, que es solo compra/venta en mercado).
-  if(entryT>0 && qtyT>0){
-    const ratioTuyo = qtyA/qtyT;
-    const spreadEntry = (CASH_PER_SHARE + ratioTuyo*entryA)/entryT - 1;
-    setNumericText('pos-spread-entry', spreadEntry, 3, fmtPct);
-  } else {
-    spreadEntryEl.innerText = '–';
-  }
-  if(exitT>0 && qtyT>0){
-    const ratioTuyo = qtyA/qtyT;
-    const spreadExit = (CASH_PER_SHARE + ratioTuyo*exitA)/exitT - 1;
-    setNumericText('pos-spread-exit', spreadExit, 3, fmtPct);
-  } else {
-    spreadExitEl.innerText = '–';
-  }
-
-  // Cobertura: ¿tu ratio de acciones (IONQ vendidas / SKYT compradas)
-  // coincide con el ratio del escenario VWAP seleccionado arriba? Si no,
-  // el atajo "breakeven = spread de entrada" deja de ser exacto.
-  const ratioEscenario = computeRatio(priceCache ? priceCache.aBid : NaN, vwapScenario);
-  const effRatio = qtyA/qtyT;
-  if(!isNaN(ratioEscenario) && ratioEscenario>0){
-    const hedgePct = (effRatio/ratioEscenario)*100;
-    hedgeEl.innerText = hedgePct.toFixed(1)+'%';
-    const wellHedged = Math.abs(hedgePct-100) < 2;
-    hedgeEl.style.color = wellHedged ? 'var(--green)' : 'var(--amber)';
-    hedgeNoteEl.innerText = wellHedged
-      ? 'Tu ratio de acciones coincide con el del escenario seleccionado.'
-      : 'Tu ratio de acciones se desvía del escenario seleccionado (o del ratio real, que solo se fija 3 días antes del cierre), así que el atajo de breakeven es solo aproximado.';
-  } else {
-    hedgeEl.innerText = '–'; hedgeEl.style.color = '';
-    hedgeNoteEl.innerText = '';
-  }
-
-  // Breakeven de la pata SKYT: a qué precio de venta, manteniendo fijo
-  // el precio objetivo de recompra de IONQ, el beneficio NETO (tras
-  // comisiones) es 0. Como la comisión es prácticamente un importe fijo
-  // por acción (no depende del precio, salvo que se toque el mínimo o
-  // el tope del 1%), subir el precio de venta necesario para cubrir
-  // esas comisiones es simplemente sumar totalComm/qtyT al breakeven
-  // "bruto".
-  if(qtyT>0){
-    const beT = entryT + (qtyA/qtyT)*(exitA - entryA) + totalComm/qtyT;
-    setNumericText('pos-be-t', beT, 4, v => '$'+v.toFixed(4));
-  } else {
-    beTEl.innerText = '–';
-  }
-
-  // Breakeven de la pata IONQ: a qué precio de recompra, manteniendo fijo
-  // el precio objetivo de venta de SKYT, el beneficio NETO es 0. Aquí
-  // hay que recomprar más barato (restar) para compensar las mismas
-  // comisiones totales.
-  if(qtyA>0){
-    const beA = entryA - (qtyT/qtyA)*(exitT - entryT) - totalComm/qtyA;
-    setNumericText('pos-be-a', beA, 4, v => '$'+v.toFixed(4));
-  } else {
-    beAEl.innerText = '–';
+function triggerSignalSound(id, isHit){
+  if(isHit && soundArmed[id]){
+    startAlarmLoop(id); // arranca el bucle; seguirá hasta apagado manual
   }
 }
 
-['pos-t-qty','pos-t-entry','pos-t-exit','pos-a-qty','pos-a-entry','pos-a-exit'].forEach(id=>{
-  document.getElementById(id).addEventListener('input', updatePositionCard);
-});
-
-// ── Handlers del control de capital simulado ──
-function onInvestSlider(){
-  const s = parseInt(document.getElementById('invest-slider').value, 10);
-  INVEST = sliderToInvest(s);
-  document.getElementById('invest-input').value = INVEST;
-  recalc();
-  updateOrderTicket();
+// La fila entera es "clicable" para ir al detalle, pero si el click
+// (o el Enter) viene de un input, botón o label —umbrales, alarmas—
+// se ignora la navegación. Así los controles nunca abren el detalle,
+// incluso con las flechitas del spinner del <input type="number">.
+function goToDetail(ev, url){
+  if(ev.target.closest('input, button, label, select')) return;
+  window.location.href = url;
 }
-function onInvestInput(){
-  let v = parseFloat(document.getElementById('invest-input').value);
-  if(isNaN(v) || v < 0) v = 0;
-  INVEST = v;
-  document.getElementById('invest-slider').value = investToSlider(v);
-  recalc();
-  updateOrderTicket();
-}
-document.getElementById('invest-slider').addEventListener('input', onInvestSlider);
-document.getElementById('invest-input').addEventListener('input', onInvestInput);
-
-document.getElementById('threshold-input').addEventListener('input', (e)=>{
-  threshold = Math.round(parseFloat(e.target.value)) || 0;
-  recalc();
-  drawChart();
-});
-document.getElementById('threshold-exit-input').addEventListener('input', (e)=>{
-  thresholdExit = Math.round(parseFloat(e.target.value)) || 0;
-  recalc();
-  drawChart();
-});
-document.getElementById('auto-interval').addEventListener('change', startAuto);
-function startAuto(){
-  clearInterval(autoTimer);
-  const ms = parseInt(document.getElementById('auto-interval').value);
-  if(ms>0) autoTimer = setInterval(updateData, ms);
+function goToDetailKey(ev, url){
+  if(ev.key !== 'Enter' && ev.key !== ' ') return;
+  if(ev.target.closest('input, button, label, select')) return;
+  ev.preventDefault();
+  window.location.href = url;
 }
 
-// ── Selector de rango del gráfico (1d/3d/7d/14d/30d) ──
-document.querySelectorAll('#range-tabs button').forEach(btn=>{
-  btn.addEventListener('click', async ()=>{
-    if(btn.classList.contains('active')) return;
-    document.querySelectorAll('#range-tabs button').forEach(b=>{ b.classList.remove('active'); b.disabled=true; });
-    chartDays = parseInt(btn.dataset.days, 10);
-    btn.classList.add('active');
-    document.getElementById('chart-title').innerText = `Evolución del spread (últimos ${chartDays} día${chartDays>1?'s':''})`;
-    await loadHistoricalSpread(chartDays);
-    drawChart();
-    document.querySelectorAll('#range-tabs button').forEach(b=>{ b.disabled=false; });
-  });
-});
+// Cambia el umbral de una situación desde el input de la fila. No
+// vuelve a consultar Supabase: recalcula con los últimos datos ya
+// cargados (lastComputedList) para no perder el foco del input.
+function updateThreshold(id, kind, val){
+  const sit = SITUATIONS.find(s => s.id === id);
+  if(!sit) return;
+  const num = Math.round(parseFloat(val));
+  if(kind === 'entry') sit.threshold = isNaN(num) ? 0 : num;
+  else sit.thresholdExit = isNaN(num) ? 0 : num;
+  updateRowVisuals(id);
+}
 
-async function fetchLatestQuotes(){
+function updateRowVisuals(id){
+  const c = lastComputedList.find(x => x.sit.id === id);
+  if(!c) return;
+  const sit = c.sit;
+
+  const hit = !isNaN(c.inPct) && (c.inPct*100) >= sit.threshold;
+  const exitHit = !isNaN(c.outPct) && (c.outPct*100) <= sit.thresholdExit;
+  const live = !c.fr.stale;
+
+  triggerSignalSound(id+'-entry', hit && live);
+  triggerSignalSound(id+'-exit', exitHit && live);
+
+  const row = document.getElementById('row-'+id);
+  if(row){
+    row.classList.toggle('armed', hit && live);
+    row.classList.toggle('armed-exit', exitHit && live && !(hit && live));
+  }
+
+  const entryBtn = document.getElementById('sound-'+id+'-entry');
+  const exitBtn = document.getElementById('sound-'+id+'-exit');
+  if(entryBtn) entryBtn.classList.toggle('alerting', !!alarmInterval[id+'-entry']);
+  if(exitBtn) exitBtn.classList.toggle('alerting', !!alarmInterval[id+'-exit']);
+}
+
+function cleanQuote(v){
+  const n = parseFloat(v);
+  if(isNaN(n) || n === INVALID_TICK) return NaN;
+  return n;
+}
+
+function fmtPct(n,d=2){ return (n*100).toFixed(d)+' %'; }
+
+function tiempoDesde(iso){
+  if(!iso) return {texto:'sin datos', stale:true};
+  const ms = Date.now()-new Date(iso).getTime();
+  const stale = ms > STALE_MS;
+  if(ms<1000) return {texto:'justo ahora', stale};
+  if(ms<60000) return {texto:`hace ${Math.round(ms/1000)}s`, stale};
+  return {texto:`hace ${Math.round(ms/60000)} min`, stale};
+}
+
+async function fetchAllQuotes(symbols){
   const { data, error } = await db
     .from('latest_quotes_by_symbol')
     .select('*')
-    .in('symbol', [SYMBOL_TARGET, SYMBOL_ACQUIRER]);
+    .in('symbol', symbols);
   if(error) throw error;
   const bySymbol = {};
   (data||[]).forEach(r => bySymbol[r.symbol] = r);
   return bySymbol;
 }
 
-// Trae TODAS las filas del rango pidiendo por páginas (Supabase/PostgREST
-// limita cada respuesta a un máximo de filas —normalmente 1000— así que
-// un simple .limit(20000) se queda corto en silencio). Se pagina con
-// .range() hasta que una página vuelve incompleta.
-async function fetchAllHistoryRows(sinceISO){
-  const PAGE_SIZE = 1000;
-  const MAX_PAGES = 200; // límite de seguridad (200k filas)
-  let allRows = [];
-  let from = 0;
-
-  for(let page=0; page<MAX_PAGES; page++){
-    const { data, error } = await db
-      .from('quotes_history')
-      .select('symbol,bid,ask,ib_timestamp,inserted_at')
-      .in('symbol', [SYMBOL_TARGET, SYMBOL_ACQUIRER])
-      .gte('inserted_at', sinceISO)
-      .order('inserted_at', { ascending: true })
-      .range(from, from + PAGE_SIZE - 1);
-
-    if(error) throw error;
-    if(!data || !data.length) break;
-
-    allRows = allRows.concat(data);
-    if(data.length < PAGE_SIZE) break; // última página
-    from += PAGE_SIZE;
-  }
-  return allRows;
+// Calcula, para un valor nuevo frente al último mostrado, qué clase de
+// resplandor debe llevar el elemento y con qué variables de color, ya
+// listas para insertar directamente en el HTML de la fila.
+function flashAttrs(id, field, newVal){
+  if(isNaN(newVal)) return '';
+  const prevStore = lastShownSpread[id];
+  const prev = prevStore ? prevStore[field] : undefined;
+  if(prev === undefined || isNaN(prev) || newVal === prev) return '';
+  const up = newVal > prev;
+  const color = up ? 'rgba(46,224,163,.65)' : 'rgba(255,84,112,.65)';
+  const bg    = up ? 'rgba(46,224,163,.18)' : 'rgba(255,84,112,.18)';
+  return ` value-flash" style="--glow-color:${color}; --glow-bg:${bg};`;
 }
 
-// Recalcula entryPts/exitPts a partir de rawHistory (forward-filled) y
-// del escenario VWAP actualmente seleccionado. Se llama tanto al cargar
-// histórico nuevo como al cambiar de escenario, sin necesidad de volver
-// a pedir datos a Supabase.
-function recomputeSpreadsFromRawHistory(){
-  const inPts = [], outPts = [];
-  for(const pt of rawHistory){
-    if(pt.aBid!=null && pt.tAsk!=null && pt.tAsk>0){
-      const ratio = computeRatio(pt.aBid, vwapScenario);
-      if(!isNaN(ratio)){
-        const inPct = (CASH_PER_SHARE + ratio*pt.aBid)/pt.tAsk - 1;
-        inPts.push({ t: pt.t, v: inPct*100 });
-      }
-    }
-    if(pt.aAsk!=null && pt.tBid!=null && pt.tBid>0){
-      const ratio = computeRatio(pt.aAsk, vwapScenario);
-      if(!isNaN(ratio)){
-        const outPct = (CASH_PER_SHARE + ratio*pt.aAsk)/pt.tBid - 1;
-        outPts.push({ t: pt.t, v: outPct*100 });
-      }
-    }
-  }
-  entryPts = inPts;
-  exitPts = outPts;
+function renderRow(sit, computed){
+  const { inPct, outPct, aExch, tExch, fr } = computed;
+
+  const hasIn = !isNaN(inPct);
+  const inClass = !hasIn ? 'pending' : (inPct >= 0 ? 'up' : 'down');
+  const inText = hasIn ? fmtPct(inPct) : 'sin datos';
+  const inFlash = hasIn ? flashAttrs(sit.id, 'in', inPct) : '';
+
+  const hasOut = !isNaN(outPct);
+  const outClass = !hasOut ? 'pending' : (outPct > 0 ? 'down' : 'up');
+  const outText = hasOut ? fmtPct(outPct) : 'sin datos';
+  const outFlash = hasOut ? flashAttrs(sit.id, 'out', outPct) : '';
+
+  const hit = hasIn && (inPct*100) >= sit.threshold;
+  const exitHit = hasOut && (outPct*100) <= sit.thresholdExit;
+  const live = !fr.stale;
+
+  const entryArmedManually = !!soundArmed[sit.id+'-entry'];
+  const entryAlerting = !!alarmInterval[sit.id+'-entry'];
+  const exitArmedManually = !!soundArmed[sit.id+'-exit'];
+  const exitAlerting = !!alarmInterval[sit.id+'-exit'];
+
+  let borderClass = '';
+  if(hit && live) borderClass = 'armed';
+  else if(exitHit && live) borderClass = 'armed-exit';
+
+  return `
+    <div class="situation ${borderClass}" id="row-${sit.id}" tabindex="0" role="link"
+      onclick="goToDetail(event, '${sit.detailUrl}')" onkeydown="goToDetailKey(event, '${sit.detailUrl}')">
+      <div class="s-rank">${computed.rank}</div>
+      <div class="s-name">
+        <div class="s-pair">${sit.targetName} <span class="arrow">→</span> ${sit.acquirerName}</div>
+        <div class="s-tags">
+          <span class="s-tag">${sit.targetSymbol}${tExch ? ' · '+tExch : ''}</span>
+          ${sit.acquirerSymbol ? `<span class="s-tag">${sit.acquirerSymbol}${aExch ? ' · '+aExch : ''}</span>` : `<span class="s-tag">OPA en efectivo</span>`}
+        </div>
+        <div class="s-meta">${fr.texto}</div>
+      </div>
+
+      <div class="s-side">
+        <div class="side-spread ${inClass}${inFlash}">${inText}</div>
+        <div class="side-ctrl">
+          <input class="th-input" type="number" step="1" value="${sit.threshold}"
+            onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','entry',this.value)">
+          <button class="sound-btn ${entryArmedManually?'active':''} ${entryAlerting?'alerting':''}" id="sound-${sit.id}-entry"
+            onclick="toggleSound('${sit.id}-entry', event)"
+            title="Avisar con sonido en bucle cuando el spread de entrada supere el umbral (suena hasta que lo desactives)">🔔</button>
+        </div>
+      </div>
+
+      <div class="s-side">
+        <div class="side-spread ${outClass}${outFlash}">${outText}</div>
+        <div class="side-ctrl">
+          <input class="th-input" type="number" step="1" value="${sit.thresholdExit}"
+            onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','exit',this.value)">
+          <button class="sound-btn exit ${exitArmedManually?'active':''} ${exitAlerting?'alerting':''}" id="sound-${sit.id}-exit"
+            onclick="toggleSound('${sit.id}-exit', event)"
+            title="Avisar con sonido en bucle cuando el spread de salida cruce el umbral (suena hasta que lo desactives)">🔔</button>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
-async function loadHistoricalSpread(days = chartDays){
-  const sinceISO = new Date(Date.now() - days*24*60*60*1000).toISOString();
-
-  let data;
-  try{
-    data = await fetchAllHistoryRows(sinceISO);
-  }catch(e){
-    console.error('Error cargando histórico:', e.message);
-    return;
-  }
-  if(!data || !data.length) return;
-
-  // Recorremos cronológicamente manteniendo el último bid/ask válido de
-  // cada símbolo, guardando en rawHistory un punto forward-filled por
-  // cada tick con dato nuevo. El ratio (y por tanto el spread) se
-  // calcula después, en recomputeSpreadsFromRawHistory(), para poder
-  // recalcularlo sin re-consultar Supabase cuando cambie el escenario.
-  let last = { tBid:null, tAsk:null, aBid:null, aAsk:null };
-  let lastTs = { tBid:null, tAsk:null, aBid:null, aAsk:null };
-  const rows = [];
-
-  for(const row of data){
-    const rowBid = cleanQuote(row.bid);
-    const rowAsk = cleanQuote(row.ask);
-    const ts = row.ib_timestamp || row.inserted_at;
-
-    // Fila totalmente inválida (bid y ask ambos -1): no aporta ningún
-    // dato nuevo, así que la obviamos por completo en vez de repetir
-    // el último punto conocido en este instante.
-    if(isNaN(rowBid) && isNaN(rowAsk)) continue;
-
-    if(row.symbol === SYMBOL_TARGET){
-      if(!isNaN(rowBid)){ last.tBid = rowBid; lastTs.tBid = ts; }
-      if(!isNaN(rowAsk)){ last.tAsk = rowAsk; lastTs.tAsk = ts; }
-    } else if(row.symbol === SYMBOL_ACQUIRER){
-      if(!isNaN(rowBid)){ last.aBid = rowBid; lastTs.aBid = ts; }
-      if(!isNaN(rowAsk)){ last.aAsk = rowAsk; lastTs.aAsk = ts; }
-    }
-
-    rows.push({ t: new Date(ts).getTime(), tBid: last.tBid, tAsk: last.tAsk, aBid: last.aBid, aAsk: last.aAsk });
-  }
-
-  // Sembramos el store de "último valor válido" con lo que encontramos
-  // en el histórico, para no arrancar en N/A si el tick más reciente
-  // en vivo viniera con -1.
-  if(last.tBid != null){ lastValid[SYMBOL_TARGET].bid = last.tBid; lastValid[SYMBOL_TARGET].bidTs = lastTs.tBid; }
-  if(last.tAsk != null){ lastValid[SYMBOL_TARGET].ask = last.tAsk; lastValid[SYMBOL_TARGET].askTs = lastTs.tAsk; }
-  if(last.aBid != null){ lastValid[SYMBOL_ACQUIRER].bid = last.aBid; lastValid[SYMBOL_ACQUIRER].bidTs = lastTs.aBid; }
-  if(last.aAsk != null){ lastValid[SYMBOL_ACQUIRER].ask = last.aAsk; lastValid[SYMBOL_ACQUIRER].askTs = lastTs.aAsk; }
-
-  // Downsample para que el gráfico no se sature con miles de puntos
-  const MAX_POINTS = 500;
-  const downsample = pts => {
-    if(pts.length <= MAX_POINTS) return pts;
-    const step = Math.ceil(pts.length / MAX_POINTS);
-    return pts.filter((_,i)=> i % step === 0);
-  };
-  rawHistory = downsample(rows);
-  recomputeSpreadsFromRawHistory();
-}
-
-async function updateData(){
+async function updateBoard(){
   const status = document.getElementById('status');
+  const body = document.getElementById('board-body');
 
   try{
-    const bySymbol = await fetchLatestQuotes();
-    const target = bySymbol[SYMBOL_TARGET] || {};
-    const acquirer = bySymbol[SYMBOL_ACQUIRER] || {};
+    const allSymbols = [...new Set(SITUATIONS.flatMap(s => s.acquirerSymbol ? [s.targetSymbol, s.acquirerSymbol] : [s.targetSymbol]))];
+    const bySymbol = await fetchAllQuotes(allSymbols);
 
-    // Actualiza el store de "último valor válido" con lo que llegó ahora
-    // (los campos en -1 se ignoran y se conserva lo anterior).
-    ingestQuote(SYMBOL_TARGET, target);
-    ingestQuote(SYMBOL_ACQUIRER, acquirer);
+    const computedList = SITUATIONS.map(sit => {
+      const t = bySymbol[sit.targetSymbol] || {};
+      let inPct = NaN, outPct = NaN, aExch = null, freshestStamps = [];
 
-    const paint = (pfx, symbol, q) => {
-      const store = lastValid[symbol];
-      setNumericText(pfx+'-last', store.last, 4);
-      setNumericText(pfx+'-bid',  store.bid,  4);
-      setNumericText(pfx+'-ask',  store.ask,  4);
-      setNumericText(pfx+'-bidsize', store.bidSize, 0, v => v.toLocaleString('en-US'));
-      setNumericText(pfx+'-asksize', store.askSize, 0, v => v.toLocaleString('en-US'));
-      if(q.primary_exchange) document.getElementById(pfx+'-exch').innerText = q.primary_exchange;
+      if(sit.type === 'fixed'){
+        // OPA en efectivo: spread = precio de oferta fijo / ask (o bid) - 1
+        const ask = cleanQuote(t.ask);
+        const bid = cleanQuote(t.bid);
+        if(!isNaN(ask) && ask>0) inPct = sit.offerPrice/ask - 1;
+        if(!isNaN(bid) && bid>0) outPct = sit.offerPrice/bid - 1;
+        freshestStamps = [t.ib_timestamp || t.inserted_at];
+      } else if(sit.type === 'ratio_cash'){
+        // Canje de acciones + cash fijo por acción (ratio constante):
+        // spread = (ratio*precio_adquirente + cashPerShare) / precio_objetivo - 1
+        const a = bySymbol[sit.acquirerSymbol] || {};
+        const aBid = cleanQuote(a.bid);
+        const aAsk = cleanQuote(a.ask);
+        const tBid = cleanQuote(t.bid);
+        const tAsk = cleanQuote(t.ask);
+        if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0) inPct = (sit.ratio*aBid + sit.cashPerShare)/tAsk - 1;
+        if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0) outPct = (sit.ratio*aAsk + sit.cashPerShare)/tBid - 1;
+        aExch = a.primary_exchange;
+        freshestStamps = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at];
+      } else if(sit.type === 'ratio_cash_collar'){
+        // Canje de acciones a ratio CON COLLAR (el ratio depende del precio
+        // del adquirente según sit.vwapScenario) + cash fijo por acción:
+        // spread = (ratio(precio)*precio_adquirente + cashPerShare) / precio_objetivo - 1
+        const a = bySymbol[sit.acquirerSymbol] || {};
+        const aBid = cleanQuote(a.bid);
+        const aAsk = cleanQuote(a.ask);
+        const tBid = cleanQuote(t.bid);
+        const tAsk = cleanQuote(t.ask);
+        if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0){
+          const ratioIn = computeCollarRatio(sit, aBid);
+          if(!isNaN(ratioIn)) inPct = (ratioIn*aBid + sit.cashPerShare)/tAsk - 1;
+        }
+        if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0){
+          const ratioOut = computeCollarRatio(sit, aAsk);
+          if(!isNaN(ratioOut)) outPct = (ratioOut*aAsk + sit.cashPerShare)/tBid - 1;
+        }
+        aExch = a.primary_exchange;
+        freshestStamps = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at];
+      } else {
+        // Canje de acciones puro: spread = ratio * precio del adquirente / precio del objetivo - 1
+        const a = bySymbol[sit.acquirerSymbol] || {};
+        const aBid = cleanQuote(a.bid);
+        const aAsk = cleanQuote(a.ask);
+        const tBid = cleanQuote(t.bid);
+        const tAsk = cleanQuote(t.ask);
+        if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0) inPct = (sit.ratio*aBid)/tAsk - 1;
+        if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0) outPct = (sit.ratio*aAsk)/tBid - 1;
+        aExch = a.primary_exchange;
+        freshestStamps = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at];
+      }
 
-      // Frescura: tomamos la marca de tiempo más reciente entre los
-      // campos que sí tienen un valor válido guardado.
-      const stamps = [store.bidTs, store.askTs, store.lastTs, store.bidSizeTs, store.askSizeTs].filter(Boolean).map(t => new Date(t).getTime());
-      const mostRecent = stamps.length ? new Date(Math.max(...stamps)).toISOString() : null;
-      const fr = tiempoDesde(mostRecent);
-      const frEl = document.getElementById(pfx+'-fresh');
-      frEl.innerText = fr.texto;
-      frEl.classList.toggle('stale', fr.stale);
-    };
-    paint('A', SYMBOL_TARGET, target);
-    paint('B', SYMBOL_ACQUIRER, acquirer);
+      const stamps = freshestStamps.filter(Boolean).map(x => new Date(x).getTime());
+      const freshest = stamps.length ? new Date(Math.max(...stamps)).toISOString() : null;
 
-    priceCache = {
-      tBid: lastValid[SYMBOL_TARGET].bid,   tAsk: lastValid[SYMBOL_TARGET].ask,   tLast: lastValid[SYMBOL_TARGET].last,
-      aBid: lastValid[SYMBOL_ACQUIRER].bid, aAsk: lastValid[SYMBOL_ACQUIRER].ask, aLast: lastValid[SYMBOL_ACQUIRER].last,
-    };
-    recalc();
-    updateOrderTicket();
-    updateExchangeExplainer();
-    updatePositionCard();
+      const fr = tiempoDesde(freshest);
+      const hit = !isNaN(inPct) && (inPct*100) >= sit.threshold;
+      const exitHit = !isNaN(outPct) && (outPct*100) <= sit.thresholdExit;
+      triggerSignalSound(sit.id+'-entry', hit && !fr.stale);
+      triggerSignalSound(sit.id+'-exit', exitHit && !fr.stale);
 
-    // Añadimos el punto en vivo al histórico crudo (y por tanto a ambas
-    // series del gráfico, ya calculadas con el escenario activo).
-    if(!isNaN(priceCache.tBid) || !isNaN(priceCache.tAsk) || !isNaN(priceCache.aBid) || !isNaN(priceCache.aAsk)){
-      rawHistory.push({ t: Date.now(), tBid: priceCache.tBid, tAsk: priceCache.tAsk, aBid: priceCache.aBid, aAsk: priceCache.aAsk });
-      if(rawHistory.length > 2000) rawHistory.shift();
-      recomputeSpreadsFromRawHistory();
-    }
-    drawChart();
+      return { sit, inPct, outPct, aExch, tExch: t.primary_exchange, freshest, fr };
+    });
+
+    // Orden por rentabilidad de entrada, de mayor a menor (las que no
+    // tienen dato válido se quedan al final).
+    computedList.sort((x,y)=>{
+      if(isNaN(x.inPct) && isNaN(y.inPct)) return 0;
+      if(isNaN(x.inPct)) return 1;
+      if(isNaN(y.inPct)) return -1;
+      return y.inPct - x.inPct;
+    });
+
+    lastComputedList = computedList;
+
+    body.innerHTML = computedList
+      .map((c, i) => renderRow(c.sit, { ...c, rank: String(i+1).padStart(2,'0') }))
+      .join('');
+
+    // Guardamos los valores recién mostrados como referencia para
+    // detectar la próxima subida/bajada y disparar el resplandor.
+    computedList.forEach(c => {
+      lastShownSpread[c.sit.id] = { in: c.inPct, out: c.outPct };
+    });
 
     status.innerHTML = `<span class="status-ok">Actualizado</span> · ${new Date().toLocaleTimeString()}`;
   }catch(e){
@@ -1575,18 +635,17 @@ async function updateData(){
   }
 }
 
+document.getElementById('auto-interval').addEventListener('change', startAuto);
+function startAuto(){
+  clearInterval(autoTimer);
+  const ms = parseInt(document.getElementById('auto-interval').value);
+  if(ms>0) autoTimer = setInterval(updateBoard, ms);
+}
+
 window.onload = async () => {
-  setupCanvas();
-  // Sincroniza slider y campo numérico con el valor inicial de INVEST
-  document.getElementById('invest-input').value = INVEST;
-  document.getElementById('invest-slider').value = investToSlider(INVEST);
-  updatePositionCard();
-  await loadHistoricalSpread(chartDays);
-  drawChart();
-  await updateData();
+  await updateBoard();
   startAuto();
 };
-window.onresize = () => { setupCanvas(); drawChart(); };
 </script>
 </body>
 </html>
