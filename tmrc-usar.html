@@ -495,6 +495,14 @@
     <div class="position-title">Posición simulada</div>
     <div class="position-sub">Introduce lo que has comprado/vendido y a qué precio piensas cerrar. Los botones rellenan con el bid/ask actual. <br>Prellenado con tu posición: 4.122 TMRC @ 0,5699 + 3.000 TMRC @ 0,54 (promedio 0,5573) y 308 USAR en corto @ 13,885.</div>
 
+    <div class="comm-switch" style="justify-content:flex-start;">
+      <label for="pos-commission-model">Comisión IBKR</label>
+      <select id="pos-commission-model">
+        <option value="tiered" selected>Tiered (0,0035/acc.)</option>
+        <option value="fixed">Fixed (0,005/acc.)</option>
+      </select>
+    </div>
+
     <div class="pos-leg">
       <div class="pos-leg-head"><span class="pos-leg-name long">Largo TMRC</span></div>
       <div class="pos-field">
@@ -1249,6 +1257,18 @@ document.getElementById('auto-interval').addEventListener('change', startAuto);
 // posición abierta.
 document.getElementById('commission-model').addEventListener('change', (e)=>{
   commissionModel = e.target.value;
+  document.getElementById('pos-commission-model').value = commissionModel;
+  recalc();
+  updateOrderTicket();
+  updatePositionCard();
+});
+
+// El desplegable de dentro del simulador de posición controla el MISMO
+// modelo de comisiones global (Tiered/Fixed) que el de la orden; se
+// mantienen sincronizados en ambos sentidos.
+document.getElementById('pos-commission-model').addEventListener('change', (e)=>{
+  commissionModel = e.target.value;
+  document.getElementById('commission-model').value = commissionModel;
   recalc();
   updateOrderTicket();
   updatePositionCard();
