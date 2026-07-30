@@ -53,7 +53,7 @@
     background:var(--accent); margin-right:9px; box-shadow:0 0 0 3px var(--accent-dim), 0 0 10px rgba(46,224,163,.7);
   }
   .topbar .sub{ font-size:.8rem; color:var(--ink-dim); margin-top:2px; font-family:var(--font-mono); }
-  .cfg{ display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:8px 12px; }
+  .cfg{ display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:8px 12px; flex-wrap:wrap; }
   .cfg label{ font-size:.68rem; color:var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:.05em; margin-right:5px; }
   .cfg input, .cfg select{
     font-family:var(--font-mono); font-size:.85rem; border:1px solid var(--line); border-radius:6px;
@@ -182,7 +182,7 @@
 
   /* ── ORDEN LISTA PARA EL BROKER ───────────────── */
   .order-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
-  .order-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:12px; }
+  .order-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
   .order-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .order-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:9px; padding:12px 14px; display:flex; flex-direction:column; gap:4px; }
   .ol-lbl{ font-size:.72rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
@@ -190,6 +190,14 @@
   .ol-price{ font-family:var(--font-mono); font-size:.76rem; color:var(--ink-dim); }
   .order-foot{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:.82rem; color:var(--ink-dim); }
   .order-foot b{ font-family:var(--font-mono); color:var(--ink); }
+
+  .comm-switch{ display:flex; align-items:center; gap:6px; }
+  .comm-switch label{ font-size:.66rem; color:var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .comm-switch select{
+    font-family:var(--font-mono); font-size:.78rem; border:1px solid var(--line); border-radius:6px;
+    padding:4px 8px; background:#0c0f16; color:var(--ink); outline:none; cursor:pointer;
+  }
+  .comm-switch select:focus{ border-color:var(--accent); }
 
   #status{ font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); text-align:center; }
   .status-ok{ color:var(--green); }
@@ -350,7 +358,16 @@
 
   <!-- ── ORDEN LISTA PARA EL BROKER ──────────────── -->
   <div class="order-card" id="order-card">
-    <div class="order-title">Orden a introducir</div>
+    <div class="order-title">
+      <span>Orden a introducir</span>
+      <div class="comm-switch">
+        <label for="commission-model">Comisión IBKR</label>
+        <select id="commission-model">
+          <option value="tiered" selected>Tiered (0,0035/acc.)</option>
+          <option value="fixed">Fixed (0,005/acc.)</option>
+        </select>
+      </div>
+    </div>
     <div class="order-grid">
       <div class="order-leg">
         <span class="ol-lbl">Comprar (largo)</span>
@@ -556,14 +573,32 @@ const NAME_ACQUIRER   = 'USA Rare Earth (USAR)';
 
 const RATIO = 3823328 / 88339693;
 
-// ── Comisiones de Interactive Brokers (plan "Tiered", tramo ≤300.000
-// acciones/mes) ──
-// USD 0.0035 por acción, mínimo USD 0.35 por orden, máximo 1% del valor
-// de la operación. Se usa para estimar el impacto de comisiones en el
+// ── Comisiones de Interactive Brokers ──
+// Dos planes disponibles, seleccionables desde el desplegable "Comisión
+// IBKR" (por defecto: Tiered). Cada modelo define su coste por acción,
+// su mínimo por orden y (si aplica) su tope como % del valor de la
+// operación. Se usa para estimar el impacto de comisiones en el
 // spread, en la orden y en el simulador de posición.
-const COMMISSION_RATE_PER_SHARE = 0.0035;
-const COMMISSION_MIN_PER_ORDER = 0.35;
-const COMMISSION_MAX_PCT_OF_TRADE = 0.01;
+const COMMISSION_MODELS = {
+  // Tiered: USD 0.0035 por acción (tramo ≤300.000 acciones/mes),
+  // mínimo USD 0.35 por orden, máximo 1% del valor de la operación.
+  tiered: {
+    label: 'Tiered',
+    perShare: 0.0035,
+    minPerOrder: 0.35,
+    maxPctOfTrade: 0.01,
+  },
+  // Fixed: USD 0.005 por acción plana, mínimo USD 1.00 por orden
+  // (mínimo estándar del plan Fixed de IBKR), sin tope por % del
+  // valor de la operación.
+  fixed: {
+    label: 'Fixed',
+    perShare: 0.005,
+    minPerOrder: 1.00,
+    maxPctOfTrade: null,
+  },
+};
+let commissionModel = 'tiered'; // por defecto: Tiered (el comportamiento previo)
 
 const STALE_MS = 60000;
 
@@ -711,16 +746,19 @@ function tiempoDesde(iso){
   return {texto:`hace ${Math.round(ms/60000)} min`, stale};
 }
 
-// Comisión estimada de IBKR (plan Tiered) para una orden de `qty`
-// acciones a precio `price`: USD 0.0035/acción, con mínimo de USD 0.35
-// y máximo del 1% del valor de la operación. Devuelve 0 si qty o price
-// no son válidos (orden vacía o precio desconocido).
+// Comisión estimada para una orden de `qty` acciones a precio `price`,
+// según el modelo de comisiones activo (Tiered o Fixed). Devuelve 0 si
+// qty o price no son válidos (orden vacía o precio desconocido).
 function commissionForOrder(qty, price){
   if(!qty || qty<=0 || isNaN(price) || price<=0) return 0;
-  const raw = qty * COMMISSION_RATE_PER_SHARE;
-  const maxCap = qty * price * COMMISSION_MAX_PCT_OF_TRADE;
-  const capped = Math.min(raw, maxCap);
-  return Math.max(capped, COMMISSION_MIN_PER_ORDER);
+  const cfg = COMMISSION_MODELS[commissionModel];
+  const raw = qty * cfg.perShare;
+  let capped = raw;
+  if(cfg.maxPctOfTrade){
+    const maxCap = qty * price * cfg.maxPctOfTrade;
+    capped = Math.min(raw, maxCap);
+  }
+  return Math.max(capped, cfg.minPerOrder);
 }
 
 // Convierte un valor crudo de bid/ask a número, descartando el
@@ -1148,9 +1186,9 @@ function updatePositionCard(){
   // el precio objetivo de recompra de USAR, el beneficio NETO (tras
   // comisiones) es 0. Como la comisión es prácticamente un importe fijo
   // por acción (no depende del precio, salvo que se toque el mínimo o
-  // el tope del 1%), subir el precio de venta necesario para cubrir
-  // esas comisiones es simplemente sumar totalComm/qtyT al breakeven
-  // "bruto".
+  // el tope del 1% en Tiered), subir el precio de venta necesario para
+  // cubrir esas comisiones es simplemente sumar totalComm/qtyT al
+  // breakeven "bruto".
   if(qtyT>0){
     const beT = entryT + (qtyA/qtyT)*(exitA - entryA) + totalComm/qtyT;
     setNumericText('pos-be-t', beT, 4, v => '$'+v.toFixed(4));
@@ -1204,6 +1242,18 @@ document.getElementById('threshold-exit-input').addEventListener('input', (e)=>{
   drawChart();
 });
 document.getElementById('auto-interval').addEventListener('change', startAuto);
+
+// ── Selector de modelo de comisiones (Tiered / Fixed) ──
+// Al cambiar, recalculamos todo lo que depende de comisiones: el spread
+// neto de las tarjetas, la orden lista para el broker y el simulador de
+// posición abierta.
+document.getElementById('commission-model').addEventListener('change', (e)=>{
+  commissionModel = e.target.value;
+  recalc();
+  updateOrderTicket();
+  updatePositionCard();
+});
+
 function startAuto(){
   clearInterval(autoTimer);
   const ms = parseInt(document.getElementById('auto-interval').value);
