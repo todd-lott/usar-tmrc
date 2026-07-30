@@ -337,11 +337,22 @@
   .position-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
   .position-sub{ font-size:.76rem; color:var(--ink-dim); margin-top:-8px; line-height:1.4; }
 
+  .pos-vwap-mini{
+    display:flex; flex-direction:column; gap:8px; background:#0c0f16; border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px;
+  }
+  .pos-vwap-mini-lbl{ font-size:.66rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
+  .pos-vwap-tabs{ flex-wrap:wrap; }
+  .pos-vwap-tabs button{ font-size:.7rem; padding:5px 9px; }
+  #pos-vwap-manual-input{ align-self:flex-start; }
+
   .pos-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
   .pos-leg-head{ display:flex; justify-content:space-between; align-items:center; }
   .pos-leg-name{ font-size:.78rem; font-weight:700; }
   .pos-leg-name.long{ color:var(--green); }
   .pos-leg-name.short{ color:var(--red); }
+  .pos-ratio-tag{ font-family:var(--font-mono); font-size:.68rem; color:var(--ink-dim); }
+  .pos-ratio-tag b{ color:var(--ink); }
   .pos-field{ display:flex; flex-direction:column; gap:3px; }
   .pos-field label{ font-size:.66rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
   .pos-field-row{ display:flex; gap:6px; align-items:center; }
@@ -603,6 +614,20 @@
     <div class="position-title">Posición simulada</div>
     <div class="position-sub">Introduce lo que has comprado/vendido (cantidades y precios de entrada). Con eso, abajo verás siempre la comparación en vivo entre cerrar ya en mercado o mantener hasta el cierre de la fusión — no hace falta rellenar ningún precio de cierre para verla.</div>
 
+    <div class="pos-vwap-mini">
+      <div class="pos-vwap-mini-lbl">Escenario del ratio de canje</div>
+      <div class="vwap-tabs pos-vwap-tabs" id="pos-vwap-tabs">
+        <button data-scenario="bajo" class="scenario-bajo">Bajo (0.5265)</button>
+        <button data-scenario="flotante" class="active">Flotante</button>
+        <button data-scenario="alto" class="scenario-alto">Alto (0.3326)</button>
+        <button data-scenario="manual" class="scenario-manual">Manual</button>
+      </div>
+      <div class="vwap-manual-input" id="pos-vwap-manual-input">
+        <label for="pos-manual-ratio-input">Ratio</label>
+        <input type="number" id="pos-manual-ratio-input" step="0.0001" min="0">
+      </div>
+    </div>
+
     <div class="comm-switch" style="justify-content:flex-start;">
       <label for="pos-commission-model">Comisión IBKR</label>
       <select id="pos-commission-model">
@@ -627,10 +652,16 @@
     </div>
 
     <div class="pos-leg">
-      <div class="pos-leg-head"><span class="pos-leg-name short">Corto IONQ</span></div>
+      <div class="pos-leg-head">
+        <span class="pos-leg-name short">Corto IONQ</span>
+        <span class="pos-ratio-tag" id="pos-ratio-tag">ratio escenario: –</span>
+      </div>
       <div class="pos-field">
         <label>Acciones vendidas en corto</label>
-        <div class="pos-field-row"><input type="number" id="pos-a-qty" placeholder="0" min="0" step="1" value="0"></div>
+        <div class="pos-field-row">
+          <input type="number" id="pos-a-qty" placeholder="0" min="0" step="1" value="0">
+          <button class="pos-mini-btn" onclick="fillPosQtyFromRatio()" title="Calcula las acciones de IONQ multiplicando tus acciones de SKYT por el ratio del escenario activo (incluye el escenario Manual)">= ratio×SKYT</button>
+        </div>
       </div>
       <div class="pos-field">
         <label>Precio de venta corto (entrada)</label>
@@ -1103,35 +1134,50 @@ function triggerSignalSound(which, isHit){
   }
 }
 
-// ── Switch de escenario VWAP ──
-document.querySelectorAll('#vwap-tabs button').forEach(btn=>{
+// ── Switch de escenario VWAP (sincronizado entre el selector principal
+// y la copia compacta dentro del modal de simulación) ──
+const tagBySc = { flotante:'flotante', alto:'collar alto fijo', bajo:'collar bajo fijo', manual:'manual' };
+
+function setVwapScenario(scenario){
+  vwapScenario = scenario;
+
+  // Sincroniza el estado "active" en AMBOS grupos de pestañas
+  [document.querySelectorAll('#vwap-tabs button'), document.querySelectorAll('#pos-vwap-tabs button')].forEach(group=>{
+    group.forEach(b=>{
+      b.classList.toggle('active', b.dataset.scenario === scenario);
+    });
+  });
+
+  // Muestra/oculta AMBOS inputs de ratio manual
+  document.getElementById('vwap-manual-input').classList.toggle('visible', scenario === 'manual');
+  document.getElementById('pos-vwap-manual-input').classList.toggle('visible', scenario === 'manual');
+
+  document.getElementById('ex-ratio-tag').innerText = tagBySc[scenario] || scenario;
+
+  updateCollarBar();
+  recalc();
+  updateOrderTicket();
+  updateExchangeExplainer();
+  recomputeSpreadsFromRawHistory();
+  drawChart();
+  updatePositionCard();
+}
+
+document.querySelectorAll('#vwap-tabs button, #pos-vwap-tabs button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
-    if(btn.classList.contains('active')) return;
-    document.querySelectorAll('#vwap-tabs button').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    vwapScenario = btn.dataset.scenario;
-
-    const manualInputWrap = document.getElementById('vwap-manual-input');
-    manualInputWrap.classList.toggle('visible', vwapScenario === 'manual');
-
-    const tagBySc = { flotante:'flotante', alto:'collar alto fijo', bajo:'collar bajo fijo', manual:'manual' };
-    document.getElementById('ex-ratio-tag').innerText = tagBySc[vwapScenario] || vwapScenario;
-
-    updateCollarBar();
-    recalc();
-    updateOrderTicket();
-    updateExchangeExplainer();
-    recomputeSpreadsFromRawHistory();
-    drawChart();
-    updatePositionCard();
+    if(btn.dataset.scenario === vwapScenario) return;
+    setVwapScenario(btn.dataset.scenario);
   });
 });
 
-// Input del ratio manual: se aplica al vuelo mientras se escribe, solo
-// tiene efecto cuando el escenario activo es "manual".
-document.getElementById('manual-ratio-input').addEventListener('input', (e)=>{
-  const v = parseFloat(e.target.value);
+// Input del ratio manual (sincronizado entre el principal y el del
+// modal): se aplica al vuelo mientras se escribe en cualquiera de los
+// dos, y solo tiene efecto real cuando el escenario activo es "manual".
+function setManualRatio(v){
   MANUAL_RATIO = (!isNaN(v) && v>0) ? v : NaN;
+  const valStr = isNaN(MANUAL_RATIO) ? '' : MANUAL_RATIO;
+  document.getElementById('manual-ratio-input').value = valStr;
+  document.getElementById('pos-manual-ratio-input').value = valStr;
   if(vwapScenario === 'manual'){
     updateCollarBar();
     recalc();
@@ -1141,7 +1187,18 @@ document.getElementById('manual-ratio-input').addEventListener('input', (e)=>{
     drawChart();
     updatePositionCard();
   }
+}
+
+document.getElementById('manual-ratio-input').addEventListener('input', (e)=>{
+  setManualRatio(parseFloat(e.target.value));
 });
+document.getElementById('pos-manual-ratio-input').addEventListener('input', (e)=>{
+  setManualRatio(parseFloat(e.target.value));
+});
+
+// Siembra el valor inicial del ratio manual en ambos inputs
+document.getElementById('manual-ratio-input').value = MANUAL_RATIO;
+document.getElementById('pos-manual-ratio-input').value = MANUAL_RATIO;
 
 function updateCollarBar(){
   const dot = document.getElementById('collar-dot');
@@ -1377,6 +1434,29 @@ function fillPosPrice(id, key){
   updatePositionCard();
 }
 
+// Autocompleta "Acciones vendidas en corto" (IONQ) multiplicando las
+// acciones de SKYT ya introducidas por el ratio del escenario VWAP
+// activo (funciona igual con 'flotante', 'alto', 'bajo' o 'manual' —
+// en este último usa MANUAL_RATIO tal cual lo haya escrito el usuario).
+function fillPosQtyFromRatio(){
+  const qtyT = posNum('pos-t-qty');
+  const ratio = computeRatio(priceCache ? priceCache.aBid : NaN, vwapScenario);
+  if(qtyT<=0 || isNaN(ratio) || ratio<=0) return;
+  document.getElementById('pos-a-qty').value = Math.round(qtyT * ratio);
+  updatePositionCard();
+}
+
+// Refresca la etiqueta "ratio escenario: X" en la cabecera de la pata
+// corta del simulador, para que siempre se vea con qué ratio se está
+// trabajando (incluido el manual) antes de pulsar "= ratio×SKYT".
+function updatePosRatioTag(){
+  const tagEl = document.getElementById('pos-ratio-tag');
+  if(!tagEl) return;
+  const ratio = computeRatio(priceCache ? priceCache.aBid : NaN, vwapScenario);
+  const scLabel = { flotante:'flotante', alto:'collar alto', bajo:'collar bajo', manual:'manual' }[vwapScenario] || vwapScenario;
+  tagEl.innerHTML = isNaN(ratio) ? 'ratio escenario: –' : `ratio escenario (${scLabel}): <b>${ratio.toFixed(4)}</b>`;
+}
+
 // Beneficio neto de cerrar la pata larga (SKYT) al precio `closeT` y la
 // pata corta (IONQ) al precio `closeA`, descontando comisiones de las 4
 // patas (apertura + cierre). Es el cálculo puro de "vender/recomprar en
@@ -1390,6 +1470,7 @@ function calcMarketClosePnl(qtyT, entryT, qtyA, entryA, closeT, closeA){
 }
 
 function updatePositionCard(){
+  updatePosRatioTag();
   const qtyT   = posNum('pos-t-qty');
   const entryT = posNum('pos-t-entry');
   const exitT  = posNum('pos-t-exit');   // opcional
