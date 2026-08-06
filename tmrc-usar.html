@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Monitor de Spread — Arbitraje</title>
+<title>Monitor de Spread — TMRC / USAR</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -97,8 +97,10 @@
   .spread-card .big{ font-family:var(--font-mono); font-weight:800; font-size:2.6rem; line-height:1.15; margin-top:6px; }
   .spread-card .usd{ font-family:var(--font-mono); font-weight:600; font-size:1rem; margin-top:2px; color:var(--ink-dim); }
   .spread-card .note{ font-size:.76rem; color:var(--ink-dim); margin-top:10px; }
-  .spread-card .last-ref{ margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:.78rem; color:var(--ink-dim); display:flex; justify-content:space-between; }
-  .spread-card .last-ref b{ font-family:var(--font-mono); color:var(--ink); }
+  .spread-card .last-ref{ margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:.78rem; color:var(--ink-dim); display:flex; justify-content:space-between; gap:10px; }
+  .spread-card .last-ref span{ flex:0 0 auto; }
+  .spread-card .last-ref b{ font-family:var(--font-mono); color:var(--ink); text-align:right; }
+  .spread-card .last-ref + .last-ref{ margin-top:8px; padding-top:8px; }
 
   .spread-card.entry-hit{
     border-color:var(--green); background:linear-gradient(180deg, var(--green-bg), var(--card));
@@ -398,6 +400,7 @@
       <div class="usd" id="in-usd">–</div>
       <div class="note" id="in-usd-net">–</div>
       <div class="last-ref"><span>Ref. last</span><b id="in-last">–</b></div>
+      <div class="last-ref"><span>Liquidez p/ abrir</span><b id="in-liquidity">–</b></div>
     </div>
     <div class="spread-card" id="exit-card">
       <div class="card-top">
@@ -408,6 +411,7 @@
       <div class="usd" id="out-usd">–</div>
       <div class="note" id="out-usd-net">–</div>
       <div class="last-ref"><span>Ref. last</span><b id="out-last">–</b></div>
+      <div class="last-ref"><span>Liquidez p/ cerrar</span><b id="out-liquidity">–</b></div>
     </div>
   </div>
 
@@ -1079,6 +1083,54 @@ function updateOrderTicket(){
   displayedValues['ord-profit'] = netProfit;
 }
 
+// ── CAPACIDAD DE LA ORDEN según profundidad de bid/ask ──
+// "Abrir posición" = comprar TMRC al ask + shortear USAR al bid.
+// "Cerrar posición" = vender TMRC al bid + recomprar USAR al ask.
+// En cada caso el cuello de botella es el lado (TMRC o USAR) que, al
+// convertir su tamaño de cotización a "acciones TMRC equivalentes" vía
+// el ratio de canje, permite MENOS acciones. El capital máximo es ese
+// número de acciones TMRC al precio correspondiente.
+// ── LIQUIDEZ DISPONIBLE según profundidad de bid/ask ──
+// "Abrir posición" = comprar TMRC al ask + shortear USAR al bid.
+// "Cerrar posición" = vender TMRC al bid + recomprar USAR al ask.
+// En cada caso el cuello de botella es el lado (TMRC o USAR) que, al
+// convertir su tamaño de cotización a "acciones TMRC equivalentes" vía
+// el ratio de canje, permite MENOS acciones. El capital máximo es ese
+// número de acciones TMRC al precio correspondiente. Se pinta como una
+// línea compacta al pie de las tarjetas de spread de entrada/salida.
+function updateLiquidityCard(){
+  const openEl = document.getElementById('in-liquidity');
+  const closeEl = document.getElementById('out-liquidity');
+
+  const tAskSize = lastValid[SYMBOL_TARGET].askSize;
+  const tBidSize = lastValid[SYMBOL_TARGET].bidSize;
+  const aBidSize = lastValid[SYMBOL_ACQUIRER].bidSize;
+  const aAskSize = lastValid[SYMBOL_ACQUIRER].askSize;
+  const {tAsk, tBid} = priceCache;
+
+  // ── Abrir ──
+  if(!isNaN(tAskSize) && !isNaN(aBidSize) && !isNaN(tAsk) && tAsk>0){
+    const tmrcEquivFromUsar = aBidSize / RATIO;
+    const maxSharesOpen = Math.floor(Math.min(tAskSize, tmrcEquivFromUsar));
+    const capOpen = maxSharesOpen * tAsk;
+    const limitaTmrc = tAskSize <= tmrcEquivFromUsar;
+    openEl.innerText = `${fmt(capOpen)} (${maxSharesOpen.toLocaleString('en-US')} acc. · limita ${limitaTmrc ? 'TMRC' : 'USAR'})`;
+  } else {
+    openEl.innerText = '–';
+  }
+
+  // ── Cerrar ──
+  if(!isNaN(tBidSize) && !isNaN(aAskSize) && !isNaN(tBid) && tBid>0){
+    const tmrcEquivFromUsarClose = aAskSize / RATIO;
+    const maxSharesClose = Math.floor(Math.min(tBidSize, tmrcEquivFromUsarClose));
+    const capClose = maxSharesClose * tBid;
+    const limitaTmrcClose = tBidSize <= tmrcEquivFromUsarClose;
+    closeEl.innerText = `${fmt(capClose)} (${maxSharesClose.toLocaleString('en-US')} acc. · limita ${limitaTmrcClose ? 'TMRC' : 'USAR'})`;
+  } else {
+    closeEl.innerText = '–';
+  }
+}
+
 // ── MODAL: simulador de posición ──
 function openPositionModal(){
   document.getElementById('pos-modal-overlay').classList.add('active');
@@ -1481,6 +1533,7 @@ async function updateData(){
     };
     recalc();
     updateOrderTicket();
+    updateLiquidityCard();
     updateExchangeExplainer();
 
     // Añadimos el punto en vivo a ambas series del gráfico
