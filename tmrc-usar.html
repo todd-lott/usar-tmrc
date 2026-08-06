@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Monitor de Spread — Arbitraje TMRC USAR</title>
+<title>Monitor de Spread — Arbitraje</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1053,6 +1053,13 @@ function updateOrderTicket(){
   const commOpen = commissionForOrder(tmrcShares, tAsk) + commissionForOrder(usarShares, aBid);
   const netProfit = grossProfit - commOpen;
 
+  // % neto real: beneficio neto de comisiones dividido entre el
+  // desembolso total (capital + comisiones de apertura). Antes aquí se
+  // mostraba inPct (el spread BRUTO, sin comisiones) junto al importe
+  // NETO, lo que daba un % inconsistente con el $ mostrado.
+  const totalOutlay = capitalUsado + commOpen;
+  const netPct = totalOutlay>0 ? (netProfit/totalOutlay)*100 : NaN;
+
   buyEl.innerText = `${tmrcShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
   buyPriceEl.innerText = `@ $${tAsk.toFixed(4)} (ask)`;
   sellEl.innerText = `${usarShares.toLocaleString('en-US')} acc. ${SYMBOL_ACQUIRER}`;
@@ -1066,7 +1073,7 @@ function updateOrderTicket(){
   setNumericText('ord-commission', commOpen, 2, fmt);
 
   const prevProfit = displayedValues['ord-profit'];
-  profitEl.innerText = fmt(netProfit) + ` (${(inPct*100).toFixed(2)}%)`;
+  profitEl.innerText = fmt(netProfit) + (isNaN(netPct) ? '' : ` (${netPct.toFixed(2)}%)`);
   profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
   if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
   displayedValues['ord-profit'] = netProfit;
@@ -1212,11 +1219,11 @@ function updatePositionCard(){
   }
 
   // Breakeven de la pata USAR: a qué precio de recompra, manteniendo fijo
-  // el precio objetivo de venta de TMRC, el beneficio NETO es 0. Aquí
-  // hay que recomprar más barato (restar) para compensar las mismas
-  // comisiones totales.
+  // el precio objetivo de venta de TMRC, el beneficio NETO es 0.
+  // Despejando de pnlGross = totalComm:
+  //   exitA = entryA + (qtyT/qtyA)*(exitT-entryT) - totalComm/qtyA
   if(qtyA>0){
-    const beA = entryA - (qtyT/qtyA)*(exitT - entryT) - totalComm/qtyA;
+    const beA = entryA + (qtyT/qtyA)*(exitT - entryT) - totalComm/qtyA;
     setNumericText('pos-be-a', beA, 4, v => '$'+v.toFixed(4));
   } else {
     beAEl.innerText = '–';
