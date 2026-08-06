@@ -464,7 +464,7 @@
   <!-- ── CHART ───────────────────────────────────── -->
   <div class="chart-card">
     <div class="chead">
-      <h3 id="chart-title">Evolución del spread (último día)</h3>
+      <h3 id="chart-title">Evolución del spread (hoy)</h3>
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
         <div class="chart-legend">
           <span><i style="background:var(--accent)"></i>Entrada</span>
@@ -474,8 +474,8 @@
           <button data-range="1h">1h</button>
           <button data-range="2h">2h</button>
           <button data-range="3h">3h</button>
-          <button data-range="today">Hoy</button>
-          <button data-range="1d" class="active">1d</button>
+          <button data-range="today" class="active">Hoy</button>
+          <button data-range="1d">1d</button>
           <button data-range="3d">3d</button>
           <button data-range="7d">7d</button>
           <button data-range="14d">14d</button>
@@ -630,7 +630,7 @@ let priceCache = {};
 let entryPts = [];   // {t, v} — historial del spread de entrada
 let exitPts = [];    // {t, v} — historial del spread de salida
 // Rango del gráfico: {type:'hours', value:N} | {type:'today'} | {type:'days', value:N}
-let chartRange = { type:'days', value:1 };
+let chartRange = { type:'today' };
 let autoTimer = null;
 
 // ── Capital simulado: slider logarítmico ($100 – $100,000) sincronizado
