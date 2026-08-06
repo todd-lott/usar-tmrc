@@ -141,7 +141,7 @@
   .chart-legend{ display:flex; gap:14px; font-size:.72rem; color:var(--ink-dim); font-family:var(--font-mono); }
   .chart-legend span{ display:flex; align-items:center; gap:6px; }
   .chart-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; }
-  .range-tabs{ display:flex; gap:4px; background:#0c0f16; border:1px solid var(--line); border-radius:7px; padding:3px; }
+  .range-tabs{ display:flex; gap:4px; background:#0c0f16; border:1px solid var(--line); border-radius:7px; padding:3px; flex-wrap:wrap; }
   .range-tabs button{
     background:transparent; border:none; color:var(--ink-dim); font-family:var(--font-mono);
     font-size:.72rem; font-weight:600; padding:4px 9px; border-radius:5px; cursor:pointer;
@@ -471,11 +471,15 @@
           <span><i style="background:var(--amber)"></i>Salida</span>
         </div>
         <div class="range-tabs" id="range-tabs">
-          <button data-days="1" class="active">1d</button>
-          <button data-days="3">3d</button>
-          <button data-days="7">7d</button>
-          <button data-days="14">14d</button>
-          <button data-days="30">30d</button>
+          <button data-range="1h">1h</button>
+          <button data-range="2h">2h</button>
+          <button data-range="3h">3h</button>
+          <button data-range="today">Hoy</button>
+          <button data-range="1d" class="active">1d</button>
+          <button data-range="3d">3d</button>
+          <button data-range="7d">7d</button>
+          <button data-range="14d">14d</button>
+          <button data-range="30d">30d</button>
         </div>
       </div>
     </div>
@@ -625,7 +629,8 @@ let thresholdExit = 5;
 let priceCache = {};
 let entryPts = [];   // {t, v} — historial del spread de entrada
 let exitPts = [];    // {t, v} — historial del spread de salida
-let chartDays = 1;
+// Rango del gráfico: {type:'hours', value:N} | {type:'today'} | {type:'days', value:N}
+let chartRange = { type:'days', value:1 };
 let autoTimer = null;
 
 // ── Capital simulado: slider logarítmico ($100 – $100,000) sincronizado
@@ -669,7 +674,9 @@ function setupCanvas(){
 
 function fmtAxisTime(ms){
   const d = new Date(ms);
-  if(chartDays <= 1){
+  const intraday = chartRange.type === 'hours' || chartRange.type === 'today' ||
+                    (chartRange.type === 'days' && chartRange.value <= 1);
+  if(intraday){
     return d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
   }
   return d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'}) + ' ' +
@@ -1280,15 +1287,30 @@ function startAuto(){
   if(ms>0) autoTimer = setInterval(updateData, ms);
 }
 
-// ── Selector de rango del gráfico (1d/3d/7d/14d/30d) ──
+// ── Selector de rango del gráfico (1h/2h/3h/hoy/1d/3d/7d/14d/30d) ──
+// El atributo data-range codifica el rango: "Nh" (últimas N horas),
+// "today" (desde las 00:00 de hoy, hora local) o "Nd" (últimos N días).
+function parseRangeAttr(str){
+  if(str === 'today') return { type:'today' };
+  const h = str.match(/^(\d+)h$/);
+  if(h) return { type:'hours', value: parseInt(h[1],10) };
+  const d = str.match(/^(\d+)d$/);
+  if(d) return { type:'days', value: parseInt(d[1],10) };
+  return { type:'days', value:1 };
+}
+function rangeTitleText(range){
+  if(range.type === 'today') return 'Evolución del spread (hoy)';
+  if(range.type === 'hours') return `Evolución del spread (última${range.value>1?'s':''} ${range.value} hora${range.value>1?'s':''})`;
+  return `Evolución del spread (últimos ${range.value} día${range.value>1?'s':''})`;
+}
 document.querySelectorAll('#range-tabs button').forEach(btn=>{
   btn.addEventListener('click', async ()=>{
     if(btn.classList.contains('active')) return;
     document.querySelectorAll('#range-tabs button').forEach(b=>{ b.classList.remove('active'); b.disabled=true; });
-    chartDays = parseInt(btn.dataset.days, 10);
+    chartRange = parseRangeAttr(btn.dataset.range);
     btn.classList.add('active');
-    document.getElementById('chart-title').innerText = `Evolución del spread (últimos ${chartDays} día${chartDays>1?'s':''})`;
-    await loadHistoricalSpread(chartDays);
+    document.getElementById('chart-title').innerText = rangeTitleText(chartRange);
+    await loadHistoricalSpread();
     drawChart();
     document.querySelectorAll('#range-tabs button').forEach(b=>{ b.disabled=false; });
   });
@@ -1334,8 +1356,20 @@ async function fetchAllHistoryRows(sinceISO){
   return allRows;
 }
 
-async function loadHistoricalSpread(days = chartDays){
-  const sinceISO = new Date(Date.now() - days*24*60*60*1000).toISOString();
+function rangeSinceDate(range){
+  if(range.type === 'today'){
+    const d = new Date();
+    d.setHours(0,0,0,0); // medianoche local de hoy
+    return d;
+  }
+  if(range.type === 'hours'){
+    return new Date(Date.now() - range.value*60*60*1000);
+  }
+  return new Date(Date.now() - range.value*24*60*60*1000);
+}
+
+async function loadHistoricalSpread(range = chartRange){
+  const sinceISO = rangeSinceDate(range).toISOString();
 
   let data;
   try{
@@ -1467,7 +1501,7 @@ window.onload = async () => {
   document.getElementById('invest-input').value = INVEST;
   document.getElementById('invest-slider').value = investToSlider(INVEST);
   updatePositionCard();
-  await loadHistoricalSpread(chartDays);
+  await loadHistoricalSpread();
   drawChart();
   await updateData();
   startAuto();
