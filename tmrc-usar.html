@@ -1222,7 +1222,7 @@ function updateOrderTicket(){
     setNumericText('ord-commission', commOpen, 2, fmt);
 
     const prevProfit = displayedValues['ord-profit'];
-    profitEl.innerText = fmt(netProfit) + (isNaN(netPct) ? '' : ` (${netPct.toFixed(2)}%)`);
+    profitEl.innerText = fmt(Math.abs(netProfit)) + (isNaN(netPct) ? '' : ` (${Math.abs(netPct).toFixed(2)}%)`);
     profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
     if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
     displayedValues['ord-profit'] = netProfit;
