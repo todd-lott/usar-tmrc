@@ -1256,10 +1256,10 @@ function updateOrderTicket(){
 
     setNumericText('ord-commission', commClose, 2, fmt);
 
-    // Sin signo negativo, igual que en la tarjeta de spread de salida:
-    // el color ya indica si es favorable (verde) o desfavorable (rojo).
+    // Con signo: + para beneficio, − para pérdida (fmt() ya añade el
+    // signo negativo en el importe; el % lo añadimos a mano).
     const prevProfit = displayedValues['ord-profit'];
-    profitEl.innerText = fmt(Math.abs(netProfit)) + (isNaN(netPct) ? '' : ` (${Math.abs(netPct).toFixed(2)}%)`);
+    profitEl.innerText = fmt(netProfit) + (isNaN(netPct) ? '' : ` (${netPct>=0?'+':''}${netPct.toFixed(2)}%)`);
     profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
     if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
     displayedValues['ord-profit'] = netProfit;
