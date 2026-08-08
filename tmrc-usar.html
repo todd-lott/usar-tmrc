@@ -826,6 +826,7 @@ function drawChart(){
 }
 
 function fmt(n){ return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n); }
+function fmtSigned(n){ return n>=0 ? '+' + fmt(n) : fmt(n); }
 function fmtPct(n,d=3){ return (n*100).toFixed(d)+' %'; }
 function tiempoDesde(iso){
   if(!iso) return {texto:'sin datos', stale:true};
@@ -1224,7 +1225,7 @@ function updateOrderTicket(){
     // Con signo: + para beneficio, − para pérdida (fmt() ya añade el
     // signo negativo en el importe; el % lo añadimos a mano).
     const prevProfit = displayedValues['ord-profit'];
-    profitEl.innerText = fmt(netProfit) + (isNaN(netPct) ? '' : ` (${netPct>=0?'+':''}${netPct.toFixed(2)}%)`);
+    profitEl.innerText = fmtSigned(netProfit) + (isNaN(netPct) ? '' : ` (${netPct>=0?'+':''}${netPct.toFixed(2)}%)`);
     profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
     if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
     displayedValues['ord-profit'] = netProfit;
@@ -1261,7 +1262,7 @@ function updateOrderTicket(){
     // Con signo: + para beneficio, − para pérdida (fmt() ya añade el
     // signo negativo en el importe; el % lo añadimos a mano).
     const prevProfit = displayedValues['ord-profit'];
-    profitEl.innerText = fmt(netProfit) + (isNaN(netPct) ? '' : ` (${netPct>=0?'+':''}${netPct.toFixed(2)}%)`);
+    profitEl.innerText = fmtSigned(netProfit) + (isNaN(netPct) ? '' : ` (${netPct>=0?'+':''}${netPct.toFixed(2)}%)`);
     profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
     if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
     displayedValues['ord-profit'] = netProfit;
