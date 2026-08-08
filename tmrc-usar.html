@@ -1099,12 +1099,13 @@ function recalc(){
       // El número grande es directamente el % neto de comisiones (el
       // mismo que "Beneficio neto teórico" de la orden de arriba).
       const prevIn = displayedValues['in-pct'];
-      pEl.innerText = isNaN(netPctIn) ? 'N/A' : `${netPctIn>=0?'+':''}${netPctIn.toFixed(3)} %`;
+      const absNetPctIn = Math.abs(netPctIn);
+      pEl.innerText = isNaN(netPctIn) ? 'N/A' : `${absNetPctIn.toFixed(3)} %`;
       pEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
       if(prevIn !== undefined && !isNaN(netPctIn) && netPctIn !== prevIn) flashValue(pEl, netPctIn>prevIn?'up':'down');
       if(!isNaN(netPctIn)) displayedValues['in-pct'] = netPctIn;
 
-      setNumericText('in-usd', netProfit, 2, fmt);
+      setNumericText('in-usd', netProfit, 2, v => fmt(Math.abs(v)));
       netInEl.innerText = `Comisión de apertura estimada: ≈${fmt(basis.commOpen)}`;
       netInEl.style.color = '';
 
