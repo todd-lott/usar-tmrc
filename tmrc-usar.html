@@ -98,6 +98,7 @@
   .spread-card .big{ font-family:var(--font-mono); font-weight:800; font-size:2.6rem; line-height:1.15; margin-top:6px; }
   .spread-card .usd{ font-family:var(--font-mono); font-weight:600; font-size:1rem; margin-top:2px; color:var(--ink-dim); }
   .spread-card .note{ font-size:.76rem; color:var(--ink-dim); margin-top:10px; }
+  .spread-card .capture-line{ margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); font-weight:700; }
   .spread-card .last-ref{ margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:.78rem; color:var(--ink-dim); display:flex; justify-content:space-between; gap:10px; }
   .spread-card .last-ref span{ flex:0 0 auto; }
   .spread-card .last-ref b{ font-family:var(--font-mono); color:var(--ink); text-align:right; }
@@ -467,6 +468,7 @@
       <div class="big" id="out-pct">–</div>
       <div class="usd" id="out-usd">–</div>
       <div class="note" id="out-usd-net">–</div>
+      <div class="note capture-line" id="out-capture">–</div>
       <div class="last-ref"><span>Ref. last</span><b id="out-last">–</b></div>
       <div class="last-ref">
         <span>Liquidez p/ cerrar</span>
@@ -520,12 +522,7 @@
         <div class="ex-lbl">③ Compras TMRC (ask)</div>
         <div class="ex-val" id="ex-task">–</div>
       </div>
-      <div class="ex-op">−1</div>
-      <div class="ex-step">
-        <div class="ex-lbl">Spread bruto</div>
-        <div class="ex-val" id="ex-result">–</div>
-      </div>
-      <div class="ex-op">−<div class="ex-op-note">comisión<br>apertura<br><b id="ex-comm-amt">–</b></div></div>
+      <div class="ex-op">−1<div class="ex-op-note">−<br>comisión<br><b id="ex-comm-amt">–</b></div></div>
       <div class="ex-step ex-result">
         <div class="ex-lbl">Spread neto (con comisiones)</div>
         <div class="ex-val ex-big" id="ex-net-result">–</div>
@@ -700,6 +697,8 @@ let INVEST = 3000;
 let threshold = 9;
 let thresholdExit = 5;
 let priceCache = {};
+let lastInNetPct = NaN; // % neto de entrada (para "beneficio si cierras ahora")
+let lastInNetUSD = NaN; // $ neto de entrada
 let entryPts = [];   // {t, v} — historial del spread de entrada
 let exitPts = [];    // {t, v} — historial del spread de salida
 // Rango del gráfico: {type:'hours', value:N} | {type:'today'} | {type:'days', value:N}
@@ -1007,27 +1006,17 @@ function updateExchangeExplainer(){
   const ids = ['ex-abid','ex-equiv','ex-task'];
   if(isNaN(aBid) || isNaN(tAsk) || tAsk<=0){
     ids.forEach(id => document.getElementById(id).innerText = '–');
-    document.getElementById('ex-result').innerText = '–';
     document.getElementById('ex-net-result').innerText = '–';
     document.getElementById('ex-comm-amt').innerText = '–';
     return;
   }
 
   const equiv = RATIO * aBid;
-  const spread = equiv / tAsk - 1;
+  const spread = equiv / tAsk - 1; // spread bruto: solo se usa para el cálculo, no se muestra
 
   setNumericText('ex-abid', aBid, 4, v => '$' + v.toFixed(4));
   setNumericText('ex-equiv', equiv, 4, v => '$' + v.toFixed(4));
   setNumericText('ex-task', tAsk, 4, v => '$' + v.toFixed(4));
-
-  const resEl = document.getElementById('ex-result');
-  const prevSpread = displayedValues['ex-result'];
-  resEl.innerText = fmtPct(spread);
-  resEl.style.color = spread>0 ? 'var(--green)' : 'var(--red)';
-  if(prevSpread !== undefined && spread !== prevSpread){
-    flashValue(resEl, spread > prevSpread ? 'up' : 'down');
-  }
-  displayedValues['ex-result'] = spread;
 
   // Comisiones: misma base que la orden y las tarjetas de spread
   // (computeOrderBasis), para que este "spread neto" coincida siempre,
@@ -1080,8 +1069,6 @@ function recalc(){
   if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0){
     const inPct = (RATIO*aBid)/tAsk - 1;
 
-    // Misma base que la orden a introducir: acciones enteras, capital
-    // real usado y comisión de apertura calculados por computeOrderBasis().
     const basis = computeOrderBasis();
     const pEl = document.getElementById('in-pct');
     const netInEl = document.getElementById('in-usd-net');
@@ -1091,9 +1078,8 @@ function recalc(){
       const netProfit = grossProfit - basis.commOpen;
       const netPctIn = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
 
-      // El número grande YA es el neto de comisiones (el mismo % que
-      // "Beneficio neto teórico" de la orden de arriba), no el spread
-      // bruto — para que ambos coincidan siempre.
+      // El número grande es directamente el % neto de comisiones (el
+      // mismo que "Beneficio neto teórico" de la orden de arriba).
       const prevIn = displayedValues['in-pct'];
       pEl.innerText = isNaN(netPctIn) ? 'N/A' : `${netPctIn>=0?'+':''}${netPctIn.toFixed(3)} %`;
       pEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
@@ -1101,9 +1087,11 @@ function recalc(){
       if(!isNaN(netPctIn)) displayedValues['in-pct'] = netPctIn;
 
       setNumericText('in-usd', netProfit, 2, fmt);
-
-      netInEl.innerText = `Bruto (sin comisiones): ${fmtPct(inPct)} · ${fmt(grossProfit)} · comisión ≈${fmt(basis.commOpen)}`;
+      netInEl.innerText = `Comisión de apertura estimada: ≈${fmt(basis.commOpen)}`;
       netInEl.style.color = '';
+
+      lastInNetPct = netPctIn;
+      lastInNetUSD = netProfit;
 
       const entryHit = netPctIn >= threshold;
       const card = document.getElementById('entry-card');
@@ -1113,6 +1101,8 @@ function recalc(){
       pEl.innerText = 'N/A';
       document.getElementById('in-usd').innerText = 'N/A';
       netInEl.innerText = '–';
+      lastInNetPct = NaN;
+      lastInNetUSD = NaN;
     }
   }
   if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
@@ -1123,29 +1113,20 @@ function recalc(){
   if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0 && tAsk>0){
     const outPct = (RATIO*aAsk)/tBid - 1;
 
-    // Misma base de acciones que al abrir (computeOrderBasis), para que
-    // cerrar la MISMA posición muestre un neto comparable al de la orden
-    // de apertura. commOpen ya pagada se incluye en el desembolso total
-    // (outlay) para que el % de salida refleje el retorno sobre TODO lo
-    // que has puesto, no solo sobre el capital nominal.
     const basis = computeOrderBasis();
     const pEl = document.getElementById('out-pct');
     const netOutEl = document.getElementById('out-usd-net');
+    const captureEl = document.getElementById('out-capture');
 
     if(basis){
-      // El $ bruto se deriva del mismo capital de referencia que el %
-      // (capitalUsado, al precio de entrada), igual que hace la tarjeta
-      // de entrada. Antes se usaba el bid real de TMRC para el $, que no
-      // coincide con el ask usado para fijar el capital, y el % × capital
-      // no cuadraba con el $ mostrado.
+      // $ bruto derivado del mismo capital de referencia que el % (para
+      // que cuadre siempre), pero no se muestra: solo se usa para
+      // llegar al neto, que es lo único que se enseña.
       const grossProfit = -outPct * basis.capitalUsado;
       const commClose = commissionForOrder(basis.tmrcShares, tBid) + commissionForOrder(basis.usarShares, aAsk);
       const netProfit = grossProfit - commClose;
       const netPctOut = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
 
-      // Igual que en la tarjeta de entrada: el número grande es el % neto
-      // de comisiones (retorno sobre el desembolso total), no el spread
-      // bruto, para que sea directamente comparable con el de entrada.
       const prevOut = displayedValues['out-pct'];
       pEl.innerText = isNaN(netPctOut) ? 'N/A' : `${netPctOut>=0?'+':''}${netPctOut.toFixed(3)} %`;
       pEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
@@ -1153,9 +1134,21 @@ function recalc(){
       if(!isNaN(netPctOut)) displayedValues['out-pct'] = netPctOut;
 
       setNumericText('out-usd', netProfit, 2, fmt);
-
-      netOutEl.innerText = `Bruto (sin comisiones): ${fmtPct(outPct)} · ${fmt(grossProfit)} · comisión ≈${fmt(commClose)}`;
+      netOutEl.innerText = `Comisión de cierre estimada: ≈${fmt(commClose)}`;
       netOutEl.style.color = '';
+
+      // "Beneficio si cierras ahora" = % neto de entrada − % neto de
+      // salida (ambos ya con comisiones descontadas y sobre el mismo
+      // desembolso), sin mezclar ningún número bruto.
+      if(!isNaN(lastInNetPct)){
+        const captureNetPct = lastInNetPct - netPctOut;
+        const captureNetUSD = lastInNetUSD - netProfit;
+        captureEl.innerText = `Beneficio si cierras ahora: ${captureNetPct>=0?'+':''}${captureNetPct.toFixed(2)}% (${fmt(captureNetUSD)})`;
+        captureEl.style.color = captureNetPct>=0 ? 'var(--green)' : 'var(--red)';
+      } else {
+        captureEl.innerText = '–';
+        captureEl.style.color = '';
+      }
 
       const exitHit = netPctOut <= thresholdExit;
       const exitCard = document.getElementById('exit-card');
@@ -1165,6 +1158,7 @@ function recalc(){
       pEl.innerText = 'N/A';
       document.getElementById('out-usd').innerText = 'N/A';
       netOutEl.innerText = '–';
+      captureEl.innerText = '–';
     }
   }
   if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
