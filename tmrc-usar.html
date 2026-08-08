@@ -208,8 +208,6 @@
     font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); white-space:nowrap;
   }
   #last-update-label.stale-label{ color:var(--amber); font-weight:600; }
-
-  .last-ref b.stale{ color:var(--amber); }
   #footer-credit{
     font-size:.72rem; color:var(--ink-dim); text-align:center; letter-spacing:.02em;
     margin-top:-6px; padding-top:14px; border-top:1px solid var(--line); width:100%;
@@ -441,8 +439,7 @@
       <div class="note" id="in-usd-net">–</div>
       <div class="last-ref"><span>Ref. last</span><b id="in-last">–</b></div>
       <div class="last-ref"><span>Liquidez p/ abrir</span><b id="in-liquidity">–</b></div>
-      <div class="last-ref"><span>TMRC (ask) actualizado</span><b id="in-fresh-t">–</b></div>
-      <div class="last-ref"><span>USAR (bid) actualizado</span><b id="in-fresh-a">–</b></div>
+      <div class="tfresh" id="in-fresh">sin datos</div>
     </div>
     <div class="spread-card" id="exit-card">
       <div class="card-top">
@@ -454,8 +451,7 @@
       <div class="note" id="out-usd-net">–</div>
       <div class="last-ref"><span>Ref. last</span><b id="out-last">–</b></div>
       <div class="last-ref"><span>Liquidez p/ cerrar</span><b id="out-liquidity">–</b></div>
-      <div class="last-ref"><span>TMRC (bid) actualizado</span><b id="out-fresh-t">–</b></div>
-      <div class="last-ref"><span>USAR (ask) actualizado</span><b id="out-fresh-a">–</b></div>
+      <div class="tfresh" id="out-fresh">sin datos</div>
     </div>
   </div>
 
@@ -1003,12 +999,30 @@ function updateExchangeExplainer(){
   displayedValues['ex-result'] = spread;
 }
 
+// ── BASE COMÚN PARA COMISIONES: acciones reales + capital + comisión ──
+// Tanto la "Orden a introducir" como las tarjetas de spread de entrada
+// y salida deben coincidir en el número de acciones, el capital usado y
+// la comisión de apertura. Antes cada sitio lo recalculaba a su manera
+// (acciones fraccionarias en las tarjetas vs. acciones enteras en la
+// orden) y salían cifras ligeramente distintas. Ahora todos usan esta
+// única función, con las MISMAS acciones enteras que realmente se
+// introducirían en el broker.
+function computeOrderBasis(){
+  const {aBid, tAsk} = priceCache;
+  if(isNaN(aBid) || isNaN(tAsk) || tAsk<=0) return null;
+  const tmrcShares = Math.floor(INVEST / tAsk);
+  const usarShares = Math.round(tmrcShares * RATIO);
+  const capitalUsado = tmrcShares * tAsk;
+  const commOpen = commissionForOrder(tmrcShares, tAsk) + commissionForOrder(usarShares, aBid);
+  const outlay = capitalUsado + commOpen;
+  return { tmrcShares, usarShares, capitalUsado, commOpen, outlay };
+}
+
 function recalc(){
   const {aBid,aAsk,aLast,tBid,tAsk,tLast} = priceCache;
 
   if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0){
     const inPct = (RATIO*aBid)/tAsk - 1;
-    const usd = inPct*INVEST;
     const pEl=document.getElementById('in-pct');
     const prevIn = displayedValues['in-pct'];
     pEl.innerText=fmtPct(inPct);
@@ -1016,20 +1030,23 @@ function recalc(){
     if(prevIn !== undefined && inPct !== prevIn) flashValue(pEl, inPct>prevIn?'up':'down');
     displayedValues['in-pct'] = inPct;
 
-    setNumericText('in-usd', usd, 2, fmt);
-
-    // Comisiones estimadas de abrir la posición ahora mismo: comprar
-    // TMRC al ask + shortear USAR al bid, para el capital simulado.
-    const qtyT_in = INVEST/tAsk;
-    const qtyA_in = qtyT_in*RATIO;
-    const commIn = commissionForOrder(qtyT_in, tAsk) + commissionForOrder(qtyA_in, aBid);
-    const usdNetIn = usd - commIn;
-    const outlayIn = INVEST + commIn;
-    const netPctIn = outlayIn>0 ? (usdNetIn/outlayIn)*100 : NaN;
+    // Misma base que la orden a introducir: acciones enteras, capital
+    // real usado y comisión de apertura calculados por computeOrderBasis().
+    const basis = computeOrderBasis();
     const netInEl = document.getElementById('in-usd-net');
-    netInEl.innerText = `Neto de comisiones (≈${fmt(commIn)}): ${fmt(usdNetIn)}` +
-      (isNaN(netPctIn) ? '' : ` (${netPctIn>=0?'+':''}${netPctIn.toFixed(2)}%)`);
-    netInEl.style.color = usdNetIn>0 ? 'var(--green)' : 'var(--red)';
+    if(basis){
+      const grossProfit = inPct * basis.capitalUsado;
+      const netProfit = grossProfit - basis.commOpen;
+      const netPctIn = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
+
+      setNumericText('in-usd', grossProfit, 2, fmt);
+      netInEl.innerText = `Neto de comisiones (≈${fmt(basis.commOpen)}): ${fmt(netProfit)}` +
+        (isNaN(netPctIn) ? '' : ` (${netPctIn>=0?'+':''}${netPctIn.toFixed(2)}%)`);
+      netInEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+    } else {
+      document.getElementById('in-usd').innerText = 'N/A';
+      netInEl.innerText = '–';
+    }
 
     const entryHit = (inPct*100) >= threshold;
     const card = document.getElementById('entry-card');
@@ -1043,8 +1060,6 @@ function recalc(){
 
   if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0 && tAsk>0){
     const outPct = (RATIO*aAsk)/tBid - 1;
-    const qty = INVEST/tAsk;
-    const usd = (tBid - RATIO*aAsk) * qty;
     const pEl=document.getElementById('out-pct');
     const prevOut = displayedValues['out-pct'];
     pEl.innerText=fmtPct(outPct);
@@ -1052,19 +1067,27 @@ function recalc(){
     if(prevOut !== undefined && outPct !== prevOut) flashValue(pEl, outPct>prevOut?'up':'down');
     displayedValues['out-pct'] = outPct;
 
-    setNumericText('out-usd', usd, 2, fmt);
-
-    // Comisiones estimadas de cerrar la posición ahora mismo: vender
-    // TMRC al bid + recomprar el corto de USAR al ask.
-    const qtyT_out = INVEST/tAsk;
-    const qtyA_out = qtyT_out*RATIO;
-    const commOut = commissionForOrder(qtyT_out, tBid) + commissionForOrder(qtyA_out, aAsk);
-    const usdNetOut = usd - commOut;
-    const netPctOut = INVEST>0 ? (usdNetOut/INVEST)*100 : NaN;
+    // Misma base de acciones que al abrir (computeOrderBasis), para que
+    // cerrar la MISMA posición muestre un neto comparable al de la orden
+    // de apertura. commOpen ya pagada se incluye en el desembolso total
+    // (outlay) para que el % de salida refleje el retorno sobre TODO lo
+    // que has puesto, no solo sobre el capital nominal.
+    const basis = computeOrderBasis();
     const netOutEl = document.getElementById('out-usd-net');
-    netOutEl.innerText = `Neto de comisiones (≈${fmt(commOut)}): ${fmt(usdNetOut)}` +
-      (isNaN(netPctOut) ? '' : ` (${netPctOut>=0?'+':''}${netPctOut.toFixed(2)}%)`);
-    netOutEl.style.color = usdNetOut>0 ? 'var(--red)' : 'var(--green)';
+    if(basis){
+      const usdGross = (tBid - RATIO*aAsk) * basis.tmrcShares;
+      const commClose = commissionForOrder(basis.tmrcShares, tBid) + commissionForOrder(basis.usarShares, aAsk);
+      const netProfit = usdGross - commClose;
+      const netPctOut = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
+
+      setNumericText('out-usd', usdGross, 2, fmt);
+      netOutEl.innerText = `Neto de comisiones (≈${fmt(commClose)}): ${fmt(netProfit)}` +
+        (isNaN(netPctOut) ? '' : ` (${netPctOut>=0?'+':''}${netPctOut.toFixed(2)}%)`);
+      netOutEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+    } else {
+      document.getElementById('out-usd').innerText = 'N/A';
+      netOutEl.innerText = '–';
+    }
 
     const exitHit = (outPct*100) <= thresholdExit;
     const exitCard = document.getElementById('exit-card');
@@ -1087,7 +1110,8 @@ function updateOrderTicket(){
   const commEl = document.getElementById('ord-commission');
   const profitEl = document.getElementById('ord-profit');
 
-  if(isNaN(aBid) || isNaN(tAsk) || tAsk<=0){
+  const basis = computeOrderBasis();
+  if(!basis){
     buyEl.innerText = '–'; sellEl.innerText = '–';
     buyPriceEl.innerText = '–'; sellPriceEl.innerText = '–';
     capEl.innerText = '–'; commEl.innerText = '–'; profitEl.innerText = '–';
@@ -1095,24 +1119,11 @@ function updateOrderTicket(){
     return;
   }
 
-  const tmrcShares = Math.floor(INVEST / tAsk);
-  const usarShares = Math.round(tmrcShares * RATIO);
-  const capitalUsado = tmrcShares * tAsk;
+  const { tmrcShares, usarShares, capitalUsado, commOpen, outlay } = basis;
   const inPct = (RATIO*aBid)/tAsk - 1;
   const grossProfit = inPct * capitalUsado;
-
-  // Comisión de abrir las dos patas ahora mismo (comprar TMRC + shortear
-  // USAR). No se resta comisión de cierre porque, en un arbitraje de
-  // fusión, la conversión al ratio oficial no requiere una nueva orden.
-  const commOpen = commissionForOrder(tmrcShares, tAsk) + commissionForOrder(usarShares, aBid);
   const netProfit = grossProfit - commOpen;
-
-  // % neto real: beneficio neto de comisiones dividido entre el
-  // desembolso total (capital + comisiones de apertura). Antes aquí se
-  // mostraba inPct (el spread BRUTO, sin comisiones) junto al importe
-  // NETO, lo que daba un % inconsistente con el $ mostrado.
-  const totalOutlay = capitalUsado + commOpen;
-  const netPct = totalOutlay>0 ? (netProfit/totalOutlay)*100 : NaN;
+  const netPct = outlay>0 ? (netProfit/outlay)*100 : NaN;
 
   buyEl.innerText = `${tmrcShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
   buyPriceEl.innerText = `@ $${tAsk.toFixed(4)} (ask)`;
@@ -1254,39 +1265,52 @@ function updateLiquidityCard(){
   }
 }
 
-// ── FRESCURA POR PATA EN LAS TARJETAS DE SPREAD ──
-// Igual que la frescura que ya se muestra en las tarjetas de cotizaciones
-// (tfresh), pero aplicada a la cotización concreta que usa cada spread:
-//  - Entrada usa el ask de TMRC y el bid de USAR.
-//  - Salida usa el bid de TMRC y el ask de USAR.
-function paintFreshRow(id, iso){
+// ── FRESCURA: "el dato más lejano" ──
+// No nos interesa cuándo la web hizo el último fetch, sino cuál es el
+// dato de bid/ask que lleva MÁS TIEMPO sin refrescarse — porque si uno
+// de los dos lados (TMRC o USAR) se ha quedado parado, el spread entero
+// es tan fiable como ese dato más viejo, por muy reciente que sea el otro.
+function oldestIso(...isoList){
+  const valid = isoList.filter(Boolean);
+  if(!valid.length) return null;
+  return valid.reduce((oldest, cur) => new Date(cur) < new Date(oldest) ? cur : oldest);
+}
+function paintFreshLine(id, iso){
   const el = document.getElementById(id);
   if(!el) return;
   const fr = tiempoDesde(iso);
   el.innerText = fr.texto;
   el.classList.toggle('stale', fr.stale);
 }
+
+// Frescura de cada tarjeta de spread: el más antiguo entre las DOS
+// cotizaciones que intervienen en ese cálculo concreto.
+//  - Entrada usa el ask de TMRC y el bid de USAR.
+//  - Salida usa el bid de TMRC y el ask de USAR.
+// Mismo formato/estilo que la frescura de las tarjetas de cotizaciones
+// de abajo (clase .tfresh), sin desglosar por símbolo.
 function updateSpreadFreshness(){
   const t = lastValid[SYMBOL_TARGET];
   const a = lastValid[SYMBOL_ACQUIRER];
-  paintFreshRow('in-fresh-t', t.askTs);
-  paintFreshRow('in-fresh-a', a.bidTs);
-  paintFreshRow('out-fresh-t', t.bidTs);
-  paintFreshRow('out-fresh-a', a.askTs);
+  paintFreshLine('in-fresh', oldestIso(t.askTs, a.bidTs));
+  paintFreshLine('out-fresh', oldestIso(t.bidTs, a.askTs));
 }
 
 // ── ÚLTIMA ACTUALIZACIÓN (junto al botón "Actualizar") ──
-// Se guarda la hora del último fetch con éxito y se repinta cada
-// segundo como texto relativo ("hace Xs"), igual que la frescura de
-// las cotizaciones, para que se note en vivo si el feed se ha quedado
-// parado sin necesidad de esperar al siguiente ciclo automático.
-let lastUpdateTime = null;
+// Igual criterio: no es "cuándo forzó la web una consulta", sino el dato
+// de bid/ask más antiguo que tenemos entre los CUATRO (bid y ask de
+// TMRC y de USAR). Se repinta cada segundo como texto relativo para que
+// se note en vivo si el feed se ha quedado parado, aunque sigamos
+// "actualizando" cada 10s sin traer datos nuevos.
 function paintLastUpdateLabel(){
   const el = document.getElementById('last-update-label');
   if(!el) return;
-  if(!lastUpdateTime){ el.innerText = 'Sin actualizar'; el.classList.remove('stale-label'); return; }
-  const fr = tiempoDesde(lastUpdateTime.toISOString());
-  el.innerText = `Últ. actualización: ${fr.texto}`;
+  const t = lastValid[SYMBOL_TARGET];
+  const a = lastValid[SYMBOL_ACQUIRER];
+  const oldest = oldestIso(t.bidTs, t.askTs, a.bidTs, a.askTs);
+  if(!oldest){ el.innerText = 'Sin datos'; el.classList.remove('stale-label'); return; }
+  const fr = tiempoDesde(oldest);
+  el.innerText = `Dato más antiguo: ${fr.texto}`;
   el.classList.toggle('stale-label', fr.stale);
 }
 setInterval(paintLastUpdateLabel, 1000);
@@ -1698,8 +1722,6 @@ async function updateData(){
     updateLiquidityCard();
     updateExchangeExplainer();
     updateSpreadFreshness();
-
-    lastUpdateTime = new Date();
     paintLastUpdateLabel();
 
     // Añadimos el punto en vivo a ambas series del gráfico
@@ -1730,6 +1752,8 @@ window.onload = async () => {
   updatePositionCard();
   await loadHistoricalSpread();
   drawChart();
+  updateSpreadFreshness();
+  paintLastUpdateLabel();
   await updateData();
   startAuto();
 };
