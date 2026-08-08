@@ -102,6 +102,14 @@
   .spread-card .last-ref span{ flex:0 0 auto; }
   .spread-card .last-ref b{ font-family:var(--font-mono); color:var(--ink); text-align:right; }
   .spread-card .last-ref + .last-ref{ margin-top:8px; padding-top:8px; }
+  .last-ref-value{ display:flex; align-items:center; gap:8px; justify-content:flex-end; flex:1 1 auto; min-width:0; }
+  .liq-use-btn{
+    flex:0 0 auto; font-family:var(--font-mono); font-size:.64rem; font-weight:700;
+    color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent);
+    border-radius:6px; padding:3px 9px; cursor:pointer; white-space:nowrap;
+  }
+  .liq-use-btn:hover{ opacity:.85; }
+  .liq-use-btn:disabled{ opacity:.4; cursor:not-allowed; color:var(--ink-dim); background:transparent; border-color:var(--line); }
 
   .spread-card.entry-hit{
     border-color:var(--green); background:linear-gradient(180deg, var(--green-bg), var(--card));
@@ -442,7 +450,13 @@
       <div class="usd" id="in-usd">–</div>
       <div class="note" id="in-usd-net">–</div>
       <div class="last-ref"><span>Ref. last</span><b id="in-last">–</b></div>
-      <div class="last-ref"><span>Liquidez p/ abrir</span><b id="in-liquidity">–</b></div>
+      <div class="last-ref">
+        <span>Liquidez p/ abrir</span>
+        <div class="last-ref-value">
+          <b id="in-liquidity">–</b>
+          <button class="liq-use-btn" id="in-liquidity-use" onclick="useLiquidity('open')" disabled title="Poner arriba las acciones que da la liquidez disponible para abrir">Usar</button>
+        </div>
+      </div>
       <div class="tfresh" id="in-fresh">sin datos</div>
     </div>
     <div class="spread-card" id="exit-card">
@@ -454,7 +468,13 @@
       <div class="usd" id="out-usd">–</div>
       <div class="note" id="out-usd-net">–</div>
       <div class="last-ref"><span>Ref. last</span><b id="out-last">–</b></div>
-      <div class="last-ref"><span>Liquidez p/ cerrar</span><b id="out-liquidity">–</b></div>
+      <div class="last-ref">
+        <span>Liquidez p/ cerrar</span>
+        <div class="last-ref-value">
+          <b id="out-liquidity">–</b>
+          <button class="liq-use-btn" id="out-liquidity-use" onclick="useLiquidity('close')" disabled title="Poner arriba las acciones que da la liquidez disponible para cerrar">Usar</button>
+        </div>
+      </div>
       <div class="tfresh" id="out-fresh">sin datos</div>
     </div>
   </div>
@@ -1285,9 +1305,13 @@ function onSharesAInput(){
 // el ratio de canje, permite MENOS acciones. El capital máximo es ese
 // número de acciones TMRC al precio correspondiente. Se pinta como una
 // línea compacta al pie de las tarjetas de spread de entrada/salida.
+let liquidityMaxShares = { open: null, close: null };
+
 function updateLiquidityCard(){
   const openEl = document.getElementById('in-liquidity');
   const closeEl = document.getElementById('out-liquidity');
+  const openBtn = document.getElementById('in-liquidity-use');
+  const closeBtn = document.getElementById('out-liquidity-use');
 
   const tAskSize = lastValid[SYMBOL_TARGET].askSize;
   const tBidSize = lastValid[SYMBOL_TARGET].bidSize;
@@ -1302,8 +1326,12 @@ function updateLiquidityCard(){
     const capOpen = maxSharesOpen * tAsk;
     const limitaTmrc = tAskSize <= tmrcEquivFromUsar;
     openEl.innerText = `${fmt(capOpen)} (${maxSharesOpen.toLocaleString('en-US')} acc. · limita ${limitaTmrc ? 'TMRC' : 'USAR'})`;
+    liquidityMaxShares.open = maxSharesOpen;
+    if(openBtn) openBtn.disabled = !(maxSharesOpen>0);
   } else {
     openEl.innerText = '–';
+    liquidityMaxShares.open = null;
+    if(openBtn) openBtn.disabled = true;
   }
 
   // ── Cerrar ──
@@ -1313,9 +1341,27 @@ function updateLiquidityCard(){
     const capClose = maxSharesClose * tBid;
     const limitaTmrcClose = tBidSize <= tmrcEquivFromUsarClose;
     closeEl.innerText = `${fmt(capClose)} (${maxSharesClose.toLocaleString('en-US')} acc. · limita ${limitaTmrcClose ? 'TMRC' : 'USAR'})`;
+    liquidityMaxShares.close = maxSharesClose;
+    if(closeBtn) closeBtn.disabled = !(maxSharesClose>0);
   } else {
     closeEl.innerText = '–';
+    liquidityMaxShares.close = null;
+    if(closeBtn) closeBtn.disabled = true;
   }
+}
+
+// Botón "Usar" de las tarjetas de spread: coge el número de acciones que
+// permite la liquidez disponible (para abrir o para cerrar) y lo pone
+// directamente en el campo de acciones TMRC de arriba, lo que a su vez
+// recalcula el capital simulado, la pata de USAR, la orden y las
+// tarjetas de spread — igual que si lo hubieras escrito a mano.
+function useLiquidity(which){
+  const qty = liquidityMaxShares[which];
+  if(qty===null || qty===undefined || qty<=0) return;
+  const tInput = document.getElementById('shares-t-input');
+  if(!tInput) return;
+  tInput.value = qty;
+  onSharesTInput();
 }
 
 // ── FRESCURA: "el dato más lejano" ──
