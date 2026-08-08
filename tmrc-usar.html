@@ -484,7 +484,7 @@
   <!-- ── CÓMO SE CALCULA EL CANJE TEÓRICO ─────────── -->
   <div class="explain-card">
     <div class="explain-title">Cómo se calcula el canje teórico</div>
-    <div class="explain-sub">Si compras 1 acción de TMRC ahora y vendes en corto su equivalente en USAR, esto es lo que pasa:</div>
+    <div class="explain-sub">Si compras 1 acción de TMRC ahora y vendes en corto su equivalente en USAR, esto es lo que pasa (comisión IBKR incluida al final, con el modelo elegido arriba):</div>
     <div class="explain-flow">
       <div class="ex-step">
         <div class="ex-lbl">① Vendes en corto USAR (bid)</div>
@@ -501,12 +501,17 @@
         <div class="ex-val" id="ex-task">–</div>
       </div>
       <div class="ex-op">−1</div>
+      <div class="ex-step">
+        <div class="ex-lbl">Spread bruto</div>
+        <div class="ex-val" id="ex-result">–</div>
+      </div>
+      <div class="ex-op">−<div class="ex-op-note">comisión<br>apertura<br><b id="ex-comm-amt">–</b></div></div>
       <div class="ex-step ex-result">
-        <div class="ex-lbl">Spread de entrada</div>
-        <div class="ex-val ex-big" id="ex-result">–</div>
+        <div class="ex-lbl">Spread neto (con comisiones)</div>
+        <div class="ex-val ex-big" id="ex-net-result">–</div>
       </div>
     </div>
-    <div class="explain-note">Es la ganancia (o pérdida) teórica por cada dólar invertido si la fusión se cierra hoy a estos precios y a este ratio de canje.</div>
+    <div class="explain-note">Es la ganancia (o pérdida) teórica neta de comisiones por cada dólar invertido si la fusión se cierra hoy a estos precios y a este ratio de canje. Coincide con el % que ves en la tarjeta "Spread de entrada" de arriba.</div>
   </div>
 
   <!-- ── CHART ───────────────────────────────────── -->
@@ -983,6 +988,8 @@ function updateExchangeExplainer(){
   if(isNaN(aBid) || isNaN(tAsk) || tAsk<=0){
     ids.forEach(id => document.getElementById(id).innerText = '–');
     document.getElementById('ex-result').innerText = '–';
+    document.getElementById('ex-net-result').innerText = '–';
+    document.getElementById('ex-comm-amt').innerText = '–';
     return;
   }
 
@@ -1001,6 +1008,31 @@ function updateExchangeExplainer(){
     flashValue(resEl, spread > prevSpread ? 'up' : 'down');
   }
   displayedValues['ex-result'] = spread;
+
+  // Comisiones: misma base que la orden y las tarjetas de spread
+  // (computeOrderBasis), para que este "spread neto" coincida siempre,
+  // al céntimo, con el % que muestra la tarjeta "Spread de entrada".
+  const basis = computeOrderBasis();
+  const netResEl = document.getElementById('ex-net-result');
+  const commAmtEl = document.getElementById('ex-comm-amt');
+  if(basis){
+    const grossProfit = spread * basis.capitalUsado;
+    const netProfit = grossProfit - basis.commOpen;
+    const netPct = basis.outlay>0 ? netProfit/basis.outlay : NaN;
+
+    commAmtEl.innerText = fmt(basis.commOpen);
+
+    const prevNet = displayedValues['ex-net-result'];
+    netResEl.innerText = isNaN(netPct) ? '–' : fmtPct(netPct);
+    netResEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+    if(prevNet !== undefined && !isNaN(netPct) && netPct !== prevNet){
+      flashValue(netResEl, netPct>prevNet?'up':'down');
+    }
+    if(!isNaN(netPct)) displayedValues['ex-net-result'] = netPct;
+  } else {
+    netResEl.innerText = '–';
+    commAmtEl.innerText = '–';
+  }
 }
 
 // ── BASE COMÚN PARA COMISIONES: acciones reales + capital + comisión ──
@@ -1081,9 +1113,14 @@ function recalc(){
     const netOutEl = document.getElementById('out-usd-net');
 
     if(basis){
-      const usdGross = (tBid - RATIO*aAsk) * basis.tmrcShares;
+      // El $ bruto se deriva del mismo capital de referencia que el %
+      // (capitalUsado, al precio de entrada), igual que hace la tarjeta
+      // de entrada. Antes se usaba el bid real de TMRC para el $, que no
+      // coincide con el ask usado para fijar el capital, y el % × capital
+      // no cuadraba con el $ mostrado.
+      const grossProfit = -outPct * basis.capitalUsado;
       const commClose = commissionForOrder(basis.tmrcShares, tBid) + commissionForOrder(basis.usarShares, aAsk);
-      const netProfit = usdGross - commClose;
+      const netProfit = grossProfit - commClose;
       const netPctOut = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
 
       // Igual que en la tarjeta de entrada: el número grande es el % neto
@@ -1097,7 +1134,7 @@ function recalc(){
 
       setNumericText('out-usd', netProfit, 2, fmt);
 
-      netOutEl.innerText = `Bruto (sin comisiones): ${fmtPct(outPct)} · ${fmt(usdGross)} · comisión ≈${fmt(commClose)}`;
+      netOutEl.innerText = `Bruto (sin comisiones): ${fmtPct(outPct)} · ${fmt(grossProfit)} · comisión ≈${fmt(commClose)}`;
       netOutEl.style.color = '';
 
       const exitHit = netPctOut <= thresholdExit;
