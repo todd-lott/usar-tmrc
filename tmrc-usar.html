@@ -203,6 +203,13 @@
 
   #status{ font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); text-align:center; }
   .status-ok{ color:var(--green); }
+
+  #last-update-label{
+    font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); white-space:nowrap;
+  }
+  #last-update-label.stale-label{ color:var(--amber); font-weight:600; }
+
+  .last-ref b.stale{ color:var(--amber); }
   #footer-credit{
     font-size:.72rem; color:var(--ink-dim); text-align:center; letter-spacing:.02em;
     margin-top:-6px; padding-top:14px; border-top:1px solid var(--line); width:100%;
@@ -240,6 +247,28 @@
   #invest-input::-webkit-outer-spin-button, #invest-input::-webkit-inner-spin-button{
     -webkit-appearance:none; appearance:none; margin:0;
   }
+
+  /* ── ENTRADAS DE ACCIONES POR PATA (izquierda del capital) ── */
+  .shares-inputs-wrap{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .shares-input-wrap{
+    display:flex; align-items:center; gap:6px; background:#0c0f16; border:1px solid var(--line);
+    border-radius:7px; padding:5px 10px;
+  }
+  .shares-input-wrap .si-tag{
+    font-family:var(--font-mono); font-size:.66rem; font-weight:700; letter-spacing:.02em;
+  }
+  .shares-input-wrap.long .si-tag{ color:var(--green); }
+  .shares-input-wrap.short .si-tag{ color:var(--red); }
+  #shares-t-input, #shares-a-input{
+    font-family:var(--font-mono); font-weight:600; font-size:.9rem; color:var(--ink);
+    background:transparent; border:none; outline:none; width:78px; text-align:right;
+    -moz-appearance:textfield; appearance:textfield;
+  }
+  #shares-t-input::-webkit-outer-spin-button, #shares-t-input::-webkit-inner-spin-button,
+  #shares-a-input::-webkit-outer-spin-button, #shares-a-input::-webkit-inner-spin-button{
+    -webkit-appearance:none; appearance:none; margin:0;
+  }
+  .shares-input-wrap:focus-within{ border-color:var(--accent); }
 
   /* ── RESPLANDOR AL CAMBIAR UN VALOR (estilo broker) ── */
   .value-flash{
@@ -341,11 +370,22 @@
         <option value="0">Off</option>
       </select>
       <button class="btn" id="main-btn" onclick="updateData()">Actualizar</button>
+      <span id="last-update-label">Sin actualizar</span>
     </div>
   </div>
 
   <!-- ── CAPITAL ─────────────────────────────────── -->
   <div class="invest-box">
+    <div class="shares-inputs-wrap">
+      <div class="shares-input-wrap long" title="Acciones TMRC a comprar (edítalo si tu orden se ejecutó parcialmente)">
+        <span class="si-tag">TMRC</span>
+        <input type="number" id="shares-t-input" step="1" min="0" placeholder="0">
+      </div>
+      <div class="shares-input-wrap short" title="Acciones USAR equivalentes a shortear según el ratio de canje">
+        <span class="si-tag">USAR corto</span>
+        <input type="number" id="shares-a-input" step="1" min="0" placeholder="0">
+      </div>
+    </div>
     <span class="invest-label">Capital simulado</span>
     <div class="invest-slider-wrap">
       <span>$100</span>
@@ -401,6 +441,8 @@
       <div class="note" id="in-usd-net">–</div>
       <div class="last-ref"><span>Ref. last</span><b id="in-last">–</b></div>
       <div class="last-ref"><span>Liquidez p/ abrir</span><b id="in-liquidity">–</b></div>
+      <div class="last-ref"><span>TMRC (ask) actualizado</span><b id="in-fresh-t">–</b></div>
+      <div class="last-ref"><span>USAR (bid) actualizado</span><b id="in-fresh-a">–</b></div>
     </div>
     <div class="spread-card" id="exit-card">
       <div class="card-top">
@@ -412,6 +454,8 @@
       <div class="note" id="out-usd-net">–</div>
       <div class="last-ref"><span>Ref. last</span><b id="out-last">–</b></div>
       <div class="last-ref"><span>Liquidez p/ cerrar</span><b id="out-liquidity">–</b></div>
+      <div class="last-ref"><span>TMRC (bid) actualizado</span><b id="out-fresh-t">–</b></div>
+      <div class="last-ref"><span>USAR (ask) actualizado</span><b id="out-fresh-a">–</b></div>
     </div>
   </div>
 
@@ -980,8 +1024,11 @@ function recalc(){
     const qtyA_in = qtyT_in*RATIO;
     const commIn = commissionForOrder(qtyT_in, tAsk) + commissionForOrder(qtyA_in, aBid);
     const usdNetIn = usd - commIn;
+    const outlayIn = INVEST + commIn;
+    const netPctIn = outlayIn>0 ? (usdNetIn/outlayIn)*100 : NaN;
     const netInEl = document.getElementById('in-usd-net');
-    netInEl.innerText = `Neto de comisiones (≈${fmt(commIn)}): ${fmt(usdNetIn)}`;
+    netInEl.innerText = `Neto de comisiones (≈${fmt(commIn)}): ${fmt(usdNetIn)}` +
+      (isNaN(netPctIn) ? '' : ` (${netPctIn>=0?'+':''}${netPctIn.toFixed(2)}%)`);
     netInEl.style.color = usdNetIn>0 ? 'var(--green)' : 'var(--red)';
 
     const entryHit = (inPct*100) >= threshold;
@@ -1013,8 +1060,10 @@ function recalc(){
     const qtyA_out = qtyT_out*RATIO;
     const commOut = commissionForOrder(qtyT_out, tBid) + commissionForOrder(qtyA_out, aAsk);
     const usdNetOut = usd - commOut;
+    const netPctOut = INVEST>0 ? (usdNetOut/INVEST)*100 : NaN;
     const netOutEl = document.getElementById('out-usd-net');
-    netOutEl.innerText = `Neto de comisiones (≈${fmt(commOut)}): ${fmt(usdNetOut)}`;
+    netOutEl.innerText = `Neto de comisiones (≈${fmt(commOut)}): ${fmt(usdNetOut)}` +
+      (isNaN(netPctOut) ? '' : ` (${netPctOut>=0?'+':''}${netPctOut.toFixed(2)}%)`);
     netOutEl.style.color = usdNetOut>0 ? 'var(--red)' : 'var(--green)';
 
     const exitHit = (outPct*100) <= thresholdExit;
@@ -1042,6 +1091,7 @@ function updateOrderTicket(){
     buyEl.innerText = '–'; sellEl.innerText = '–';
     buyPriceEl.innerText = '–'; sellPriceEl.innerText = '–';
     capEl.innerText = '–'; commEl.innerText = '–'; profitEl.innerText = '–';
+    syncSharesFromInvest();
     return;
   }
 
@@ -1081,6 +1131,79 @@ function updateOrderTicket(){
   profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
   if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
   displayedValues['ord-profit'] = netProfit;
+
+  syncSharesFromInvest();
+}
+
+// ── ENTRADAS DE ACCIONES POR PATA (a la izquierda del capital simulado) ──
+// Reflejan siempre el número de acciones TMRC a comprar y su equivalente
+// en acciones USAR a shortear, en sincronía con el capital simulado y
+// con la orden de abajo. Se pueden editar directamente: por ejemplo, si
+// pediste comprar 1.000 TMRC pero solo se ejecutaron 932, puedes escribir
+// 932 en el campo TMRC y al instante ves cuántas acciones USAR necesitas
+// shortear para cubrir exactamente esa cantidad ejecutada (y el capital
+// simulado, la orden y las tarjetas de spread se recalculan con ese
+// número real de acciones).
+function syncSharesFromInvest(){
+  const tInput = document.getElementById('shares-t-input');
+  const aInput = document.getElementById('shares-a-input');
+  if(!tInput || !aInput) return;
+  // No pisamos lo que el usuario está escribiendo en este momento.
+  if(document.activeElement === tInput || document.activeElement === aInput) return;
+
+  const tAsk = priceCache.tAsk;
+  if(isNaN(tAsk) || tAsk<=0){
+    tInput.value = '';
+    aInput.value = '';
+    return;
+  }
+  const tmrcShares = Math.floor(INVEST / tAsk);
+  const usarShares = Math.round(tmrcShares * RATIO);
+  tInput.value = tmrcShares;
+  aInput.value = usarShares;
+}
+
+// El usuario edita directamente el número de acciones TMRC (p.ej. porque
+// su orden se ejecutó parcialmente): recalculamos la pata corta de USAR
+// según el ratio de canje, y el capital simulado se ajusta para que
+// coincida exactamente con esas acciones al ask actual.
+function onSharesTInput(){
+  const tAsk = priceCache.tAsk;
+  if(isNaN(tAsk) || tAsk<=0) return;
+  let qtyT = parseFloat(document.getElementById('shares-t-input').value);
+  if(isNaN(qtyT) || qtyT<0) qtyT = 0;
+
+  const qtyA = Math.round(qtyT * RATIO);
+  document.getElementById('shares-a-input').value = qtyA;
+
+  INVEST = qtyT * tAsk;
+  document.getElementById('invest-input').value = Math.round(INVEST);
+  document.getElementById('invest-slider').value = investToSlider(INVEST);
+
+  recalc();
+  updateOrderTicket();
+  updatePositionCard();
+}
+
+// El usuario edita directamente el número de acciones USAR en corto
+// (p.ej. porque esa fue la pata que realmente se ejecutó): recalculamos
+// la pata larga de TMRC equivalente según el ratio de canje.
+function onSharesAInput(){
+  const tAsk = priceCache.tAsk;
+  if(isNaN(tAsk) || tAsk<=0) return;
+  let qtyA = parseFloat(document.getElementById('shares-a-input').value);
+  if(isNaN(qtyA) || qtyA<0) qtyA = 0;
+
+  const qtyT = Math.round(qtyA / RATIO);
+  document.getElementById('shares-t-input').value = qtyT;
+
+  INVEST = qtyT * tAsk;
+  document.getElementById('invest-input').value = Math.round(INVEST);
+  document.getElementById('invest-slider').value = investToSlider(INVEST);
+
+  recalc();
+  updateOrderTicket();
+  updatePositionCard();
 }
 
 // ── CAPACIDAD DE LA ORDEN según profundidad de bid/ask ──
@@ -1130,6 +1253,43 @@ function updateLiquidityCard(){
     closeEl.innerText = '–';
   }
 }
+
+// ── FRESCURA POR PATA EN LAS TARJETAS DE SPREAD ──
+// Igual que la frescura que ya se muestra en las tarjetas de cotizaciones
+// (tfresh), pero aplicada a la cotización concreta que usa cada spread:
+//  - Entrada usa el ask de TMRC y el bid de USAR.
+//  - Salida usa el bid de TMRC y el ask de USAR.
+function paintFreshRow(id, iso){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const fr = tiempoDesde(iso);
+  el.innerText = fr.texto;
+  el.classList.toggle('stale', fr.stale);
+}
+function updateSpreadFreshness(){
+  const t = lastValid[SYMBOL_TARGET];
+  const a = lastValid[SYMBOL_ACQUIRER];
+  paintFreshRow('in-fresh-t', t.askTs);
+  paintFreshRow('in-fresh-a', a.bidTs);
+  paintFreshRow('out-fresh-t', t.bidTs);
+  paintFreshRow('out-fresh-a', a.askTs);
+}
+
+// ── ÚLTIMA ACTUALIZACIÓN (junto al botón "Actualizar") ──
+// Se guarda la hora del último fetch con éxito y se repinta cada
+// segundo como texto relativo ("hace Xs"), igual que la frescura de
+// las cotizaciones, para que se note en vivo si el feed se ha quedado
+// parado sin necesidad de esperar al siguiente ciclo automático.
+let lastUpdateTime = null;
+function paintLastUpdateLabel(){
+  const el = document.getElementById('last-update-label');
+  if(!el) return;
+  if(!lastUpdateTime){ el.innerText = 'Sin actualizar'; el.classList.remove('stale-label'); return; }
+  const fr = tiempoDesde(lastUpdateTime.toISOString());
+  el.innerText = `Últ. actualización: ${fr.texto}`;
+  el.classList.toggle('stale-label', fr.stale);
+}
+setInterval(paintLastUpdateLabel, 1000);
 
 // ── MODAL: simulador de posición ──
 function openPositionModal(){
@@ -1304,6 +1464,8 @@ function onInvestInput(){
 }
 document.getElementById('invest-slider').addEventListener('input', onInvestSlider);
 document.getElementById('invest-input').addEventListener('input', onInvestInput);
+document.getElementById('shares-t-input').addEventListener('input', onSharesTInput);
+document.getElementById('shares-a-input').addEventListener('input', onSharesAInput);
 
 document.getElementById('threshold-input').addEventListener('input', (e)=>{
   threshold = Math.round(parseFloat(e.target.value)) || 0;
@@ -1535,6 +1697,10 @@ async function updateData(){
     updateOrderTicket();
     updateLiquidityCard();
     updateExchangeExplainer();
+    updateSpreadFreshness();
+
+    lastUpdateTime = new Date();
+    paintLastUpdateLabel();
 
     // Añadimos el punto en vivo a ambas series del gráfico
     if(!isNaN(priceCache.aBid) && !isNaN(priceCache.tAsk) && priceCache.tAsk>0){
@@ -1557,6 +1723,7 @@ async function updateData(){
 
 window.onload = async () => {
   setupCanvas();
+  paintLastUpdateLabel();
   // Sincroniza slider y campo numérico con el valor inicial de INVEST
   document.getElementById('invest-input').value = INVEST;
   document.getElementById('invest-slider').value = investToSlider(INVEST);
