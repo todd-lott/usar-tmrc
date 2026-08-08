@@ -1152,7 +1152,7 @@ function recalc(){
       netOutEl.innerText = `Comisión de cierre estimada: ≈${fmt(commClose)}`;
       netOutEl.style.color = '';
 
-      const exitHit = netPctOut <= thresholdExit;
+      const exitHit = (outPct*100) <= thresholdExit;
       const exitCard = document.getElementById('exit-card');
       exitCard.classList.toggle('exit-hit', exitHit);
       triggerSignalSound('exit', exitHit);
