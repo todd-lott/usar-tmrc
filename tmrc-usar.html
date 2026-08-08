@@ -47,6 +47,7 @@
 
   /* ── HEADER ─────────────────────────────────── */
   .topbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+  .cfg-row{ display:flex; justify-content:center; }
   .topbar h1{ font-size:1.25rem; font-weight:700; letter-spacing:-.01em; }
   .topbar h1::before{
     content:''; display:inline-block; width:8px; height:8px; border-radius:50%;
@@ -356,6 +357,9 @@
       <h1>Monitor de Arbitraje TMRC/USAR</h1>
       <div class="sub" id="pair-sub">Objetivo / Adquirente</div>
     </div>
+  </div>
+
+  <div class="cfg-row">
     <div class="cfg">
       <span><label>Umbral entrada</label><input type="number" id="threshold-input" value="9" step="1" min="0"></span>
       <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim); margin-right:6px;">%</span>
@@ -1023,35 +1027,41 @@ function recalc(){
 
   if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0){
     const inPct = (RATIO*aBid)/tAsk - 1;
-    const pEl=document.getElementById('in-pct');
-    const prevIn = displayedValues['in-pct'];
-    pEl.innerText=fmtPct(inPct);
-    pEl.style.color = inPct>0 ? 'var(--green)' : 'var(--red)';
-    if(prevIn !== undefined && inPct !== prevIn) flashValue(pEl, inPct>prevIn?'up':'down');
-    displayedValues['in-pct'] = inPct;
 
     // Misma base que la orden a introducir: acciones enteras, capital
     // real usado y comisión de apertura calculados por computeOrderBasis().
     const basis = computeOrderBasis();
+    const pEl = document.getElementById('in-pct');
     const netInEl = document.getElementById('in-usd-net');
+
     if(basis){
       const grossProfit = inPct * basis.capitalUsado;
       const netProfit = grossProfit - basis.commOpen;
       const netPctIn = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
 
-      setNumericText('in-usd', grossProfit, 2, fmt);
-      netInEl.innerText = `Neto de comisiones (≈${fmt(basis.commOpen)}): ${fmt(netProfit)}` +
-        (isNaN(netPctIn) ? '' : ` (${netPctIn>=0?'+':''}${netPctIn.toFixed(2)}%)`);
-      netInEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+      // El número grande YA es el neto de comisiones (el mismo % que
+      // "Beneficio neto teórico" de la orden de arriba), no el spread
+      // bruto — para que ambos coincidan siempre.
+      const prevIn = displayedValues['in-pct'];
+      pEl.innerText = isNaN(netPctIn) ? 'N/A' : `${netPctIn>=0?'+':''}${netPctIn.toFixed(3)} %`;
+      pEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+      if(prevIn !== undefined && !isNaN(netPctIn) && netPctIn !== prevIn) flashValue(pEl, netPctIn>prevIn?'up':'down');
+      if(!isNaN(netPctIn)) displayedValues['in-pct'] = netPctIn;
+
+      setNumericText('in-usd', netProfit, 2, fmt);
+
+      netInEl.innerText = `Bruto (sin comisiones): ${fmtPct(inPct)} · ${fmt(grossProfit)} · comisión ≈${fmt(basis.commOpen)}`;
+      netInEl.style.color = '';
+
+      const entryHit = netPctIn >= threshold;
+      const card = document.getElementById('entry-card');
+      card.classList.toggle('entry-hit', entryHit);
+      triggerSignalSound('entry', entryHit);
     } else {
+      pEl.innerText = 'N/A';
       document.getElementById('in-usd').innerText = 'N/A';
       netInEl.innerText = '–';
     }
-
-    const entryHit = (inPct*100) >= threshold;
-    const card = document.getElementById('entry-card');
-    card.classList.toggle('entry-hit', entryHit);
-    triggerSignalSound('entry', entryHit);
   }
   if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
     const inLast = (RATIO*aLast)/tLast - 1;
@@ -1060,12 +1070,6 @@ function recalc(){
 
   if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0 && tAsk>0){
     const outPct = (RATIO*aAsk)/tBid - 1;
-    const pEl=document.getElementById('out-pct');
-    const prevOut = displayedValues['out-pct'];
-    pEl.innerText=fmtPct(outPct);
-    pEl.style.color = outPct>0 ? 'var(--red)' : 'var(--green)';
-    if(prevOut !== undefined && outPct !== prevOut) flashValue(pEl, outPct>prevOut?'up':'down');
-    displayedValues['out-pct'] = outPct;
 
     // Misma base de acciones que al abrir (computeOrderBasis), para que
     // cerrar la MISMA posición muestre un neto comparable al de la orden
@@ -1073,26 +1077,38 @@ function recalc(){
     // (outlay) para que el % de salida refleje el retorno sobre TODO lo
     // que has puesto, no solo sobre el capital nominal.
     const basis = computeOrderBasis();
+    const pEl = document.getElementById('out-pct');
     const netOutEl = document.getElementById('out-usd-net');
+
     if(basis){
       const usdGross = (tBid - RATIO*aAsk) * basis.tmrcShares;
       const commClose = commissionForOrder(basis.tmrcShares, tBid) + commissionForOrder(basis.usarShares, aAsk);
       const netProfit = usdGross - commClose;
       const netPctOut = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
 
-      setNumericText('out-usd', usdGross, 2, fmt);
-      netOutEl.innerText = `Neto de comisiones (≈${fmt(commClose)}): ${fmt(netProfit)}` +
-        (isNaN(netPctOut) ? '' : ` (${netPctOut>=0?'+':''}${netPctOut.toFixed(2)}%)`);
-      netOutEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+      // Igual que en la tarjeta de entrada: el número grande es el % neto
+      // de comisiones (retorno sobre el desembolso total), no el spread
+      // bruto, para que sea directamente comparable con el de entrada.
+      const prevOut = displayedValues['out-pct'];
+      pEl.innerText = isNaN(netPctOut) ? 'N/A' : `${netPctOut>=0?'+':''}${netPctOut.toFixed(3)} %`;
+      pEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+      if(prevOut !== undefined && !isNaN(netPctOut) && netPctOut !== prevOut) flashValue(pEl, netPctOut>prevOut?'up':'down');
+      if(!isNaN(netPctOut)) displayedValues['out-pct'] = netPctOut;
+
+      setNumericText('out-usd', netProfit, 2, fmt);
+
+      netOutEl.innerText = `Bruto (sin comisiones): ${fmtPct(outPct)} · ${fmt(usdGross)} · comisión ≈${fmt(commClose)}`;
+      netOutEl.style.color = '';
+
+      const exitHit = netPctOut <= thresholdExit;
+      const exitCard = document.getElementById('exit-card');
+      exitCard.classList.toggle('exit-hit', exitHit);
+      triggerSignalSound('exit', exitHit);
     } else {
+      pEl.innerText = 'N/A';
       document.getElementById('out-usd').innerText = 'N/A';
       netOutEl.innerText = '–';
     }
-
-    const exitHit = (outPct*100) <= thresholdExit;
-    const exitCard = document.getElementById('exit-card');
-    exitCard.classList.toggle('exit-hit', exitHit);
-    triggerSignalSound('exit', exitHit);
   }
   if(!isNaN(aLast) && !isNaN(tLast) && tLast>0){
     const outLast = (RATIO*aLast)/tLast - 1;
@@ -1310,7 +1326,7 @@ function paintLastUpdateLabel(){
   const oldest = oldestIso(t.bidTs, t.askTs, a.bidTs, a.askTs);
   if(!oldest){ el.innerText = 'Sin datos'; el.classList.remove('stale-label'); return; }
   const fr = tiempoDesde(oldest);
-  el.innerText = `Dato más antiguo: ${fr.texto}`;
+  el.innerText = fr.texto;
   el.classList.toggle('stale-label', fr.stale);
 }
 setInterval(paintLastUpdateLabel, 1000);
