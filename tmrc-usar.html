@@ -193,7 +193,13 @@
   }
 
   /* ── ORDEN LISTA PARA EL BROKER ───────────────── */
-  .order-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
+  .order-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; transition:border-color .25s, background .25s; }
+  .order-card.mode-open{
+    border-color:var(--green); background:linear-gradient(180deg, var(--green-bg), var(--card));
+  }
+  .order-card.mode-close{
+    border-color:var(--amber); background:linear-gradient(180deg, var(--amber-bg), var(--card));
+  }
   .order-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
   .order-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .order-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:9px; padding:12px 14px; display:flex; flex-direction:column; gap:4px; }
@@ -410,9 +416,9 @@
   </div>
 
   <!-- ── ORDEN LISTA PARA EL BROKER ──────────────── -->
-  <div class="order-card" id="order-card">
+  <div class="order-card mode-open" id="order-card">
     <div class="order-title">
-      <span>Orden a introducir</span>
+      <span id="order-title-text">Orden a introducir (abrir)</span>
       <div class="comm-switch">
         <label for="commission-model">Comisión IBKR</label>
         <select id="commission-model">
@@ -423,20 +429,20 @@
     </div>
     <div class="order-grid">
       <div class="order-leg">
-        <span class="ol-lbl">Comprar (largo)</span>
+        <span class="ol-lbl" id="ord-buy-label">Comprar (largo)</span>
         <span class="ol-val" id="ord-buy">–</span>
         <span class="ol-price" id="ord-buy-price">–</span>
       </div>
       <div class="order-leg">
-        <span class="ol-lbl">Shortear (corto)</span>
+        <span class="ol-lbl" id="ord-sell-label">Shortear (corto)</span>
         <span class="ol-val" id="ord-sell">–</span>
         <span class="ol-price" id="ord-sell-price">–</span>
       </div>
     </div>
     <div class="order-foot">
-      <span>Capital realmente usado: <b id="ord-capital">–</b></span>
-      <span>Comisiones estimadas (apertura): <b id="ord-commission">–</b></span>
-      <span>Beneficio neto teórico (tras comisiones): <b id="ord-profit">–</b></span>
+      <span><span id="ord-capital-label">Capital realmente usado</span>: <b id="ord-capital">–</b></span>
+      <span><span id="ord-commission-label">Comisiones estimadas (apertura)</span>: <b id="ord-commission">–</b></span>
+      <span><span id="ord-profit-label">Beneficio neto teórico (tras comisiones)</span>: <b id="ord-profit">–</b></span>
     </div>
   </div>
 
@@ -699,6 +705,7 @@ let thresholdExit = 5;
 let priceCache = {};
 let lastInNetPct = NaN; // % neto de entrada (para "beneficio si cierras ahora")
 let lastInNetUSD = NaN; // $ neto de entrada
+let orderMode = 'open'; // 'open' (comprar TMRC + shortear USAR) | 'close' (vender TMRC + recomprar USAR)
 let entryPts = [];   // {t, v} — historial del spread de entrada
 let exitPts = [];    // {t, v} — historial del spread de salida
 // Rango del gráfico: {type:'hours', value:N} | {type:'today'} | {type:'days', value:N}
@@ -1063,6 +1070,21 @@ function computeOrderBasis(){
   return { tmrcShares, usarShares, capitalUsado, commOpen, outlay };
 }
 
+// Equivalente de computeOrderBasis() para CERRAR: mismas acciones que al
+// abrir (tmrcShares/usarShares), pero valoradas a los precios de cierre
+// (vender TMRC al bid, recomprar USAR al ask), y con la comisión y el
+// desembolso original (openBasis) de referencia para calcular el % neto.
+function computeCloseOrderBasis(){
+  const openBasis = computeOrderBasis();
+  if(!openBasis) return null;
+  const { tBid, aAsk } = priceCache;
+  if(isNaN(tBid) || isNaN(aAsk) || tBid<=0) return null;
+  const { tmrcShares, usarShares } = openBasis;
+  const proceeds = tmrcShares * tBid; // lo que recibes al vender TMRC ahora
+  const commClose = commissionForOrder(tmrcShares, tBid) + commissionForOrder(usarShares, aAsk);
+  return { tmrcShares, usarShares, tBid, aAsk, proceeds, commClose, openBasis };
+}
+
 function recalc(){
   const {aBid,aAsk,aLast,tBid,tAsk,tLast} = priceCache;
 
@@ -1128,12 +1150,13 @@ function recalc(){
       const netPctOut = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
 
       const prevOut = displayedValues['out-pct'];
-      pEl.innerText = isNaN(netPctOut) ? 'N/A' : `${netPctOut>=0?'+':''}${netPctOut.toFixed(3)} %`;
+      const absNetPctOut = Math.abs(netPctOut);
+      pEl.innerText = isNaN(netPctOut) ? 'N/A' : `${absNetPctOut.toFixed(3)} %`;
       pEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
       if(prevOut !== undefined && !isNaN(netPctOut) && netPctOut !== prevOut) flashValue(pEl, netPctOut>prevOut?'up':'down');
       if(!isNaN(netPctOut)) displayedValues['out-pct'] = netPctOut;
 
-      setNumericText('out-usd', netProfit, 2, fmt);
+      setNumericText('out-usd', netProfit, 2, v => fmt(Math.abs(v)));
       netOutEl.innerText = `Comisión de cierre estimada: ≈${fmt(commClose)}`;
       netOutEl.style.color = '';
 
@@ -1167,8 +1190,23 @@ function recalc(){
   }
 }
 
+// Aplica el color (verde=abrir, ámbar=cerrar) y las etiquetas correctas
+// del ticket de orden según el modo activo.
+function applyOrderModeStyle(){
+  const card = document.getElementById('order-card');
+  if(!card) return;
+  const isOpen = orderMode === 'open';
+  card.classList.toggle('mode-open', isOpen);
+  card.classList.toggle('mode-close', !isOpen);
+  document.getElementById('order-title-text').innerText = isOpen ? 'Orden a introducir (abrir)' : 'Orden a introducir (cerrar)';
+  document.getElementById('ord-buy-label').innerText = isOpen ? 'Comprar (largo)' : 'Vender (cerrar largo)';
+  document.getElementById('ord-sell-label').innerText = isOpen ? 'Shortear (corto)' : 'Comprar (cerrar corto)';
+  document.getElementById('ord-capital-label').innerText = isOpen ? 'Capital realmente usado' : 'Capital liberado al cerrar';
+  document.getElementById('ord-commission-label').innerText = isOpen ? 'Comisiones estimadas (apertura)' : 'Comisiones estimadas (cierre)';
+  document.getElementById('ord-profit-label').innerText = isOpen ? 'Beneficio neto teórico (tras comisiones)' : 'Beneficio neto si cierras ya (tras comisiones)';
+}
+
 function updateOrderTicket(){
-  const {aBid, tAsk} = priceCache;
   const buyEl = document.getElementById('ord-buy');
   const sellEl = document.getElementById('ord-sell');
   const buyPriceEl = document.getElementById('ord-buy-price');
@@ -1177,38 +1215,78 @@ function updateOrderTicket(){
   const commEl = document.getElementById('ord-commission');
   const profitEl = document.getElementById('ord-profit');
 
-  const basis = computeOrderBasis();
-  if(!basis){
-    buyEl.innerText = '–'; sellEl.innerText = '–';
-    buyPriceEl.innerText = '–'; sellPriceEl.innerText = '–';
-    capEl.innerText = '–'; commEl.innerText = '–'; profitEl.innerText = '–';
-    syncSharesFromInvest();
-    return;
+  if(orderMode === 'open'){
+    const {aBid, tAsk} = priceCache;
+    const basis = computeOrderBasis();
+    if(!basis){
+      buyEl.innerText = '–'; sellEl.innerText = '–';
+      buyPriceEl.innerText = '–'; sellPriceEl.innerText = '–';
+      capEl.innerText = '–'; commEl.innerText = '–'; profitEl.innerText = '–';
+      syncSharesFromInvest();
+      return;
+    }
+
+    const { tmrcShares, usarShares, capitalUsado, commOpen, outlay } = basis;
+    const inPct = (RATIO*aBid)/tAsk - 1;
+    const grossProfit = inPct * capitalUsado;
+    const netProfit = grossProfit - commOpen;
+    const netPct = outlay>0 ? (netProfit/outlay)*100 : NaN;
+
+    buyEl.innerText = `${tmrcShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
+    buyPriceEl.innerText = `@ $${tAsk.toFixed(4)} (ask)`;
+    sellEl.innerText = `${usarShares.toLocaleString('en-US')} acc. ${SYMBOL_ACQUIRER}`;
+    sellPriceEl.innerText = `@ $${aBid.toFixed(4)} (bid)`;
+
+    const prevCap = displayedValues['ord-capital'];
+    capEl.innerText = fmt(capitalUsado);
+    if(prevCap !== undefined && capitalUsado !== prevCap) flashValue(capEl, capitalUsado>prevCap?'up':'down');
+    displayedValues['ord-capital'] = capitalUsado;
+
+    setNumericText('ord-commission', commOpen, 2, fmt);
+
+    const prevProfit = displayedValues['ord-profit'];
+    profitEl.innerText = fmt(netProfit) + (isNaN(netPct) ? '' : ` (${netPct.toFixed(2)}%)`);
+    profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
+    if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
+    displayedValues['ord-profit'] = netProfit;
+
+  } else {
+    const {tBid, aAsk} = priceCache;
+    const closeBasis = computeCloseOrderBasis();
+    if(!closeBasis){
+      buyEl.innerText = '–'; sellEl.innerText = '–';
+      buyPriceEl.innerText = '–'; sellPriceEl.innerText = '–';
+      capEl.innerText = '–'; commEl.innerText = '–'; profitEl.innerText = '–';
+      syncSharesFromInvest();
+      return;
+    }
+
+    const { tmrcShares, usarShares, proceeds, commClose, openBasis } = closeBasis;
+    const outPct = (RATIO*aAsk)/tBid - 1;
+    const grossProfit = -outPct * openBasis.capitalUsado;
+    const netProfit = grossProfit - commClose;
+    const netPct = openBasis.outlay>0 ? (netProfit/openBasis.outlay)*100 : NaN;
+
+    buyEl.innerText = `${tmrcShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
+    buyPriceEl.innerText = `@ $${tBid.toFixed(4)} (bid)`;
+    sellEl.innerText = `${usarShares.toLocaleString('en-US')} acc. ${SYMBOL_ACQUIRER}`;
+    sellPriceEl.innerText = `@ $${aAsk.toFixed(4)} (ask)`;
+
+    const prevCap = displayedValues['ord-capital'];
+    capEl.innerText = fmt(proceeds);
+    if(prevCap !== undefined && proceeds !== prevCap) flashValue(capEl, proceeds>prevCap?'up':'down');
+    displayedValues['ord-capital'] = proceeds;
+
+    setNumericText('ord-commission', commClose, 2, fmt);
+
+    // Sin signo negativo, igual que en la tarjeta de spread de salida:
+    // el color ya indica si es favorable (verde) o desfavorable (rojo).
+    const prevProfit = displayedValues['ord-profit'];
+    profitEl.innerText = fmt(Math.abs(netProfit)) + (isNaN(netPct) ? '' : ` (${Math.abs(netPct).toFixed(2)}%)`);
+    profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
+    if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
+    displayedValues['ord-profit'] = netProfit;
   }
-
-  const { tmrcShares, usarShares, capitalUsado, commOpen, outlay } = basis;
-  const inPct = (RATIO*aBid)/tAsk - 1;
-  const grossProfit = inPct * capitalUsado;
-  const netProfit = grossProfit - commOpen;
-  const netPct = outlay>0 ? (netProfit/outlay)*100 : NaN;
-
-  buyEl.innerText = `${tmrcShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
-  buyPriceEl.innerText = `@ $${tAsk.toFixed(4)} (ask)`;
-  sellEl.innerText = `${usarShares.toLocaleString('en-US')} acc. ${SYMBOL_ACQUIRER}`;
-  sellPriceEl.innerText = `@ $${aBid.toFixed(4)} (bid)`;
-
-  const prevCap = displayedValues['ord-capital'];
-  capEl.innerText = fmt(capitalUsado);
-  if(prevCap !== undefined && capitalUsado !== prevCap) flashValue(capEl, capitalUsado>prevCap?'up':'down');
-  displayedValues['ord-capital'] = capitalUsado;
-
-  setNumericText('ord-commission', commOpen, 2, fmt);
-
-  const prevProfit = displayedValues['ord-profit'];
-  profitEl.innerText = fmt(netProfit) + (isNaN(netPct) ? '' : ` (${netPct.toFixed(2)}%)`);
-  profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
-  if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
-  displayedValues['ord-profit'] = netProfit;
 
   syncSharesFromInvest();
 }
@@ -1354,6 +1432,8 @@ function useLiquidity(which){
   if(qty===null || qty===undefined || qty<=0) return;
   const tInput = document.getElementById('shares-t-input');
   if(!tInput) return;
+  orderMode = which; // 'open' (Liquidez p/ abrir) o 'close' (Liquidez p/ cerrar)
+  applyOrderModeStyle();
   tInput.value = qty;
   onSharesTInput();
 }
@@ -1839,6 +1919,7 @@ async function updateData(){
 window.onload = async () => {
   setupCanvas();
   paintLastUpdateLabel();
+  applyOrderModeStyle();
   // Sincroniza slider y campo numérico con el valor inicial de INVEST
   document.getElementById('invest-input').value = INVEST;
   document.getElementById('invest-slider').value = investToSlider(INVEST);
