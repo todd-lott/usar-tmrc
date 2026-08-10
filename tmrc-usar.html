@@ -62,6 +62,7 @@
   }
   .cfg select{ width:auto; cursor:pointer; }
   .cfg input:focus, .cfg select:focus{ border-color:var(--accent); }
+  #merger-date-input{ width:138px; }
   .btn{
     background:var(--accent); color:#08130f; border:none; font-weight:700; font-size:.82rem;
     padding:8px 16px; border-radius:7px; cursor:pointer; letter-spacing:.01em;
@@ -96,6 +97,13 @@
     50%{ box-shadow:0 0 0 7px rgba(255,182,72,0); }
   }
   .spread-card .big{ font-family:var(--font-mono); font-weight:800; font-size:2.6rem; line-height:1.15; margin-top:6px; }
+  .big-row{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-top:6px; }
+  .big-row .big{ margin-top:0; }
+  .tir-badge{
+    display:inline-flex; align-items:center; font-family:var(--font-mono); font-size:.76rem;
+    font-weight:700; padding:3px 10px; border-radius:20px; background:var(--card-hi);
+    border:1px solid var(--line); color:var(--ink-dim); white-space:nowrap;
+  }
   .spread-card .usd{ font-family:var(--font-mono); font-weight:600; font-size:1rem; margin-top:2px; color:var(--ink-dim); }
   .spread-card .note{ font-size:.76rem; color:var(--ink-dim); margin-top:10px; }
   .spread-card .last-ref{ margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:.78rem; color:var(--ink-dim); display:flex; justify-content:space-between; gap:10px; }
@@ -159,7 +167,22 @@
   }
   .range-tabs button.active{ background:var(--accent); color:#08130f; }
   .range-tabs button:disabled{ opacity:.5; cursor:wait; }
-  canvas{ width:100%; height:220px; display:block; }
+  .chart-canvas-wrap{ position:relative; }
+  canvas{ width:100%; height:220px; display:block; cursor:crosshair; }
+
+  .chart-tooltip{
+    position:absolute; pointer-events:none; z-index:5;
+    background:#0c0f16; border:1px solid var(--line); border-radius:8px;
+    padding:8px 11px; font-family:var(--font-mono); font-size:.74rem; color:var(--ink);
+    box-shadow:0 8px 20px -6px rgba(0,0,0,.5); white-space:nowrap;
+    opacity:0; transform:translate(-50%,-100%); transition:opacity .08s;
+  }
+  .chart-tooltip.visible{ opacity:1; }
+  .chart-tooltip .ct-time{ color:var(--ink-dim); font-size:.68rem; margin-bottom:4px; }
+  .chart-tooltip .ct-row{ display:flex; align-items:center; gap:6px; }
+  .chart-tooltip .ct-row + .ct-row{ margin-top:2px; }
+  .chart-tooltip .ct-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
+  .chart-tooltip .ct-val{ font-weight:700; }
 
   /* ── EXPLICADOR DEL CANJE TEÓRICO ─────────────── */
   .explain-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
@@ -399,6 +422,8 @@
         <option value="60000">1min</option>
         <option value="0">Off</option>
       </select>
+      <span><label>Fusión est.</label><input type="date" id="merger-date-input" value="2026-08-15"></span>
+      <span id="merger-days-label" style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim); white-space:nowrap;">–</span>
       <button class="btn" id="main-btn" onclick="updateData()">Actualizar</button>
       <span id="last-update-label">Sin actualizar</span>
     </div>
@@ -466,7 +491,10 @@
         <div class="tag">Spread de entrada</div>
         <button class="sound-btn" id="entry-sound-btn" onclick="toggleSound('entry')" title="Avisar con sonido en bucle mientras se cumpla la señal de entrada (se detiene solo si deja de cumplirse, pero queda armado)">🔔</button>
       </div>
-      <div class="big" id="in-pct">–</div>
+      <div class="big-row">
+        <div class="big" id="in-pct">–</div>
+        <span class="tir-badge" id="in-tir" title="TIR anualizada si la fusión se cierra en la fecha estimada">TIR –</span>
+      </div>
       <div class="usd" id="in-usd">–</div>
       <div class="note" id="in-usd-net">–</div>
       <div class="last-ref"><span>Ref. last</span><b id="in-last">–</b></div>
@@ -484,7 +512,10 @@
         <div class="tag">Spread de salida</div>
         <button class="sound-btn" id="exit-sound-btn" onclick="toggleSound('exit')" title="Avisar con sonido en bucle mientras se cumpla la señal de salida (se detiene solo si deja de cumplirse, pero queda armado)">🔔</button>
       </div>
-      <div class="big" id="out-pct">–</div>
+      <div class="big-row">
+        <div class="big" id="out-pct">–</div>
+        <span class="tir-badge" id="out-tir" style="visibility:hidden;">TIR –</span>
+      </div>
       <div class="usd" id="out-usd">–</div>
       <div class="note" id="out-usd-net">–</div>
       <div class="last-ref"><span>Ref. last</span><b id="out-last">–</b></div>
@@ -571,7 +602,14 @@
         </div>
       </div>
     </div>
-    <canvas id="chart"></canvas>
+    <div class="chart-canvas-wrap">
+      <canvas id="chart"></canvas>
+      <div class="chart-tooltip" id="chart-tooltip">
+        <div class="ct-time" id="ct-time">–</div>
+        <div class="ct-row"><span class="ct-dot" style="background:var(--accent)"></span>Entrada: <span class="ct-val" id="ct-in">–</span></div>
+        <div class="ct-row"><span class="ct-dot" style="background:var(--amber)"></span>Salida: <span class="ct-val" id="ct-out">–</span></div>
+      </div>
+    </div>
   </div>
 
   <div id="status">Iniciando…</div>
@@ -713,6 +751,63 @@ let commissionModel = 'tiered'; // por defecto: Tiered (el comportamiento previo
 
 const STALE_MS = 60000;
 
+// ── Fecha estimada de fusión / cierre del canje ──
+// Se usa para calcular "días hasta la fusión" y anualizar el spread de
+// entrada como una TIR (rentabilidad anualizada), ya que un mismo spread
+// vale mucho más cuanto antes se espera cobrarlo. Editable desde el
+// campo de fecha en la barra de configuración (por defecto: 15 ago 2026).
+let MERGER_DATE = new Date(document.getElementById('merger-date-input').value + 'T00:00:00');
+
+// Días hasta la fusión para USAR EN CÁLCULOS (TIR): nunca menor que 1,
+// para evitar divisiones por cero o exponentes absurdos si la fecha
+// estimada ya se alcanzó o quedan horas.
+function daysToMerger(){
+  const ms = MERGER_DATE.getTime() - Date.now();
+  return Math.max(1, Math.ceil(ms/86400000));
+}
+
+// Anualiza un retorno simple (en %) al horizonte de `days` días, de forma
+// compuesta (interés compuesto), como una TIR aproximada: cuánto
+// rendiría por año si se pudiera repetir esa misma operación al mismo
+// ritmo. Un retorno de −100% o peor no tiene anualización compuesta real
+// (base ≤ 0), así que en ese caso se limita a mostrar −100%.
+function annualizedReturn(netPct, days){
+  if(isNaN(netPct)) return NaN;
+  const d = Math.max(days||1, 1);
+  const base = 1 + netPct/100;
+  if(base <= 0) return -100;
+  return (Math.pow(base, 365/d) - 1) * 100;
+}
+
+// Pinta "faltan N días" (o "hoy" / "hace N días" si la fecha ya pasó)
+// junto al selector de fecha de fusión estimada.
+function updateMergerDaysLabel(){
+  const el = document.getElementById('merger-days-label');
+  if(!el) return;
+  const ms = MERGER_DATE.getTime() - Date.now();
+  const days = Math.ceil(ms/86400000);
+  if(days > 1){
+    el.innerText = `≈${days} días hasta la fusión`;
+    el.style.color = '';
+  } else if(days === 1){
+    el.innerText = 'mañana';
+    el.style.color = 'var(--amber)';
+  } else if(days === 0){
+    el.innerText = 'hoy';
+    el.style.color = 'var(--amber)';
+  } else {
+    el.innerText = `hace ${Math.abs(days)} día${Math.abs(days)===1?'':'s'}`;
+    el.style.color = 'var(--amber)';
+  }
+}
+document.getElementById('merger-date-input').addEventListener('change', (e)=>{
+  if(!e.target.value) return;
+  MERGER_DATE = new Date(e.target.value + 'T00:00:00');
+  updateMergerDaysLabel();
+  recalc();
+  updateOrderTicket();
+});
+
 // Valor "centinela" que usa la fuente de datos para indicar
 // bid/ask no disponible. Estos ticks se descartan por completo.
 const INVALID_TICK = -1;
@@ -783,6 +878,12 @@ function fmtAxisTime(ms){
          d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
 }
 
+// Guarda la última "geometría" del gráfico (escalas, rangos de tiempo/valor,
+// tamaño) para poder invertir coordenadas de píxel -> tiempo en el hover,
+// sin tener que recalcular todo el layout desde cero en cada movimiento
+// del ratón. Se actualiza cada vez que drawChart() dibuja con éxito.
+let chartLayout = null;
+
 function drawChart(){
   if(!ctx||!cvs) return;
   const r = cvs.getBoundingClientRect();
@@ -793,6 +894,8 @@ function drawChart(){
   if(!allPts.length){
     ctx.fillStyle='#7c8698'; ctx.font='13px Inter'; ctx.textAlign='center';
     ctx.fillText('Esperando datos…', W/2, H/2);
+    chartLayout = null;
+    hideChartTooltip();
     return;
   }
 
@@ -807,6 +910,8 @@ function drawChart(){
 
   const getY = v => H-PB-((v-mn)/rng)*(H-PB-P*0.4);
   const getX = t => P + ((t-tMin)/tRng)*(W-P*1.3);
+
+  chartLayout = { W, H, P, PB, tMin, tMax, tRng, getX, getY };
 
   // Grid horizontal + etiquetas del eje Y
   ctx.font='11px JetBrains Mono'; ctx.textAlign='right'; ctx.fillStyle='#7c8698';
@@ -848,6 +953,131 @@ function drawChart(){
   }
   drawSeries(entryPts, '#2ee0a3');
   drawSeries(exitPts, '#ffb648');
+
+  if(hoverActive) drawHoverOverlay();
+}
+
+// ── HOVER / TOOLTIP DEL GRÁFICO ──
+// Al mover el ratón sobre el canvas, buscamos en cada serie (entrada y
+// salida) el punto cuyo tiempo está más cerca de la posición horizontal
+// del cursor, dibujamos una línea vertical guía + un punto resaltado por
+// serie, y mostramos un tooltip flotante con la hora y ambos valores.
+let hoverActive = false;
+let hoverPxX = 0; // posición X en píxeles CSS (relativa al canvas) del último hover
+
+// Búsqueda del punto más cercano a un tiempo `t` dentro de un array
+// {t,v} ordenado cronológicamente (búsqueda binaria por eficiencia,
+// ya que puede haber hasta 1000 puntos en vivo).
+function nearestPoint(pts, t){
+  if(!pts || !pts.length) return null;
+  let lo=0, hi=pts.length-1;
+  if(t <= pts[0].t) return pts[0];
+  if(t >= pts[hi].t) return pts[hi];
+  while(lo < hi){
+    const mid = (lo+hi)>>1;
+    if(pts[mid].t < t) lo = mid+1; else hi = mid;
+  }
+  const a = pts[lo-1], b = pts[lo];
+  if(!a) return b;
+  return (t - a.t) <= (b.t - t) ? a : b;
+}
+
+function fmtTooltipTime(ms){
+  const d = new Date(ms);
+  return d.toLocaleString('es-ES', {
+    day:'2-digit', month:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  });
+}
+
+function drawHoverOverlay(){
+  if(!chartLayout) return;
+  const { W, H, P, PB, tMin, tMax, getX, getY } = chartLayout;
+  const tAtCursor = tMin + ((hoverPxX-P)/(W-P*1.3))*(tMax-tMin || 1);
+  const clampedT = Math.min(Math.max(tAtCursor, tMin), tMax);
+
+  const nearEntry = nearestPoint(entryPts, clampedT);
+  const nearExit  = nearestPoint(exitPts, clampedT);
+  if(!nearEntry && !nearExit) return;
+
+  // Referencia de tiempo para la línea guía y el tooltip: el punto más
+  // cercano al cursor entre ambas series (normalmente coinciden casi
+  // siempre, salvo huecos de datos).
+  const refPt = [nearEntry, nearExit].filter(Boolean)
+    .reduce((best, p) => (!best || Math.abs(p.t-clampedT) < Math.abs(best.t-clampedT)) ? p : best, null);
+  const lineX = getX(refPt.t);
+
+  // Línea vertical guía
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.22)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4,3]);
+  ctx.beginPath();
+  ctx.moveTo(lineX, P*0.4);
+  ctx.lineTo(lineX, H-PB);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // Puntos resaltados sobre cada serie
+  function highlightDot(pt, color){
+    if(!pt) return;
+    const x = getX(pt.t), y = getY(pt.v);
+    ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2);
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2);
+    ctx.fillStyle = '#0b0e14'; ctx.fill();
+  }
+  highlightDot(nearEntry, '#2ee0a3');
+  highlightDot(nearExit, '#ffb648');
+
+  // Tooltip HTML posicionado sobre el punto de referencia
+  const tooltip = document.getElementById('chart-tooltip');
+  if(!tooltip) return;
+  document.getElementById('ct-time').innerText = fmtTooltipTime(refPt.t);
+  document.getElementById('ct-in').innerText  = nearEntry ? nearEntry.v.toFixed(3)+' %' : '–';
+  document.getElementById('ct-out').innerText = nearExit  ? nearExit.v.toFixed(3)+' %'  : '–';
+
+  const wrapWidth = cvs.getBoundingClientRect().width;
+  let left = lineX;
+  const margin = 8;
+  // Evita que el tooltip se salga por los bordes del gráfico
+  const estTooltipWidth = 170;
+  if(left < estTooltipWidth/2 + margin) left = estTooltipWidth/2 + margin;
+  if(left > wrapWidth - estTooltipWidth/2 - margin) left = wrapWidth - estTooltipWidth/2 - margin;
+
+  tooltip.style.left = left+'px';
+  tooltip.style.top = Math.max(getY(refPt.v)-14, 10)+'px';
+  tooltip.classList.add('visible');
+}
+
+function hideChartTooltip(){
+  const tooltip = document.getElementById('chart-tooltip');
+  if(tooltip) tooltip.classList.remove('visible');
+}
+
+function onChartPointerMove(clientX){
+  const rect = cvs.getBoundingClientRect();
+  hoverPxX = clientX - rect.left;
+  hoverActive = true;
+  drawChart();
+}
+function onChartPointerLeave(){
+  hoverActive = false;
+  hideChartTooltip();
+  drawChart();
+}
+
+if(cvs){
+  cvs.addEventListener('mousemove', (e)=> onChartPointerMove(e.clientX));
+  cvs.addEventListener('mouseleave', onChartPointerLeave);
+  cvs.addEventListener('touchstart', (e)=>{
+    if(e.touches && e.touches[0]){ onChartPointerMove(e.touches[0].clientX); e.preventDefault(); }
+  }, {passive:false});
+  cvs.addEventListener('touchmove', (e)=>{
+    if(e.touches && e.touches[0]){ onChartPointerMove(e.touches[0].clientX); e.preventDefault(); }
+  }, {passive:false});
+  cvs.addEventListener('touchend', onChartPointerLeave);
 }
 
 function fmt(n){ return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n); }
@@ -1139,6 +1369,21 @@ function recalc(){
       const card = document.getElementById('entry-card');
       card.classList.toggle('entry-hit', entryHit);
       triggerSignalSound('entry', entryHit);
+
+      // TIR anualizada del spread de entrada, según los días que quedan
+      // hasta la fecha estimada de fusión.
+      const tirEl = document.getElementById('in-tir');
+      if(tirEl){
+        const annPct = annualizedReturn(netPctIn, daysToMerger());
+        if(isNaN(annPct)){
+          tirEl.innerText = 'TIR –';
+          tirEl.style.color = ''; tirEl.style.borderColor = '';
+        } else {
+          tirEl.innerText = `TIR ${annPct>=0?'+':''}${annPct.toFixed(1)}%`;
+          const c = annPct>=0 ? 'var(--green)' : 'var(--red)';
+          tirEl.style.color = c; tirEl.style.borderColor = c;
+        }
+      }
     } else {
       pEl.innerText = 'N/A';
       document.getElementById('in-usd').innerText = 'N/A';
@@ -1269,9 +1514,12 @@ function updateOrderTicket(){
     setNumericText('ord-commission', commOpen, 2, fmt);
 
     // Con signo: + para beneficio, − para pérdida (fmt() ya añade el
-    // signo negativo en el importe; el % lo añadimos a mano).
+    // signo negativo en el importe; el % lo añadimos a mano), y la TIR
+    // anualizada según los días que quedan hasta la fusión estimada.
     const prevProfit = displayedValues['ord-profit'];
-    profitEl.innerText = fmtSigned(netProfit) + (isNaN(netPct) ? '' : ` (${netPct>=0?'+':''}${netPct.toFixed(2)}%)`);
+    const annPctOpen = annualizedReturn(netPct, daysToMerger());
+    const tirTxt = isNaN(annPctOpen) ? '' : ` · TIR ${annPctOpen>=0?'+':''}${annPctOpen.toFixed(1)}%`;
+    profitEl.innerText = fmtSigned(netProfit) + (isNaN(netPct) ? '' : ` (${netPct>=0?'+':''}${netPct.toFixed(2)}%${tirTxt})`);
     profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
     if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
     displayedValues['ord-profit'] = netProfit;
@@ -1513,6 +1761,7 @@ function paintLastUpdateLabel(){
   el.classList.toggle('stale-label', fr.stale);
 }
 setInterval(paintLastUpdateLabel, 1000);
+setInterval(updateMergerDaysLabel, 60000);
 
 // ── MODAL: simulador de posición ──
 function openPositionModal(){
@@ -1947,6 +2196,7 @@ async function updateData(){
 window.onload = async () => {
   setupCanvas();
   paintLastUpdateLabel();
+  updateMergerDaysLabel();
   applyOrderModeStyle();
   // Sincroniza slider y campo numérico con el valor inicial de INVEST
   document.getElementById('invest-input').value = INVEST;
