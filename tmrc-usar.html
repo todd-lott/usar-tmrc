@@ -333,7 +333,6 @@
 
   .position-card{ display:flex; flex-direction:column; gap:14px; padding-right:6px; }
   .position-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
-  .position-sub{ font-size:.76rem; color:var(--ink-dim); margin-top:-8px; line-height:1.4; }
 
   .pos-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
   .pos-leg-head{ display:flex; justify-content:space-between; align-items:center; }
@@ -359,6 +358,19 @@
   .pos-result-row b{ font-family:var(--font-mono); color:var(--ink); font-size:.92rem; text-align:right; }
   .pos-result-row.pos-pnl-row b{ font-size:1.15rem; }
   .pos-be-note{ font-size:.68rem; color:var(--ink-dim); line-height:1.4; }
+
+  .pos-scenario{
+    background:#0c0f16; border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; display:flex; flex-direction:column; gap:6px;
+  }
+  .pos-scenario-title{ font-size:.8rem; font-weight:700; color:var(--ink); }
+  .pos-scenario-sub{ font-size:.68rem; color:var(--ink-dim); margin-top:-3px; margin-bottom:2px; }
+
+  .pos-alert-orange{
+    display:flex; gap:6px; align-items:flex-start;
+    font-size:.72rem; color:var(--amber); line-height:1.4; opacity:.92;
+  }
+  .pos-alert-orange b{ font-weight:700; }
 </style>
 </head>
 <body>
@@ -571,7 +583,6 @@
     <button class="modal-close" onclick="closePositionModal()" aria-label="Cerrar">✕</button>
     <div class="position-card">
     <div class="position-title">Posición simulada</div>
-    <div class="position-sub">Introduce lo que has comprado/vendido y a qué precio piensas cerrar. Los botones rellenan con el bid/ask actual. <br>Prellenado con tu posición: 4.122 TMRC @ 0,5699 + 3.000 TMRC @ 0,54 (promedio 0,5573) y 308 USAR en corto @ 13,885.</div>
 
     <div class="comm-switch" style="justify-content:flex-start;">
       <label for="pos-commission-model">Comisión IBKR</label>
@@ -585,12 +596,12 @@
       <div class="pos-leg-head"><span class="pos-leg-name long">Largo TMRC</span></div>
       <div class="pos-field">
         <label>Acciones compradas</label>
-        <div class="pos-field-row"><input type="number" id="pos-t-qty" placeholder="0" min="0" step="1" value="7122"></div>
+        <div class="pos-field-row"><input type="number" id="pos-t-qty" placeholder="0" min="0" step="1"></div>
       </div>
       <div class="pos-field">
         <label>Precio de compra (entrada)</label>
         <div class="pos-field-row">
-          <input type="number" id="pos-t-entry" placeholder="0.0000" min="0" step="0.0001" value="0.5573">
+          <input type="number" id="pos-t-entry" placeholder="0.0000" min="0" step="0.0001">
           <button class="pos-mini-btn" onclick="fillPosPrice('pos-t-entry','tAsk')" title="Usar el ask actual">ask act.</button>
         </div>
       </div>
@@ -607,12 +618,12 @@
       <div class="pos-leg-head"><span class="pos-leg-name short">Corto USAR</span></div>
       <div class="pos-field">
         <label>Acciones vendidas en corto</label>
-        <div class="pos-field-row"><input type="number" id="pos-a-qty" placeholder="0" min="0" step="1" value="308"></div>
+        <div class="pos-field-row"><input type="number" id="pos-a-qty" placeholder="0" min="0" step="1"></div>
       </div>
       <div class="pos-field">
         <label>Precio de venta corto (entrada)</label>
         <div class="pos-field-row">
-          <input type="number" id="pos-a-entry" placeholder="0.0000" min="0" step="0.0001" value="13.885">
+          <input type="number" id="pos-a-entry" placeholder="0.0000" min="0" step="0.0001">
           <button class="pos-mini-btn" onclick="fillPosPrice('pos-a-entry','aBid')" title="Usar el bid actual">bid act.</button>
         </div>
       </div>
@@ -627,16 +638,27 @@
 
     <div class="pos-results">
       <div class="pos-result-row"><span>Capital empleado</span><b id="pos-capital">–</b></div>
-      <div class="pos-result-row"><span>Comisiones estimadas (4 patas)</span><b id="pos-commissions">–</b></div>
-      <div class="pos-result-row"><span>Beneficio bruto (sin comisiones)</span><b id="pos-pnl-gross">–</b></div>
-      <div class="pos-result-row pos-pnl-row"><span>Beneficio neto de comisiones</span><b id="pos-pnl">–</b></div>
-      <div class="pos-result-row"><span>Spread de entrada (tu posición)</span><b id="pos-spread-entry">–</b></div>
-      <div class="pos-result-row"><span>Spread de salida (objetivo)</span><b id="pos-spread-exit">–</b></div>
-      <div class="pos-result-row"><span>Cobertura vs. ratio oficial</span><b id="pos-hedge-ratio">–</b></div>
-      <div class="pos-be-note" id="pos-hedge-note"></div>
-      <div class="pos-result-row"><span>Breakeven venta TMRC ($)</span><b id="pos-be-t">–</b></div>
-      <div class="pos-result-row"><span>Breakeven recompra USAR ($)</span><b id="pos-be-a">–</b></div>
-      <div class="pos-be-note">Los precios de breakeven de abajo ya incluyen el impacto estimado de las comisiones de las 4 patas (apertura y cierre de ambas posiciones), así que necesitas un pelín más de spread del que marca el spread de entrada "a pelo" para cubrir gastos. Si estás cubierto al ratio oficial y mantienes hasta el cierre de la fusión, tu breakeven neto de comisiones es aproximadamente tu spread de entrada menos el coste de comisiones dividido entre tu capital.</div>
+
+      <div class="pos-alert-orange" id="pos-ratio-alert" style="display:none;"></div>
+
+      <div class="pos-scenario">
+        <div class="pos-scenario-title">📦 Si se cierra la fusión (canje de acciones)</div>
+        <div class="pos-scenario-sub">Canje automático al ratio oficial — sin comisiones de cierre.</div>
+        <div class="pos-result-row"><span>Spread de entrada (tu posición)</span><b id="pos-spread-entry">–</b></div>
+        <div class="pos-result-row"><span>Comisiones (apertura)</span><b id="pos-merger-comm">–</b></div>
+        <div class="pos-result-row pos-pnl-row"><span>Beneficio neto</span><b id="pos-merger-pnl">–</b></div>
+      </div>
+
+      <div class="pos-scenario">
+        <div class="pos-scenario-title">💱 Si cierras ahora (a los precios introducidos)</div>
+        <div class="pos-result-row"><span>Spread de salida (objetivo)</span><b id="pos-spread-exit">–</b></div>
+        <div class="pos-result-row"><span>Comisiones (4 patas)</span><b id="pos-now-comm">–</b></div>
+        <div class="pos-result-row"><span>Beneficio bruto</span><b id="pos-now-gross">–</b></div>
+        <div class="pos-result-row pos-pnl-row"><span>Beneficio neto</span><b id="pos-now-pnl">–</b></div>
+        <div class="pos-result-row"><span>Breakeven venta TMRC ($)</span><b id="pos-be-t">–</b></div>
+        <div class="pos-result-row"><span>Breakeven recompra USAR ($)</span><b id="pos-be-a">–</b></div>
+        <div class="pos-be-note">Precios a los que el beneficio neto (con comisiones) queda en cero.</div>
+      </div>
     </div>
     </div>
   </div>
@@ -657,7 +679,8 @@ const SYMBOL_ACQUIRER = 'USAR';
 const NAME_TARGET     = 'Texas Mineral (TMRC)';
 const NAME_ACQUIRER   = 'USA Rare Earth (USAR)';
 
-const RATIO = 3823328 / 88339693;
+// Ratio de canje CONFIRMADO (acciones TMRC recibidas por cada acción USAR).
+const RATIO = 0.043279843;
 
 // ── Comisiones de Interactive Brokers ──
 // Dos planes disponibles, seleccionables desde el desplegable "Comisión
@@ -1509,97 +1532,101 @@ function updatePositionCard(){
   const exitA  = posNum('pos-a-exit');
 
   const capitalEl = document.getElementById('pos-capital');
-  const commEl = document.getElementById('pos-commissions');
-  const pnlGrossEl = document.getElementById('pos-pnl-gross');
-  const pnlEl = document.getElementById('pos-pnl');
+  const alertEl = document.getElementById('pos-ratio-alert');
+  const mergerCommEl = document.getElementById('pos-merger-comm');
+  const mergerPnlEl = document.getElementById('pos-merger-pnl');
+  const nowCommEl = document.getElementById('pos-now-comm');
+  const nowGrossEl = document.getElementById('pos-now-gross');
+  const nowPnlEl = document.getElementById('pos-now-pnl');
   const beTEl = document.getElementById('pos-be-t');
   const beAEl = document.getElementById('pos-be-a');
   const spreadEntryEl = document.getElementById('pos-spread-entry');
   const spreadExitEl = document.getElementById('pos-spread-exit');
-  const hedgeEl = document.getElementById('pos-hedge-ratio');
-  const hedgeNoteEl = document.getElementById('pos-hedge-note');
 
   const hasPosition = qtyT>0 && entryT>0 && qtyA>0 && entryA>0;
   if(!hasPosition){
     capitalEl.innerText = '–';
-    commEl.innerText = '–';
-    pnlGrossEl.innerText = '–';
-    pnlEl.innerText = '–'; pnlEl.style.color = '';
+    alertEl.style.display = 'none';
+    mergerCommEl.innerText = '–';
+    mergerPnlEl.innerText = '–'; mergerPnlEl.style.color = '';
+    nowCommEl.innerText = '–';
+    nowGrossEl.innerText = '–';
+    nowPnlEl.innerText = '–'; nowPnlEl.style.color = '';
     beTEl.innerText = '–';
     beAEl.innerText = '–';
     spreadEntryEl.innerText = '–';
     spreadExitEl.innerText = '–';
-    hedgeEl.innerText = '–'; hedgeEl.style.color = '';
-    hedgeNoteEl.innerText = '';
     return;
   }
 
   // Capital empleado: coste de la pata larga + valor nominal de la pata
   // corta (aproximación habitual para dimensionar la operación conjunta).
   const capital = qtyT*entryT + qtyA*entryA;
+  setNumericText('pos-capital', capital, 2, fmt);
 
-  // Beneficio bruto al cerrar ambas patas a los precios objetivo:
-  //  - Largo TMRC: (precio de venta − precio de compra) × acciones
-  //  - Corto USAR: (precio de venta corto − precio de recompra) × acciones
+  // ── Alerta: ¿tu ratio de acciones (USAR corto / TMRC largo) coincide
+  // con el ratio oficial de canje? Si no, mostramos cuántas acciones
+  // TMRC de exceso o de defecto habría que comprar/vender para ajustar
+  // la cobertura a ese ratio.
+  const idealTmrcShares = qtyA / RATIO;
+  const diffTmrc = idealTmrcShares - qtyT; // >0: te faltan TMRC · <0: te sobran TMRC
+  const diffTmrcRounded = Math.round(Math.abs(diffTmrc));
+  if(diffTmrcRounded >= 1){
+    alertEl.style.display = 'flex';
+    if(diffTmrc > 0){
+      alertEl.innerHTML = `⚠️ <span>El ratio de tu posición no coincide con el oficial: te faltan <b>≈${diffTmrcRounded.toLocaleString('en-US')} acciones TMRC</b> para cubrir tu corto de ${qtyA.toLocaleString('en-US')} USAR. Tendrías que comprar esa cantidad de más.</span>`;
+    } else {
+      alertEl.innerHTML = `⚠️ <span>El ratio de tu posición no coincide con el oficial: tienes <b>≈${diffTmrcRounded.toLocaleString('en-US')} acciones TMRC de más</b> para tu corto de ${qtyA.toLocaleString('en-US')} USAR.</span>`;
+    }
+  } else {
+    alertEl.style.display = 'none';
+  }
+
+  // ══ ESCENARIO 1: se cierra la fusión y se hace el canje de acciones ══
+  // Al cerrarse la fusión, tus acciones TMRC se canjean automáticamente
+  // por acciones USAR al ratio oficial, cubriendo tu corto sin necesidad
+  // de operar en el mercado — por eso aquí NO hay comisiones de cierre,
+  // solo las de apertura. El beneficio es simplemente lo que cobraste
+  // por el corto de USAR menos lo que pagaste por el largo de TMRC.
+  const spreadEntry = entryT>0 ? (RATIO*entryA)/entryT - 1 : NaN;
+  setNumericText('pos-spread-entry', spreadEntry, 3, fmtPct);
+
+  const commMerger = commissionForOrder(qtyT, entryT) + commissionForOrder(qtyA, entryA);
+  const grossMerger = qtyA*entryA - qtyT*entryT;
+  const netMerger = grossMerger - commMerger;
+  const pctMerger = capital>0 ? (netMerger/capital)*100 : NaN;
+
+  setNumericText('pos-merger-comm', commMerger, 2, fmt);
+  const prevMerger = displayedValues['pos-merger-pnl'];
+  mergerPnlEl.innerText = fmt(netMerger) + (isNaN(pctMerger) ? '' : ` (${pctMerger>=0?'+':''}${pctMerger.toFixed(2)}%)`);
+  mergerPnlEl.style.color = netMerger>=0 ? 'var(--green)' : 'var(--red)';
+  if(prevMerger !== undefined && netMerger !== prevMerger) flashValue(mergerPnlEl, netMerger>prevMerger?'up':'down');
+  displayedValues['pos-merger-pnl'] = netMerger;
+
+  // ══ ESCENARIO 2: cierras ahora, a los precios objetivo introducidos ══
+  // Aquí sí hay que operar las 4 patas (comprar y vender TMRC, shortear
+  // y recomprar USAR), así que se cuentan las 4 comisiones.
+  const spreadExit = exitT>0 ? (RATIO*exitA)/exitT - 1 : NaN;
+  setNumericText('pos-spread-exit', spreadExit, 3, fmtPct);
+
   const pnlGross = qtyT*(exitT - entryT) + qtyA*(entryA - exitA);
-
-  // Comisiones de las 4 patas: comprar TMRC (entrada), vender TMRC
-  // (salida), shortear USAR (entrada), recomprar USAR (salida). Si el
-  // precio de salida de una pata todavía no se ha rellenado, esa
-  // comisión concreta no se cuenta (commissionForOrder devuelve 0).
   const totalComm = commissionForOrder(qtyT, entryT) + commissionForOrder(qtyT, exitT)
                    + commissionForOrder(qtyA, entryA) + commissionForOrder(qtyA, exitA);
-
   const pnl = pnlGross - totalComm;
   const pnlPct = capital>0 ? (pnl/capital)*100 : NaN;
 
-  setNumericText('pos-capital', capital, 2, fmt);
-  setNumericText('pos-commissions', totalComm, 2, fmt);
-  setNumericText('pos-pnl-gross', pnlGross, 2, fmt);
+  setNumericText('pos-now-comm', totalComm, 2, fmt);
+  setNumericText('pos-now-gross', pnlGross, 2, fmt);
 
-  const prevPnl = displayedValues['pos-pnl'];
-  pnlEl.innerText = fmt(pnl) + (isNaN(pnlPct) ? '' : ` (${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%)`);
-  pnlEl.style.color = pnl>=0 ? 'var(--green)' : 'var(--red)';
-  if(prevPnl !== undefined && pnl !== prevPnl) flashValue(pnlEl, pnl>prevPnl?'up':'down');
-  displayedValues['pos-pnl'] = pnl;
-
-  // Spread de entrada de TU posición, con el mismo criterio que la tarjeta
-  // "spread de entrada" de arriba pero usando tus propios precios de
-  // entrada. Si estás cubierto al ratio oficial y mantienes la posición
-  // hasta el cierre de la fusión (o TMRC no se mueve), este número ES tu
-  // breakeven: entrar y salir al mismo spread deja el resultado en ≈0.
-  if(entryT>0){
-    const spreadEntry = (RATIO*entryA)/entryT - 1;
-    setNumericText('pos-spread-entry', spreadEntry, 3, fmtPct);
-  } else {
-    spreadEntryEl.innerText = '–';
-  }
-  if(exitT>0){
-    const spreadExit = (RATIO*exitA)/exitT - 1;
-    setNumericText('pos-spread-exit', spreadExit, 3, fmtPct);
-  } else {
-    spreadExitEl.innerText = '–';
-  }
-
-  // Cobertura: ¿tu ratio de acciones (USAR vendidas / TMRC compradas)
-  // coincide con el ratio oficial de canje? Si no, el atajo de arriba
-  // (breakeven = spread de entrada) deja de ser exacto.
-  const effRatio = qtyA/qtyT;
-  const hedgePct = (effRatio/RATIO)*100;
-  hedgeEl.innerText = hedgePct.toFixed(1)+'%';
-  const wellHedged = Math.abs(hedgePct-100) < 2;
-  hedgeEl.style.color = wellHedged ? 'var(--green)' : 'var(--amber)';
-  hedgeNoteEl.innerText = wellHedged
-    ? 'Tu ratio de acciones coincide con el oficial: el atajo "breakeven = spread de entrada" aplica bien.'
-    : 'Tu ratio de acciones se desvía del oficial, así que ese atajo es solo aproximado; usa los precios de breakeven de abajo para más precisión.';
+  const prevPnl = displayedValues['pos-now-pnl'];
+  nowPnlEl.innerText = fmt(pnl) + (isNaN(pnlPct) ? '' : ` (${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%)`);
+  nowPnlEl.style.color = pnl>=0 ? 'var(--green)' : 'var(--red)';
+  if(prevPnl !== undefined && pnl !== prevPnl) flashValue(nowPnlEl, pnl>prevPnl?'up':'down');
+  displayedValues['pos-now-pnl'] = pnl;
 
   // Breakeven de la pata TMRC: a qué precio de venta, manteniendo fijo
   // el precio objetivo de recompra de USAR, el beneficio NETO (tras
-  // comisiones) es 0. Como la comisión es prácticamente un importe fijo
-  // por acción (no depende del precio, salvo que se toque el mínimo o
-  // el tope del 1% en Tiered), subir el precio de venta necesario para
-  // cubrir esas comisiones es simplemente sumar totalComm/qtyT al
-  // breakeven "bruto".
+  // comisiones) es 0.
   if(qtyT>0){
     const beT = entryT + (qtyA/qtyT)*(exitA - entryA) + totalComm/qtyT;
     setNumericText('pos-be-t', beT, 4, v => '$'+v.toFixed(4));
@@ -1609,8 +1636,6 @@ function updatePositionCard(){
 
   // Breakeven de la pata USAR: a qué precio de recompra, manteniendo fijo
   // el precio objetivo de venta de TMRC, el beneficio NETO es 0.
-  // Despejando de pnlGross = totalComm:
-  //   exitA = entryA + (qtyT/qtyA)*(exitT-entryT) - totalComm/qtyA
   if(qtyA>0){
     const beA = entryA + (qtyT/qtyA)*(exitT - entryT) - totalComm/qtyA;
     setNumericText('pos-be-a', beA, 4, v => '$'+v.toFixed(4));
