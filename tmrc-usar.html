@@ -201,7 +201,9 @@
   }
   .order-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
   .order-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  .order-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:9px; padding:12px 14px; display:flex; flex-direction:column; gap:4px; }
+  .order-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:9px; padding:12px 14px; display:flex; flex-direction:column; gap:4px; transition:background .25s, border-color .25s; }
+  .order-leg.leg-buy{ background:var(--green-bg); border-color:var(--green); }
+  .order-leg.leg-sell{ background:var(--red-bg); border-color:var(--red); }
   .ol-lbl{ font-size:.72rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
   .ol-val{ font-family:var(--font-mono); font-weight:700; font-size:1.15rem; }
   .ol-price{ font-family:var(--font-mono); font-size:.76rem; color:var(--ink-dim); }
@@ -439,13 +441,13 @@
       </div>
     </div>
     <div class="order-grid">
-      <div class="order-leg">
-        <span class="ol-lbl" id="ord-buy-label">Comprar (largo)</span>
+      <div class="order-leg" id="ord-leg-buy">
+        <span class="ol-lbl" id="ord-buy-label">🟢 Comprar (largo)</span>
         <span class="ol-val" id="ord-buy">–</span>
         <span class="ol-price" id="ord-buy-price">–</span>
       </div>
-      <div class="order-leg">
-        <span class="ol-lbl" id="ord-sell-label">Shortear (corto)</span>
+      <div class="order-leg" id="ord-leg-sell">
+        <span class="ol-lbl" id="ord-sell-label">🔴 Vender (corto)</span>
         <span class="ol-val" id="ord-sell">–</span>
         <span class="ol-price" id="ord-sell-price">–</span>
       </div>
@@ -1191,8 +1193,10 @@ function recalc(){
   }
 }
 
-// Aplica el color (verde=abrir, ámbar=cerrar) y las etiquetas correctas
-// del ticket de orden según el modo activo.
+// Aplica el color (verde=comprar, rojo=vender) y las etiquetas correctas
+// de cada minicard de la orden, según el modo activo. En modo "cerrar"
+// las patas se invierten: la pata que compraba TMRC ahora vende, y la
+// que vendía (shorteaba) USAR ahora compra (recompra).
 function applyOrderModeStyle(){
   const card = document.getElementById('order-card');
   if(!card) return;
@@ -1200,8 +1204,27 @@ function applyOrderModeStyle(){
   card.classList.toggle('mode-open', isOpen);
   card.classList.toggle('mode-close', !isOpen);
   document.getElementById('order-title-text').innerText = isOpen ? 'Orden a introducir (abrir)' : 'Orden a introducir (cerrar)';
-  document.getElementById('ord-buy-label').innerText = isOpen ? 'Comprar (largo)' : 'Vender (cerrar largo)';
-  document.getElementById('ord-sell-label').innerText = isOpen ? 'Shortear (corto)' : 'Comprar (cerrar corto)';
+
+  const legBuyEl  = document.getElementById('ord-leg-buy');
+  const legSellEl = document.getElementById('ord-leg-sell');
+  const buyLabelEl  = document.getElementById('ord-buy-label');
+  const sellLabelEl = document.getElementById('ord-sell-label');
+
+  if(isOpen){
+    // Pata "ord-buy" = comprar TMRC · Pata "ord-sell" = vender (shortear) USAR
+    buyLabelEl.innerText  = '🟢 Comprar (largo)';
+    sellLabelEl.innerText = '🔴 Vender (corto)';
+    legBuyEl.classList.remove('leg-sell'); legBuyEl.classList.add('leg-buy');
+    legSellEl.classList.remove('leg-buy'); legSellEl.classList.add('leg-sell');
+  } else {
+    // En cierre se invierte: pata "ord-buy" ahora vende TMRC,
+    // pata "ord-sell" ahora compra (recompra) USAR
+    buyLabelEl.innerText  = '🔴 Vender (cerrar largo)';
+    sellLabelEl.innerText = '🟢 Comprar (cerrar corto)';
+    legBuyEl.classList.remove('leg-buy'); legBuyEl.classList.add('leg-sell');
+    legSellEl.classList.remove('leg-sell'); legSellEl.classList.add('leg-buy');
+  }
+
   document.getElementById('ord-capital-label').innerText = isOpen ? 'Capital realmente usado' : 'Capital liberado al cerrar';
   document.getElementById('ord-commission-label').innerText = isOpen ? 'Comisiones estimadas (apertura)' : 'Comisiones estimadas (cierre)';
   document.getElementById('ord-profit-label').innerText = isOpen ? 'Beneficio neto teórico (tras comisiones)' : 'Beneficio neto si cierras ya (tras comisiones)';
