@@ -67,16 +67,16 @@
   /* ── BOARD HEADER ROW (column labels, terminal-style) ── */
   .board{ display:flex; flex-direction:column; gap:10px; }
   .board-head{
-    display:grid; grid-template-columns:38px 1fr 150px 150px;
+    display:grid; grid-template-columns:1fr 150px 150px;
     padding:0 20px; font-size:.66rem; font-weight:700; text-transform:uppercase;
     letter-spacing:.07em; color:var(--ink-dim); font-family:var(--font-mono);
   }
-  .board-head span:nth-child(3), .board-head span:nth-child(4){ text-align:center; }
+  .board-head span:nth-child(2), .board-head span:nth-child(3){ text-align:center; }
 
   /* ── SITUATION ROW (ya no es <a>: la navegación se dispara por JS
        y se ignora si el click viene de un input/botón interactivo) ── */
   .situation{
-    display:grid; grid-template-columns:38px 1fr 150px 150px; align-items:center;
+    display:grid; grid-template-columns:1fr 150px 150px; align-items:center;
     background:var(--card); border:1px solid var(--line); border-radius:12px;
     padding:16px 20px; cursor:pointer; gap:10px;
     transition:border-color .18s, background .18s, transform .12s;
@@ -88,13 +88,14 @@
 
   /* ── FILA ESTÁTICA (solo navegación, sin datos de mercado) ── */
   .situation.static-situation{
-    grid-template-columns:38px 1fr; opacity:.92;
+    grid-template-columns:1fr; opacity:.92;
   }
   .situation.static-situation:hover{ opacity:1; }
   .static-situation .s-meta{ font-style:italic; }
 
-  .s-rank{ font-family:var(--font-mono); font-weight:700; color:var(--ink-dim); font-size:.92rem; }
-  .situation.armed .s-rank{ color:var(--accent); }
+  .side-tir{
+    font-family:var(--font-mono); font-size:.68rem; font-weight:700;
+  }
 
   .s-name{ display:flex; flex-direction:column; gap:3px; min-width:0; }
   .s-pair{ font-weight:700; font-size:.95rem; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
@@ -199,7 +200,6 @@
 
   <div class="board">
     <div class="board-head">
-      <span>#</span>
       <span>Situación</span>
       <span>Entrada</span>
       <span>Salida</span>
@@ -238,6 +238,7 @@ const SITUATIONS = [
     offerPrice: 5.75,    // $ por acción en efectivo, según el Merger Agreement
     threshold: 6,        // % — umbral de entrada de esta situación
     thresholdExit: 2,    // % — umbral de salida de esta situación
+    mergerDate: '2026-09-30', // fecha estimada de cierre (Q3 2026, según el press release)
     detailUrl: 'gbcs.html',
   },
   {
@@ -245,11 +246,27 @@ const SITUATIONS = [
     type: 'fixed',             // OPA en efectivo: un solo símbolo + precio de oferta fijo
     targetSymbol: 'PERF',
     targetName: 'Perfect Corp (PERF)',
-    acquirerName: 'Oferta en efectivo',
+    acquirerName: 'Fusión going-private (efectivo)',
+    cashTag: 'Fusión · voto accionistas',
     offerPrice: 2.00,    // $ por acción en efectivo, según el Merger Agreement
     threshold: 6,        // % — umbral de entrada de esta situación
     thresholdExit: 1,    // % — umbral de salida de esta situación
+    mergerDate: '2026-12-31', // fecha estimada de cierre (placeholder, sin fecha oficial confirmada)
     detailUrl: 'perf.html',
+  },
+  {
+    id: 'chmi-mitt',
+    type: 'ratio_cash',       // canje de acciones + cash fijo por acción
+    targetSymbol: 'CHMI',
+    targetName: 'Cherry Hill Mortgage (CHMI)',
+    acquirerSymbol: 'MITT',
+    acquirerName: 'TPG Mortgage Investment Trust (MITT)',
+    ratio: 0.3063,
+    cashPerShare: 0.93,  // $ fijo por acción CHMI, según el Merger Agreement del 10/08/2026
+    threshold: 6,        // % — umbral de entrada de esta situación
+    thresholdExit: 2,    // % — umbral de salida de esta situación
+    mergerDate: '2026-12-15', // fecha estimada de cierre (Q4 2026, según el press release)
+    detailUrl: 'chmi-mitt.html',
   },
 ];
 
@@ -279,6 +296,26 @@ function computeCollarRatio(sit, precioAdquirente){
   if(precioAdquirente >= sit.collarHigh) return sit.ratioAtHigh;
   if(precioAdquirente <= sit.collarLow) return sit.ratioAtLow;
   return sit.stockValueTarget / precioAdquirente;
+}
+
+// Días hasta la fecha de cierre estimada de una situación (nunca menor
+// que 1, para evitar divisiones por cero o exponentes absurdos si la
+// fecha ya se alcanzó o quedan horas).
+function daysToMerger(sit){
+  if(!sit.mergerDate) return NaN;
+  const ms = new Date(sit.mergerDate + 'T00:00:00').getTime() - Date.now();
+  return Math.max(1, Math.ceil(ms/86400000));
+}
+
+// Anualiza un retorno simple (en %) al horizonte de `days` días, de forma
+// compuesta, como una TIR aproximada: cuánto rendiría por año si se
+// pudiera repetir esa misma operación al mismo ritmo.
+function annualizedReturn(pct, days){
+  if(isNaN(pct) || isNaN(days)) return NaN;
+  const d = Math.max(days||1, 1);
+  const base = 1 + pct/100;
+  if(base <= 0) return -100;
+  return (Math.pow(base, 365/d) - 1) * 100;
 }
 
 let autoTimer = null;
@@ -483,21 +520,25 @@ function renderRow(sit, computed){
   if(hit && live) borderClass = 'armed';
   else if(exitHit && live) borderClass = 'armed-exit';
 
+  const annPct = hasIn ? annualizedReturn(inPct*100, daysToMerger(sit)) : NaN;
+  const tirText = isNaN(annPct) ? '' : `TIR ${annPct>=0?'+':''}${annPct.toFixed(1)}%`;
+  const tirColor = isNaN(annPct) ? '' : (annPct>=0 ? 'var(--green)' : 'var(--red)');
+
   return `
     <div class="situation ${borderClass}" id="row-${sit.id}" tabindex="0" role="link"
       onclick="goToDetail(event, '${sit.detailUrl}')" onkeydown="goToDetailKey(event, '${sit.detailUrl}')">
-      <div class="s-rank">${computed.rank}</div>
       <div class="s-name">
         <div class="s-pair">${sit.targetName} <span class="arrow">→</span> ${sit.acquirerName}</div>
         <div class="s-tags">
           <span class="s-tag">${sit.targetSymbol}${tExch ? ' · '+tExch : ''}</span>
-          ${sit.acquirerSymbol ? `<span class="s-tag">${sit.acquirerSymbol}${aExch ? ' · '+aExch : ''}</span>` : `<span class="s-tag">OPA en efectivo</span>`}
+          ${sit.acquirerSymbol ? `<span class="s-tag">${sit.acquirerSymbol}${aExch ? ' · '+aExch : ''}</span>` : `<span class="s-tag">${sit.cashTag || 'OPA en efectivo'}</span>`}
         </div>
         <div class="s-meta">${fr.texto}</div>
       </div>
 
       <div class="s-side">
         <div class="side-spread ${inClass}${inFlash}">${inText}</div>
+        ${tirText ? `<div class="side-tir" style="color:${tirColor};">${tirText}</div>` : ''}
         <div class="side-ctrl">
           <input class="th-input" type="number" step="1" value="${sit.threshold}"
             onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','entry',this.value)">
@@ -529,7 +570,6 @@ function renderStaticRow(sit, index){
     <div class="situation static-situation" id="row-${sit.id}" tabindex="0" role="link"
       onclick="window.location.href='${sit.detailUrl}'"
       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.location.href='${sit.detailUrl}';}">
-      <div class="s-rank">${String(index+1).padStart(2,'0')}</div>
       <div class="s-name">
         <div class="s-pair">${sit.targetName} <span class="arrow">→</span> ${sit.acquirerName}</div>
         <div class="s-tags">
@@ -633,7 +673,7 @@ async function updateBoard(){
     lastComputedList = computedList;
 
     body.innerHTML = computedList
-      .map((c, i) => renderRow(c.sit, { ...c, rank: String(i+1).padStart(2,'0') }))
+      .map((c) => renderRow(c.sit, c))
       .join('');
 
     // Guardamos los valores recién mostrados como referencia para
