@@ -35,7 +35,7 @@
     padding:26px 16px 60px; display:flex; flex-direction:column; align-items:center; gap:20px;
     min-height:100vh;
   }
-  .wrap{ width:100%; max-width:880px; display:flex; flex-direction:column; gap:20px; }
+  .wrap{ width:100%; max-width:1080px; display:flex; flex-direction:column; gap:20px; }
 
   /* ── HEADER ─────────────────────────────────── */
   .topbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
@@ -67,16 +67,16 @@
   /* ── BOARD HEADER ROW (column labels, terminal-style) ── */
   .board{ display:flex; flex-direction:column; gap:10px; }
   .board-head{
-    display:grid; grid-template-columns:1fr 150px 150px;
+    display:grid; grid-template-columns:1fr 150px 150px 130px;
     padding:0 20px; font-size:.66rem; font-weight:700; text-transform:uppercase;
     letter-spacing:.07em; color:var(--ink-dim); font-family:var(--font-mono);
   }
-  .board-head span:nth-child(2), .board-head span:nth-child(3){ text-align:center; }
+  .board-head span:nth-child(2), .board-head span:nth-child(3), .board-head span:nth-child(4){ text-align:center; }
 
   /* ── SITUATION ROW (ya no es <a>: la navegación se dispara por JS
        y se ignora si el click viene de un input/botón interactivo) ── */
   .situation{
-    display:grid; grid-template-columns:1fr 150px 150px; align-items:center;
+    display:grid; grid-template-columns:1fr 150px 150px 130px; align-items:center;
     background:var(--card); border:1px solid var(--line); border-radius:12px;
     padding:16px 20px; cursor:pointer; gap:10px;
     transition:border-color .18s, background .18s, transform .12s;
@@ -93,9 +93,10 @@
   .situation.static-situation:hover{ opacity:1; }
   .static-situation .s-meta{ font-style:italic; }
 
-  .side-tir{
-    font-family:var(--font-mono); font-size:.68rem; font-weight:700;
-  }
+  .s-tir{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; text-align:center; }
+  .s-tir .tir-value{ font-family:var(--font-mono); font-size:.95rem; font-weight:800; }
+  .s-tir .tir-date{ font-family:var(--font-mono); font-size:.66rem; color:var(--ink-dim); }
+  .s-tir .tir-empty{ font-family:var(--font-mono); font-size:.85rem; color:var(--ink-dim); font-weight:600; }
 
   .s-name{ display:flex; flex-direction:column; gap:3px; min-width:0; }
   .s-pair{ font-weight:700; font-size:.95rem; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
@@ -142,8 +143,6 @@
     50%{ box-shadow:0 0 0 7px rgba(255,182,72,0); }
   }
 
-  #status{ font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); text-align:center; }
-  .status-ok{ color:var(--green); }
   #footer-credit{
     font-size:.72rem; color:var(--ink-dim); text-align:center; letter-spacing:.02em;
     margin-top:-6px; padding-top:14px; border-top:1px solid var(--line); width:100%;
@@ -151,8 +150,9 @@
 
   @media(max-width:640px){
     .board-head{ display:none; }
-    .situation{ grid-template-columns:1fr 1fr; grid-template-rows:auto auto; row-gap:12px; padding:14px 16px; }
+    .situation{ grid-template-columns:1fr 1fr; grid-template-rows:auto auto auto; row-gap:12px; padding:14px 16px; }
     .s-name{ grid-column:1 / -1; }
+    .s-tir{ grid-column:1 / -1; flex-direction:row; gap:8px; }
     .situation.static-situation{ grid-template-columns:1fr; grid-template-rows:auto; }
   }
 
@@ -203,6 +203,7 @@
       <span>Situación</span>
       <span>Entrada</span>
       <span>Salida</span>
+      <span>TIR</span>
     </div>
     <div id="board-body"><!-- filas insertadas por JS --></div>
   </div>
@@ -210,7 +211,6 @@
   <div class="section-heading">Archivadas</div>
   <div class="board" id="static-board"><!-- filas insertadas por JS --></div>
 
-  <div id="status">Iniciando…</div>
   <div id="footer-credit">Monitor de arbitraje de situaciones especiales por Todd Lott y Phyera</div>
 </div>
 
@@ -263,7 +263,7 @@ const SITUATIONS = [
     acquirerName: 'TPG Mortgage Investment Trust (MITT)',
     ratio: 0.3063,
     cashPerShare: 0.93,  // $ fijo por acción CHMI, según el Merger Agreement del 10/08/2026
-    threshold: 7,        // % — umbral de entrada de esta situación
+    threshold: 6,        // % — umbral de entrada de esta situación
     thresholdExit: 2,    // % — umbral de salida de esta situación
     mergerDate: '2026-12-15', // fecha estimada de cierre (Q4 2026, según el press release)
     detailUrl: 'chmi-mitt.html',
@@ -316,6 +316,13 @@ function annualizedReturn(pct, days){
   const base = 1 + pct/100;
   if(base <= 0) return -100;
   return (Math.pow(base, 365/d) - 1) * 100;
+}
+
+// Formatea una fecha estimada de cierre (YYYY-MM-DD) como "15 dic 2026".
+function fmtMergerDate(dateStr){
+  if(!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('es-ES', { day:'numeric', month:'short', year:'numeric' }).replace('.', '');
 }
 
 let autoTimer = null;
@@ -521,8 +528,10 @@ function renderRow(sit, computed){
   else if(exitHit && live) borderClass = 'armed-exit';
 
   const annPct = hasIn ? annualizedReturn(inPct*100, daysToMerger(sit)) : NaN;
-  const tirText = isNaN(annPct) ? '' : `TIR ${annPct>=0?'+':''}${annPct.toFixed(1)}%`;
   const tirColor = isNaN(annPct) ? '' : (annPct>=0 ? 'var(--green)' : 'var(--red)');
+  const tirCell = !isNaN(annPct)
+    ? `<div class="tir-value" style="color:${tirColor};">${annPct>=0?'+':''}${annPct.toFixed(1)}%</div><div class="tir-date">${fmtMergerDate(sit.mergerDate)}</div>`
+    : `<div class="tir-empty">–</div>`;
 
   return `
     <div class="situation ${borderClass}" id="row-${sit.id}" tabindex="0" role="link"
@@ -538,7 +547,6 @@ function renderRow(sit, computed){
 
       <div class="s-side">
         <div class="side-spread ${inClass}${inFlash}">${inText}</div>
-        ${tirText ? `<div class="side-tir" style="color:${tirColor};">${tirText}</div>` : ''}
         <div class="side-ctrl">
           <input class="th-input" type="number" step="1" value="${sit.threshold}"
             onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','entry',this.value)">
@@ -558,6 +566,8 @@ function renderRow(sit, computed){
             title="Avisar con sonido en bucle cuando el spread de salida cruce el umbral (suena hasta que lo desactives)">🔔</button>
         </div>
       </div>
+
+      <div class="s-tir">${tirCell}</div>
     </div>
   `;
 }
@@ -587,7 +597,6 @@ function renderStaticBoard(){
 }
 
 async function updateBoard(){
-  const status = document.getElementById('status');
   const body = document.getElementById('board-body');
 
   try{
@@ -681,10 +690,8 @@ async function updateBoard(){
     computedList.forEach(c => {
       lastShownSpread[c.sit.id] = { in: c.inPct, out: c.outPct };
     });
-
-    status.innerHTML = `<span class="status-ok">Actualizado</span> · ${new Date().toLocaleTimeString()}`;
   }catch(e){
-    status.innerText = 'Error al consultar datos: ' + e.message;
+    console.error('Error al consultar datos:', e.message);
   }
 }
 
