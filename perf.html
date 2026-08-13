@@ -552,7 +552,7 @@
         <div class="ex-val ex-big" id="ex-net-result">–</div>
       </div>
     </div>
-    <div class="explain-note">Es la ganancia (o pérdida) teórica neta de comisiones por cada dólar invertido si la operación se cierra hoy a este precio de oferta y a estos precios de mercado. Coincide con el % que ves en la tarjeta "Spread de entrada" de arriba. Al ser una OPA en efectivo, no hay pata corta ni comisión de cierre en el escenario de cierre de la operación: el importe se cobra directamente al precio de oferta.</div>
+    <div class="explain-note">Es la ganancia (o pérdida) teórica neta de comisiones por cada dólar invertido si la operación se cierra hoy a este precio de oferta y a estos precios de mercado. Coincide con el % que ves en la tarjeta "Spread de entrada" de arriba. Al ser una fusión (no una OPA/tender offer), no hay pata corta ni comisión de cierre en el escenario de cierre de la operación: el importe se cobra directamente al precio de oferta. El principal riesgo a vigilar es el resultado de la junta extraordinaria de accionistas (se requiere el 66,7% de los votos emitidos), aunque acuerdos de voto ya firmados cubren ~81,2% del poder de voto a favor.</div>
   </div>
 
   <!-- ── CHART ───────────────────────────────────── -->
@@ -656,7 +656,17 @@
 
 <script>
 // ════════════════════════════════════════════════════════════════
-// CONFIG — situación PERF: OPA en efectivo a precio fijo (Perfect Corp)
+// CONFIG — situación PERF: fusión "going-private" a precio fijo en
+// efectivo (Perfect Corp). Merger Agreement del 10 de julio de 2026
+// entre Perfect Corp. y ProjectNY (Merger Sub controlado por la
+// presidenta Alice H. Chang). A diferencia de una OPA/tender offer
+// clásica, aquí el cierre depende de un VOTO de accionistas (no de un
+// umbral de aceptación de acciones): se requiere el 66,7% (dos
+// tercios) de los votos emitidos en junta extraordinaria. Chang y sus
+// entidades vinculadas, junto con CyberLink, ya firmaron acuerdos de
+// voto a favor que representan ~81,2% del poder de voto total, lo que
+// reduce sustancialmente el riesgo de que la junta rechace el acuerdo.
+// Cierre esperado: último trimestre de 2026.
 // ════════════════════════════════════════════════════════════════
 // Clave "anon" (pública), NUNCA la "service_role" en una página que
 // corre en el navegador. Protege las tablas con RLS de solo lectura.
@@ -667,7 +677,9 @@ const db = supabase.createClient(DATA_URL, DATA_KEY);
 const SYMBOL_TARGET = 'PERF';
 const NAME_TARGET   = 'Perfect Corp (PERF)';
 
-// Precio de oferta fijo en efectivo, según el Merger Agreement.
+// Precio de oferta fijo en efectivo: US$2.00 por acción, según el
+// Merger Agreement del 10/07/2026 (48,1% de prima sobre el cierre del
+// 17/03/2026, último día antes de conocerse la propuesta preliminar).
 // A diferencia de una fusión por canje (con ratio y símbolo adquirente),
 // aquí solo hay un símbolo y un precio fijo: no hay pata corta.
 const OFFER_PRICE = 2.00;
@@ -746,7 +758,7 @@ document.getElementById('merger-date-input').addEventListener('change', (e)=>{
 // bid/ask no disponible. Estos ticks se descartan por completo.
 const INVALID_TICK = -1;
 
-document.getElementById('pair-sub').innerText = `${NAME_TARGET} — OPA en efectivo a $${OFFER_PRICE.toFixed(2)}`;
+document.getElementById('pair-sub').innerText = `${NAME_TARGET} — fusión going-private a $${OFFER_PRICE.toFixed(2)} (voto de accionistas)`;
 document.getElementById('A-name').innerText = NAME_TARGET;
 
 // ════════════════════════════════════════════════════════════════
@@ -1584,7 +1596,7 @@ function updatePositionCard(){
   const capital = qtyT*entryT;
   setNumericText('pos-capital', capital, 2, fmt);
 
-  // ══ ESCENARIO 1: se cierra la OPA y cobras el precio de oferta ══
+  // ══ ESCENARIO 1: se cierra la fusión y cobras el precio de oferta ══
   // No hay comisión de cierre: el importe se liquida directamente al
   // precio de oferta fijo, sin operar en el mercado.
   const spreadEntry = entryT>0 ? OFFER_PRICE/entryT - 1 : NaN;
