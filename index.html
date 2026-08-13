@@ -58,6 +58,12 @@
   }
   .btn:hover{ opacity:.88; }
 
+  /* ── SECTION HEADING (para el bloque de "otras situaciones") ── */
+  .section-heading{
+    font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
+    color:var(--ink-dim); font-family:var(--font-mono); padding:0 4px; margin-top:6px;
+  }
+
   /* ── BOARD HEADER ROW (column labels, terminal-style) ── */
   .board{ display:flex; flex-direction:column; gap:10px; }
   .board-head{
@@ -79,6 +85,13 @@
   .situation.armed-exit{ border-color:var(--amber); }
   .situation.armed{ border-color:var(--green); box-shadow:0 0 0 1px rgba(46,224,163,.12); }
   .situation.armed:hover{ border-color:var(--green); }
+
+  /* ── FILA ESTÁTICA (solo navegación, sin datos de mercado) ── */
+  .situation.static-situation{
+    grid-template-columns:38px 1fr; opacity:.92;
+  }
+  .situation.static-situation:hover{ opacity:1; }
+  .static-situation .s-meta{ font-style:italic; }
 
   .s-rank{ font-family:var(--font-mono); font-weight:700; color:var(--ink-dim); font-size:.92rem; }
   .situation.armed .s-rank{ color:var(--accent); }
@@ -139,6 +152,7 @@
     .board-head{ display:none; }
     .situation{ grid-template-columns:1fr 1fr; grid-template-rows:auto auto; row-gap:12px; padding:14px 16px; }
     .s-name{ grid-column:1 / -1; }
+    .situation.static-situation{ grid-template-columns:1fr; grid-template-rows:auto; }
   }
 
   /* ── RESPLANDOR AL CAMBIAR UN VALOR (estilo broker) ──
@@ -193,6 +207,9 @@
     <div id="board-body"><!-- filas insertadas por JS --></div>
   </div>
 
+  <div class="section-heading">Archivadas</div>
+  <div class="board" id="static-board"><!-- filas insertadas por JS --></div>
+
   <div id="status">Iniciando…</div>
   <div id="footer-credit">Monitor de arbitraje de situaciones especiales por Todd Lott y Phyera</div>
 </div>
@@ -210,19 +227,8 @@ const db = supabase.createClient(DATA_URL, DATA_KEY);
 const INVALID_TICK = -1;
 const STALE_MS = 60000;
 
+// Situaciones con seguimiento en vivo (datos de mercado + spreads).
 const SITUATIONS = [
-  {
-    id: 'tmrc-usar',
-    type: 'ratio',            // canje de acciones: dos símbolos + ratio de canje
-    targetSymbol: 'TMRC',
-    targetName: 'Texas Mineral',
-    acquirerSymbol: 'USAR',
-    acquirerName: 'USA Rare Earth',
-    ratio: 3823328 / 88339693,
-    threshold: 9,        // % — umbral de entrada de esta situación
-    thresholdExit: 5,    // % — umbral de salida de esta situación
-    detailUrl: 'tmrc-usar.html',
-  },
   {
     id: 'gbcs',
     type: 'fixed',             // OPA en efectivo: un solo símbolo + precio de oferta fijo
@@ -235,46 +241,28 @@ const SITUATIONS = [
     detailUrl: 'gbcs.html',
   },
   {
-    id: 'nee-d',
-    type: 'ratio_cash',       // canje de acciones + cash sweetener fijo por acción
-    targetSymbol: 'D',
-    targetName: 'Dominion Energy',
-    acquirerSymbol: 'NEE',
-    acquirerName: 'NextEra Energy',
-    ratio: 0.8138,
-    cashPerShare: 0.42,  // $360M / ~853-865M acciones de D en circulación (aprox., confirmar en el S-4)
-    threshold: 4,        // % — umbral de entrada de esta situación
-    thresholdExit: 1,    // % — umbral de salida de esta situación
-    detailUrl: 'nee-d.html',
-  },
-  {
-    id: 'ionq-skyt',
-    type: 'ratio_cash_collar', // canje de acciones a ratio CON COLLAR + cash fijo por acción
-    targetSymbol: 'SKYT',
-    targetName: 'SkyWater Technology',
-    acquirerSymbol: 'IONQ',
-    acquirerName: 'IonQ',
-    cashPerShare: 15.00,   // $ fijo por acción SKYT
-    stockValueTarget: 20.00, // $ objetivo del componente en acciones dentro de la banda del collar
-    collarHigh: 60.13,     // $ — VWAP de IONQ a partir de aquí -> ratio fijo bajo
-    collarLow: 37.99,      // $ — VWAP de IONQ por debajo de aquí -> ratio fijo alto
-    ratioAtHigh: 0.3326,   // acciones IONQ/SKYT si VWAP >= collarHigh
-    ratioAtLow: 0.5265,    // acciones IONQ/SKYT si VWAP <= collarLow
-    vwapScenario: 'flotante', // 'flotante' (usa el precio actual como proxy) | 'alto' | 'bajo'
+    id: 'perf',
+    type: 'fixed',             // OPA en efectivo: un solo símbolo + precio de oferta fijo
+    targetSymbol: 'PERF',
+    targetName: 'Perfect Corp (PERF)',
+    acquirerName: 'Oferta en efectivo',
+    offerPrice: 2.00,    // $ por acción en efectivo, según el Merger Agreement
     threshold: 6,        // % — umbral de entrada de esta situación
-    thresholdExit: 2,    // % — umbral de salida de esta situación
-    detailUrl: 'ionq-skyt.html',
+    thresholdExit: 1,    // % — umbral de salida de esta situación
+    detailUrl: 'perf.html',
   },
+];
+
+// Situaciones estáticas: solo un enlace de navegación, sin símbolos,
+// sin datos de mercado y sin ninguna función de seguimiento/alarma.
+const STATIC_SITUATIONS = [
   {
-    id: 'smwn',
-    type: 'fixed',             // OPA en efectivo: un solo símbolo + precio de oferta fijo (IBIS, EUR)
-    targetSymbol: 'SMWN',
-    targetName: 'SMWN (IBIS, EUR)',
-    acquirerName: 'Oferta en efectivo (€4.60)',
-    offerPrice: 4.60,    // € por acción, oferta sobre la mesa
-    threshold: 4.55,     // % — equivale aprox. a un ask de €4.40 (umbral de entrada solicitado)
-    thresholdExit: 1.5,  // % — umbral de salida orientativo (no hay lógica de salida específica pedida)
-    detailUrl: 'smwn.html',
+    id: 'tmrc-usar',
+    targetName: 'Texas Mineral Resources (TMRC)',
+    acquirerName: 'USA Rare Earth (USAR)',
+    targetSymbol: 'TMRC',
+    acquirerSymbol: 'USAR',
+    detailUrl: 'tmrc-usar.html',
   },
 ];
 
@@ -533,6 +521,31 @@ function renderRow(sit, computed){
   `;
 }
 
+// Fila estática: solo nombre, símbolos y navegación al hacer click.
+// No consulta Supabase, no calcula spreads y no tiene umbrales ni
+// botones de alarma.
+function renderStaticRow(sit, index){
+  return `
+    <div class="situation static-situation" id="row-${sit.id}" tabindex="0" role="link"
+      onclick="window.location.href='${sit.detailUrl}'"
+      onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.location.href='${sit.detailUrl}';}">
+      <div class="s-rank">${String(index+1).padStart(2,'0')}</div>
+      <div class="s-name">
+        <div class="s-pair">${sit.targetName} <span class="arrow">→</span> ${sit.acquirerName}</div>
+        <div class="s-tags">
+          <span class="s-tag">${sit.targetSymbol}</span>
+          <span class="s-tag">${sit.acquirerSymbol}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderStaticBoard(){
+  const el = document.getElementById('static-board');
+  el.innerHTML = STATIC_SITUATIONS.map((sit,i) => renderStaticRow(sit, i)).join('');
+}
+
 async function updateBoard(){
   const status = document.getElementById('status');
   const body = document.getElementById('board-body');
@@ -643,6 +656,7 @@ function startAuto(){
 }
 
 window.onload = async () => {
+  renderStaticBoard();
   await updateBoard();
   startAuto();
 };
