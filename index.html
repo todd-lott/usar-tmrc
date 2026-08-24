@@ -268,6 +268,22 @@ const SITUATIONS = [
     mergerDate: '2026-12-15', // fecha estimada de cierre (Q4 2026, según el press release)
     detailUrl: 'chmi-mitt.html',
   },
+  {
+    // RE/MAX permite elegir entre acciones o efectivo, pero simplificamos
+    // el board asumiendo solo el escenario de canje de acciones (ratio
+    // fijo, sin modelar la opción de efectivo ni su prorrateo).
+    id: 'rmax-reax',
+    type: 'ratio',             // canje de acciones puro (sin type reconocido -> rama "else")
+    targetSymbol: 'RMAX',
+    targetName: 'RE/MAX Holdings (RMAX)',
+    acquirerSymbol: 'REAX',
+    acquirerName: 'The Real Brokerage (REAX)',
+    ratio: 5.15,          // ya post-consolidación 10-por-1 de REAX
+    threshold: 9,
+    thresholdExit: 5,
+    mergerDate: '2026-11-30', // placeholder: aún sin fecha de cierre confirmada
+    detailUrl: 'rmax-reax.html',
+  },
 ];
 
 // Situaciones estáticas: solo un enlace de navegación, sin símbolos,
