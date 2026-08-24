@@ -909,8 +909,8 @@ document.getElementById('B-name').innerText = NAME_ACQUIRER;
 
 // ════════════════════════════════════════════════════════════════
 let INVEST = 3000;
-let threshold = 9;
-let thresholdExit = 5;
+let threshold = 1;
+let thresholdExit = 0.1;
 let priceCache = {};
 let orderMode = 'open'; // 'open' (comprar RMAX [+ shortear REAX en modo stock]) | 'close' (deshacer)
 let entryPts = [];   // {t, v} — historial del spread de entrada
