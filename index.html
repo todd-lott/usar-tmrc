@@ -113,7 +113,7 @@
   .side-spread.pending{ color:var(--ink-dim); font-weight:600; font-size:.9rem; }
   .side-ctrl{ display:flex; align-items:center; gap:6px; }
   .side-ctrl .th-input{
-    width:48px; font-family:var(--font-mono); font-size:.78rem; font-weight:600; color:var(--ink);
+    width:52px; font-family:var(--font-mono); font-size:.78rem; font-weight:600; color:var(--ink);
     background:#0c0f16; border:1px solid var(--line); border-radius:6px; padding:3px 5px;
     outline:none; text-align:center;
   }
@@ -218,7 +218,13 @@
 // ════════════════════════════════════════════════════════════════
 // CONFIG — añade una entrada por cada situación especial que quieras
 // listar. "detailUrl" debe apuntar al monitor detallado de esa
-// situación (una página como tmrc-usar.html).
+// situación (una página como ncsm-wfrd.html).
+//
+// Hay dos listas: SITUATIONS (seguimiento en vivo) y STATIC_SITUATIONS
+// (archivadas: solo el enlace al detalle). Archivar o reactivar una
+// situación es mover su objeto de una lista a la otra; los objetos
+// archivados conservan todos sus campos, así que no se pierde nada al
+// aparcarlas.
 // ════════════════════════════════════════════════════════════════
 const DATA_URL = 'https://zkpvhtaktowevholyasa.supabase.co';
 const DATA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprcHZodGFrdG93ZXZob2x5YXNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MjcyMTMsImV4cCI6MjEwMDQwMzIxM30.0NMyJAPX7A4x6don1PB4siDpNtvU3bOiZruM9GwRd84';
@@ -229,18 +235,6 @@ const STALE_MS = 60000;
 
 // Situaciones con seguimiento en vivo (datos de mercado + spreads).
 const SITUATIONS = [
-  {
-    id: 'gbcs',
-    type: 'fixed',             // OPA en efectivo: un solo símbolo + precio de oferta fijo
-    targetSymbol: 'GBCS',
-    targetName: 'Selectis Health (GBCS)',
-    acquirerName: 'Black Pearl Equities (efectivo)',
-    offerPrice: 5.75,    // $ por acción en efectivo, según el Merger Agreement
-    threshold: 7,        // % — umbral de entrada de esta situación
-    thresholdExit: 2,    // % — umbral de salida de esta situación
-    mergerDate: '2026-08-25', // fecha estimada de cierre (Q3 2026, según el press release)
-    detailUrl: 'gbcs.html',
-  },
   {
     id: 'perf',
     type: 'fixed',             // OPA en efectivo: un solo símbolo + precio de oferta fijo
@@ -255,37 +249,7 @@ const SITUATIONS = [
     detailUrl: 'perf.html',
   },
   {
-    id: 'chmi-mitt',
-    type: 'ratio_cash',       // canje de acciones + cash fijo por acción
-    targetSymbol: 'CHMI',
-    targetName: 'Cherry Hill Mortgage (CHMI)',
-    acquirerSymbol: 'MITT',
-    acquirerName: 'TPG Mortgage Investment Trust (MITT)',
-    ratio: 0.3063,
-    cashPerShare: 0.93,  // $ fijo por acción CHMI, según el Merger Agreement del 10/08/2026
-    threshold: 7,        // % — umbral de entrada de esta situación
-    thresholdExit: 2,    // % — umbral de salida de esta situación
-    mergerDate: '2026-12-15', // fecha estimada de cierre (Q4 2026, según el press release)
-    detailUrl: 'chmi-mitt.html',
-  },
-  {
-    // RE/MAX permite elegir entre acciones o efectivo, pero simplificamos
-    // el board asumiendo solo el escenario de canje de acciones (ratio
-    // fijo, sin modelar la opción de efectivo ni su prorrateo).
-    id: 'rmax-reax',
-    type: 'ratio',             // canje de acciones puro (sin type reconocido -> rama "else")
-    targetSymbol: 'RMAX',
-    targetName: 'RE/MAX Holdings (RMAX)',
-    acquirerSymbol: 'REAX',
-    acquirerName: 'The Real Brokerage (REAX)',
-    ratio: 5.15,          // ya post-consolidación 10-por-1 de REAX
-    threshold: 1,
-    thresholdExit: 0.1,
-    mergerDate: '2026-11-30', // placeholder: aún sin fecha de cierre confirmada
-    detailUrl: 'rmax-reax.html',
-  },
-    {
-    // Solo se modela la Share Consideration (0,554 acciones de WFRD por
+    // Solo se modela la Share Consideration (0,5537 acciones de WFRD por
     // acción de NCSM): no está sujeta a prorrateo ni ajustes, y es la
     // opción por defecto para quien no haga una elección válida antes
     // del Election Deadline (31-ago-2026, 17:00 ET). La alternativa
@@ -296,7 +260,7 @@ const SITUATIONS = [
     targetName: 'NCS Multistage (NCSM)',
     acquirerSymbol: 'WFRD',
     acquirerName: 'Weatherford International (WFRD)',
-    ratio: 0.554,
+    ratio: 0.5537,       // valor contractual del S-4; la nota de prensa lo redondea a 0,554
     threshold: 0.5,
     thresholdExit: 0.1,
     mergerDate: '2026-09-01', // "on or about", según la nota del 24/08/2026
@@ -304,9 +268,49 @@ const SITUATIONS = [
   },
 ];
 
-// Situaciones estáticas: solo un enlace de navegación, sin símbolos,
-// sin datos de mercado y sin ninguna función de seguimiento/alarma.
+// Situaciones archivadas: solo un enlace de navegación, sin símbolos
+// suscritos, sin datos de mercado y sin ninguna función de seguimiento
+// o alarma. Conservan todos sus campos para poder reactivarlas.
 const STATIC_SITUATIONS = [
+  {
+    id: 'gbcs',
+    type: 'fixed',
+    targetSymbol: 'GBCS',
+    targetName: 'Selectis Health (GBCS)',
+    acquirerName: 'Black Pearl Equities (efectivo)',
+    offerPrice: 5.75,
+    threshold: 7,
+    thresholdExit: 2,
+    mergerDate: '2026-08-25',
+    detailUrl: 'gbcs.html',
+  },
+  {
+    id: 'chmi-mitt',
+    type: 'ratio_cash',
+    targetSymbol: 'CHMI',
+    targetName: 'Cherry Hill Mortgage (CHMI)',
+    acquirerSymbol: 'MITT',
+    acquirerName: 'TPG Mortgage Investment Trust (MITT)',
+    ratio: 0.3063,
+    cashPerShare: 0.93,
+    threshold: 7,
+    thresholdExit: 2,
+    mergerDate: '2026-12-15',
+    detailUrl: 'chmi-mitt.html',
+  },
+  {
+    id: 'rmax-reax',
+    type: 'ratio',
+    targetSymbol: 'RMAX',
+    targetName: 'RE/MAX Holdings (RMAX)',
+    acquirerSymbol: 'REAX',
+    acquirerName: 'The Real Brokerage (REAX)',
+    ratio: 5.15,          // ya post-consolidación 10-por-1 de REAX
+    threshold: 1,
+    thresholdExit: 0.1,
+    mergerDate: '2026-11-30',
+    detailUrl: 'rmax-reax.html',
+  },
   {
     id: 'tmrc-usar',
     targetName: 'Texas Mineral Resources (TMRC)',
@@ -317,11 +321,14 @@ const STATIC_SITUATIONS = [
   },
 ];
 
-// Ratio de canje IONQ/SKYT dado un precio de referencia de IONQ (bid o
-// ask, según la pata) y el escenario de VWAP configurado en la propia
-// situación (sit.vwapScenario). 'flotante' usa el precio actual como
-// proxy del VWAP de 20 días, recortando a los ratios fijos del collar
-// si el precio sale de la banda [collarLow, collarHigh].
+// Ratio de canje con collar dado un precio de referencia del adquirente
+// (bid o ask, según la pata) y el escenario de VWAP configurado en la
+// propia situación (sit.vwapScenario). 'flotante' usa el precio actual
+// como proxy del VWAP de 20 días, recortando a los ratios fijos del
+// collar si el precio sale de la banda [collarLow, collarHigh].
+//
+// Ahora mismo ninguna situación activa es de tipo 'ratio_cash_collar':
+// se conserva para cuando vuelva a hacer falta.
 function computeCollarRatio(sit, precioAdquirente){
   const scenario = sit.vwapScenario || 'flotante';
   if(scenario === 'alto') return sit.ratioAtHigh;
@@ -344,6 +351,12 @@ function daysToMerger(sit){
 // Anualiza un retorno simple (en %) al horizonte de `days` días, de forma
 // compuesta, como una TIR aproximada: cuánto rendiría por año si se
 // pudiera repetir esa misma operación al mismo ritmo.
+//
+// OJO al comparar filas: a pocos días del cierre la anualización dispara
+// la cifra (un 0,4% a 6 días son ~27% anualizados), así que la columna
+// TIR no sirve para comparar una situación que cierra la semana que
+// viene con otra que cierra en diciembre. El board se ordena por spread
+// de entrada, no por TIR, justamente por esto.
 function annualizedReturn(pct, days){
   if(isNaN(pct) || isNaN(days)) return NaN;
   const d = Math.max(days||1, 1);
@@ -460,6 +473,10 @@ function goToDetailKey(ev, url){
 // Cambia el umbral de una situación desde el input de la fila. No
 // vuelve a consultar Supabase: recalcula con los últimos datos ya
 // cargados (lastComputedList) para no perder el foco del input.
+//
+// Se lee con parseFloat, sin redondear: hay deals que se mueven en
+// décimas de punto (NCSM/WFRD entra en 0,5 y sale en 0,1), y redondear
+// a entero dejaría esos umbrales inservibles en cuanto los tocaras.
 function updateThreshold(id, kind, val){
   const sit = SITUATIONS.find(s => s.id === id);
   if(!sit) return;
@@ -535,6 +552,15 @@ function flashAttrs(id, field, newVal){
   return ` value-flash" style="--glow-color:${color}; --glow-bg:${bg};`;
 }
 
+// Etiqueta de la segunda pata: el símbolo del adquirente, o —si la
+// operación es en efectivo y no hay adquirente cotizado— la etiqueta
+// de texto que traiga la situación.
+function acquirerTag(sit, aExch){
+  return sit.acquirerSymbol
+    ? `<span class="s-tag">${sit.acquirerSymbol}${aExch ? ' · '+aExch : ''}</span>`
+    : `<span class="s-tag">${sit.cashTag || 'OPA en efectivo'}</span>`;
+}
+
 function renderRow(sit, computed){
   const { inPct, outPct, aExch, tExch, fr } = computed;
 
@@ -574,7 +600,7 @@ function renderRow(sit, computed){
         <div class="s-pair">${sit.targetName} <span class="arrow">→</span> ${sit.acquirerName}</div>
         <div class="s-tags">
           <span class="s-tag">${sit.targetSymbol}${tExch ? ' · '+tExch : ''}</span>
-          ${sit.acquirerSymbol ? `<span class="s-tag">${sit.acquirerSymbol}${aExch ? ' · '+aExch : ''}</span>` : `<span class="s-tag">${sit.cashTag || 'OPA en efectivo'}</span>`}
+          ${acquirerTag(sit, aExch)}
         </div>
         <div class="s-meta">${fr.texto}</div>
       </div>
@@ -582,7 +608,7 @@ function renderRow(sit, computed){
       <div class="s-side">
         <div class="side-spread ${inClass}${inFlash}">${inText}</div>
         <div class="side-ctrl">
-          <input class="th-input" type="number" step="1" value="${sit.threshold}"
+          <input class="th-input" type="number" step="0.1" value="${sit.threshold}"
             onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','entry',this.value)">
           <button class="sound-btn ${entryArmedManually?'active':''} ${entryAlerting?'alerting':''}" id="sound-${sit.id}-entry"
             onclick="toggleSound('${sit.id}-entry', event)"
@@ -593,7 +619,7 @@ function renderRow(sit, computed){
       <div class="s-side">
         <div class="side-spread ${outClass}${outFlash}">${outText}</div>
         <div class="side-ctrl">
-          <input class="th-input" type="number" step="1" value="${sit.thresholdExit}"
+          <input class="th-input" type="number" step="0.1" value="${sit.thresholdExit}"
             onclick="event.stopPropagation()" oninput="updateThreshold('${sit.id}','exit',this.value)">
           <button class="sound-btn exit ${exitArmedManually?'active':''} ${exitAlerting?'alerting':''}" id="sound-${sit.id}-exit"
             onclick="toggleSound('${sit.id}-exit', event)"
@@ -606,10 +632,10 @@ function renderRow(sit, computed){
   `;
 }
 
-// Fila estática: solo nombre, símbolos y navegación al hacer click.
+// Fila archivada: solo nombre, símbolos y navegación al hacer click.
 // No consulta Supabase, no calcula spreads y no tiene umbrales ni
 // botones de alarma.
-function renderStaticRow(sit, index){
+function renderStaticRow(sit){
   return `
     <div class="situation static-situation" id="row-${sit.id}" tabindex="0" role="link"
       onclick="window.location.href='${sit.detailUrl}'"
@@ -618,7 +644,7 @@ function renderStaticRow(sit, index){
         <div class="s-pair">${sit.targetName} <span class="arrow">→</span> ${sit.acquirerName}</div>
         <div class="s-tags">
           <span class="s-tag">${sit.targetSymbol}</span>
-          <span class="s-tag">${sit.acquirerSymbol}</span>
+          ${acquirerTag(sit, null)}
         </div>
       </div>
     </div>
@@ -627,7 +653,7 @@ function renderStaticRow(sit, index){
 
 function renderStaticBoard(){
   const el = document.getElementById('static-board');
-  el.innerHTML = STATIC_SITUATIONS.map((sit,i) => renderStaticRow(sit, i)).join('');
+  el.innerHTML = STATIC_SITUATIONS.map(sit => renderStaticRow(sit)).join('');
 }
 
 async function updateBoard(){
@@ -639,7 +665,7 @@ async function updateBoard(){
 
     const computedList = SITUATIONS.map(sit => {
       const t = bySymbol[sit.targetSymbol] || {};
-      let inPct = NaN, outPct = NaN, aExch = null, freshestStamps = [];
+      let inPct = NaN, outPct = NaN, aExch = null, stampsPorPata = [];
 
       if(sit.type === 'fixed'){
         // OPA en efectivo: spread = precio de oferta fijo / ask (o bid) - 1
@@ -647,7 +673,7 @@ async function updateBoard(){
         const bid = cleanQuote(t.bid);
         if(!isNaN(ask) && ask>0) inPct = sit.offerPrice/ask - 1;
         if(!isNaN(bid) && bid>0) outPct = sit.offerPrice/bid - 1;
-        freshestStamps = [t.ib_timestamp || t.inserted_at];
+        stampsPorPata = [t.ib_timestamp || t.inserted_at];
       } else if(sit.type === 'ratio_cash'){
         // Canje de acciones + cash fijo por acción (ratio constante):
         // spread = (ratio*precio_adquirente + cashPerShare) / precio_objetivo - 1
@@ -659,7 +685,7 @@ async function updateBoard(){
         if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0) inPct = (sit.ratio*aBid + sit.cashPerShare)/tAsk - 1;
         if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0) outPct = (sit.ratio*aAsk + sit.cashPerShare)/tBid - 1;
         aExch = a.primary_exchange;
-        freshestStamps = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at];
+        stampsPorPata = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at];
       } else if(sit.type === 'ratio_cash_collar'){
         // Canje de acciones a ratio CON COLLAR (el ratio depende del precio
         // del adquirente según sit.vwapScenario) + cash fijo por acción:
@@ -678,7 +704,7 @@ async function updateBoard(){
           if(!isNaN(ratioOut)) outPct = (ratioOut*aAsk + sit.cashPerShare)/tBid - 1;
         }
         aExch = a.primary_exchange;
-        freshestStamps = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at];
+        stampsPorPata = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at];
       } else {
         // Canje de acciones puro: spread = ratio * precio del adquirente / precio del objetivo - 1
         const a = bySymbol[sit.acquirerSymbol] || {};
@@ -689,19 +715,24 @@ async function updateBoard(){
         if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0) inPct = (sit.ratio*aBid)/tAsk - 1;
         if(!isNaN(aAsk) && !isNaN(tBid) && tBid>0) outPct = (sit.ratio*aAsk)/tBid - 1;
         aExch = a.primary_exchange;
-        freshestStamps = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at];
+        stampsPorPata = [t.ib_timestamp || t.inserted_at, a.ib_timestamp || a.inserted_at];
       }
 
-      const stamps = freshestStamps.filter(Boolean).map(x => new Date(x).getTime());
-      const freshest = stamps.length ? new Date(Math.max(...stamps)).toISOString() : null;
+      // Frescura de la fila: el dato MÁS VIEJO de las dos patas, no el
+      // más reciente. Un spread se calcula con ambas, así que si el
+      // adquirente lleva horas sin tick el número está muerto aunque el
+      // objetivo siga cotizando al segundo. Con Math.max esa pata
+      // congelada quedaría camuflada por la otra.
+      const stamps = stampsPorPata.filter(Boolean).map(x => new Date(x).getTime());
+      const masViejo = stamps.length ? new Date(Math.min(...stamps)).toISOString() : null;
 
-      const fr = tiempoDesde(freshest);
+      const fr = tiempoDesde(masViejo);
       const hit = !isNaN(inPct) && (inPct*100) >= sit.threshold;
       const exitHit = !isNaN(outPct) && (outPct*100) <= sit.thresholdExit;
       triggerSignalSound(sit.id+'-entry', hit && !fr.stale);
       triggerSignalSound(sit.id+'-exit', exitHit && !fr.stale);
 
-      return { sit, inPct, outPct, aExch, tExch: t.primary_exchange, freshest, fr };
+      return { sit, inPct, outPct, aExch, tExch: t.primary_exchange, masViejo, fr };
     });
 
     // Orden por rentabilidad de entrada, de mayor a menor (las que no
