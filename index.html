@@ -284,6 +284,24 @@ const SITUATIONS = [
     mergerDate: '2026-11-30', // placeholder: aún sin fecha de cierre confirmada
     detailUrl: 'rmax-reax.html',
   },
+    {
+    // Solo se modela la Share Consideration (0,554 acciones de WFRD por
+    // acción de NCSM): no está sujeta a prorrateo ni ajustes, y es la
+    // opción por defecto para quien no haga una elección válida antes
+    // del Election Deadline (31-ago-2026, 17:00 ET). La alternativa
+    // mixta del acuerdo sí prorratea y por eso queda fuera del board.
+    id: 'ncsm-wfrd',
+    type: 'ratio',             // canje de acciones puro
+    targetSymbol: 'NCSM',
+    targetName: 'NCS Multistage (NCSM)',
+    acquirerSymbol: 'WFRD',
+    acquirerName: 'Weatherford International (WFRD)',
+    ratio: 0.554,
+    threshold: 0.5,
+    thresholdExit: 0.1,
+    mergerDate: '2026-09-01', // "on or about", según la nota del 24/08/2026
+    detailUrl: 'ncsm-wfrd.html',
+  },
 ];
 
 // Situaciones estáticas: solo un enlace de navegación, sin símbolos,
@@ -445,7 +463,7 @@ function goToDetailKey(ev, url){
 function updateThreshold(id, kind, val){
   const sit = SITUATIONS.find(s => s.id === id);
   if(!sit) return;
-  const num = Math.round(parseFloat(val));
+  const num = parseFloat(val);
   if(kind === 'entry') sit.threshold = isNaN(num) ? 0 : num;
   else sit.thresholdExit = isNaN(num) ? 0 : num;
   updateRowVisuals(id);
