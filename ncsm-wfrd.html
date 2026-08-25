@@ -1,0 +1,2178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor de Spread — NCSM/WFRD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:       #0b0e14;
+    --bg-grad:  radial-gradient(1100px 500px at 50% -8%, rgba(46,224,163,.07), transparent 60%);
+    --card:     #12161f;
+    --card-hi:  #171c27;
+    --line:     #232a38;
+    --ink:      #e8ecf3;
+    --ink-dim:  #7c8698;
+    --accent:   #2ee0a3;
+    --accent-dim: rgba(46,224,163,.12);
+    --green:    #2ee0a3;
+    --green-bg: rgba(46,224,163,.10);
+    --red:      #ff5470;
+    --red-bg:   rgba(255,84,112,.10);
+    --amber:    #ffb648;
+    --amber-bg: rgba(255,182,72,.10);
+    --font-body:'Inter', sans-serif;
+    --font-mono:'JetBrains Mono', monospace;
+  }
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  ::selection{ background:var(--accent-dim); color:var(--ink); }
+  body{
+    background:var(--bg) var(--bg-grad); color:var(--ink); font-family:var(--font-body);
+    padding:26px 16px 60px; display:flex; flex-direction:column; align-items:center; gap:20px;
+    min-height:100vh;
+  }
+  .wrap{ width:100%; max-width:880px; display:flex; flex-direction:column; gap:20px; }
+
+  /* ── BACK LINK ──────────────────────────────── */
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px; font-size:.8rem; color:var(--ink-dim);
+    text-decoration:none; font-family:var(--font-mono); width:fit-content; padding:4px 0;
+    transition:color .15s;
+  }
+  .back-link:hover{ color:var(--accent); }
+
+  /* ── HEADER ─────────────────────────────────── */
+  .topbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; }
+  .cfg-row{ display:flex; justify-content:center; flex-wrap:wrap; gap:10px; }
+  .cfg-row.left{ justify-content:flex-start; }
+  .topbar h1{ font-size:1.25rem; font-weight:700; letter-spacing:-.01em; }
+  .topbar h1::before{
+    content:''; display:inline-block; width:8px; height:8px; border-radius:50%;
+    background:var(--accent); margin-right:9px; box-shadow:0 0 0 3px var(--accent-dim), 0 0 10px rgba(46,224,163,.7);
+  }
+  .topbar .sub{ font-size:.8rem; color:var(--ink-dim); margin-top:2px; font-family:var(--font-mono); }
+
+  /* ── BOTONES DE INVESTOR RELATIONS (arriba, a mano) ── */
+  .ir-buttons{ display:flex; gap:8px; flex-wrap:wrap; }
+  .ir-btn{
+    display:inline-flex; align-items:center; gap:8px; text-decoration:none;
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:9px 14px; font-size:.82rem; font-weight:600; color:var(--ink);
+    transition:border-color .15s, color .15s, transform .15s;
+  }
+  .ir-btn:hover{ border-color:var(--accent); color:var(--accent); transform:translateY(-1px); }
+  .ir-btn .irb-tag{
+    font-family:var(--font-mono); font-size:.66rem; font-weight:700; letter-spacing:.03em;
+    color:var(--accent); background:var(--accent-dim); border-radius:5px; padding:3px 7px;
+  }
+  .ir-btn .irb-arrow{ color:var(--ink-dim); font-size:.78rem; }
+  .ir-btn:hover .irb-arrow{ color:var(--accent); }
+
+  /* ── AVISOS DE FECHA (election deadline / cierre) ── */
+  .deadline-badge{
+    display:inline-flex; align-items:center; gap:8px; font-family:var(--font-mono);
+    font-size:.78rem; font-weight:600; padding:8px 13px; border-radius:10px;
+    border:1px solid var(--amber); background:var(--amber-bg); color:var(--amber);
+  }
+  .deadline-badge.passed{ border-color:var(--line); background:var(--card); color:var(--ink-dim); }
+
+  .cfg{ display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:8px 12px; flex-wrap:wrap; }
+  .cfg label{ font-size:.68rem; color:var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:.05em; margin-right:5px; }
+  .cfg input, .cfg select{
+    font-family:var(--font-mono); font-size:.85rem; border:1px solid var(--line); border-radius:6px;
+    padding:4px 7px; background:#0c0f16; color:var(--ink); outline:none; width:66px;
+  }
+  .cfg select{ width:auto; cursor:pointer; }
+  .cfg input:focus, .cfg select:focus{ border-color:var(--accent); }
+  #merger-date-input{ width:138px; }
+  .btn{
+    background:var(--accent); color:#08130f; border:none; font-weight:700; font-size:.82rem;
+    padding:8px 16px; border-radius:7px; cursor:pointer; letter-spacing:.01em;
+  }
+  .btn:hover{ opacity:.88; }
+  .btn:disabled{ background:#3a4150; color:var(--ink-dim); cursor:wait; }
+
+  /* ── SPREAD CARDS ───────────────────────────── */
+  .spread-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .spread-card{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:22px 24px; transition:border-color .25s, background .25s;
+  }
+  .spread-card .card-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .spread-card .tag{ font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-dim); }
+  .sound-btn{
+    flex:0 0 auto; width:30px; height:30px; border-radius:8px; border:1px solid var(--line);
+    background:#0c0f16; color:var(--ink-dim); font-size:.95rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:all .18s; line-height:1;
+  }
+  .sound-btn:hover{ border-color:var(--ink-dim); color:var(--ink); }
+  .sound-btn.active{
+    background:var(--accent-dim); border-color:var(--accent); color:var(--accent);
+    box-shadow:0 0 0 3px rgba(46,224,163,.12);
+  }
+  .sound-btn.alerting{
+    background:var(--amber-bg); border-color:var(--amber); color:var(--amber);
+    animation:soundPulse 1s ease-in-out infinite;
+  }
+  @keyframes soundPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(255,182,72,.45); }
+    50%{ box-shadow:0 0 0 7px rgba(255,182,72,0); }
+  }
+  .spread-card .big{ font-family:var(--font-mono); font-weight:800; font-size:2.6rem; line-height:1.15; margin-top:6px; }
+  .big-row{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-top:6px; }
+  .big-row .big{ margin-top:0; }
+  .tir-badge{
+    display:inline-flex; align-items:center; font-family:var(--font-mono); font-size:.76rem;
+    font-weight:700; padding:3px 10px; border-radius:20px; background:var(--card-hi);
+    border:1px solid var(--line); color:var(--ink-dim); white-space:nowrap; cursor:help;
+  }
+  .tir-badge.unreliable{ opacity:.6; border-style:dashed; }
+  .tir-badge.unreliable::after{ content:' ⚠'; }
+  .spread-card .usd{ font-family:var(--font-mono); font-weight:600; font-size:1rem; margin-top:2px; color:var(--ink-dim); }
+  .spread-card .note{ font-size:.76rem; color:var(--ink-dim); margin-top:10px; }
+  .spread-card .last-ref{ margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:.78rem; color:var(--ink-dim); display:flex; justify-content:space-between; gap:10px; }
+  .spread-card .last-ref span{ flex:0 0 auto; }
+  .spread-card .last-ref b{ font-family:var(--font-mono); color:var(--ink); text-align:right; }
+  .spread-card .last-ref + .last-ref{ margin-top:8px; padding-top:8px; }
+  .last-ref-value{ display:flex; align-items:center; gap:8px; justify-content:flex-end; flex:1 1 auto; min-width:0; }
+  .liq-use-btn{
+    flex:0 0 auto; font-family:var(--font-mono); font-size:.64rem; font-weight:700;
+    color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent);
+    border-radius:6px; padding:3px 9px; cursor:pointer; white-space:nowrap;
+  }
+  .liq-use-btn:hover{ opacity:.85; }
+  .liq-use-btn:disabled{ opacity:.4; cursor:not-allowed; color:var(--ink-dim); background:transparent; border-color:var(--line); }
+
+  .spread-card.entry-hit{
+    border-color:var(--green); background:linear-gradient(180deg, var(--green-bg), var(--card));
+    box-shadow:0 0 0 1px rgba(46,224,163,.15), 0 8px 28px -12px rgba(46,224,163,.35);
+  }
+  .spread-card.entry-hit .tag{ color:var(--green); }
+  .spread-card.entry-hit::after{
+    content:'✓ ENTRAR — supera umbral'; display:inline-block; margin-top:10px;
+    font-size:.74rem; font-weight:700; color:#08130f; background:var(--green);
+    padding:4px 10px; border-radius:20px;
+  }
+
+  .spread-card.exit-hit{
+    border-color:var(--amber); background:linear-gradient(180deg, var(--amber-bg), var(--card));
+    box-shadow:0 0 0 1px rgba(255,182,72,.15), 0 8px 28px -12px rgba(255,182,72,.35);
+  }
+  .spread-card.exit-hit .tag{ color:var(--amber); }
+  .spread-card.exit-hit::after{
+    content:'✓ SALIR — supera umbral'; display:inline-block; margin-top:10px;
+    font-size:.74rem; font-weight:700; color:#1a1204; background:var(--amber);
+    padding:4px 10px; border-radius:20px;
+  }
+
+  /* ── TICKERS ─────────────────────────────────── */
+  .tickers{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .tcard{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .tcard .thead{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+  .tcard .tname{ font-weight:700; font-size:.92rem; }
+  .tcard .texch{ font-family:var(--font-mono); font-size:.66rem; color:var(--ink-dim); background:#1c2230; padding:2px 6px; border-radius:4px; }
+  .trow{ display:flex; justify-content:space-between; padding:4px 0; font-size:.85rem; }
+  .trow .l{ color:var(--ink-dim); }
+  .trow .v{ font-family:var(--font-mono); font-weight:600; }
+  .tfresh{ margin-top:8px; font-size:.7rem; color:var(--ink-dim); font-family:var(--font-mono); }
+  .tfresh.stale{ color:var(--amber); font-weight:600; }
+  .tcard-note{ margin-top:8px; font-size:.68rem; color:var(--amber); font-family:var(--font-mono); line-height:1.4; }
+
+  /* ── CHART ───────────────────────────────────── */
+  .chart-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
+  .chart-card .chead{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+  .chart-card h3{ font-size:.85rem; font-weight:600; color:var(--ink-dim); }
+  .chart-legend{ display:flex; gap:14px; font-size:.72rem; color:var(--ink-dim); font-family:var(--font-mono); }
+  .chart-legend span{ display:flex; align-items:center; gap:6px; }
+  .chart-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; }
+  .range-tabs{ display:flex; gap:4px; background:#0c0f16; border:1px solid var(--line); border-radius:7px; padding:3px; flex-wrap:wrap; }
+  .range-tabs button{
+    background:transparent; border:none; color:var(--ink-dim); font-family:var(--font-mono);
+    font-size:.72rem; font-weight:600; padding:4px 9px; border-radius:5px; cursor:pointer;
+  }
+  .range-tabs button.active{ background:var(--accent); color:#08130f; }
+  .range-tabs button:disabled{ opacity:.5; cursor:wait; }
+  .chart-canvas-wrap{ position:relative; }
+  canvas{ width:100%; height:220px; display:block; cursor:crosshair; }
+
+  .chart-tooltip{
+    position:absolute; pointer-events:none; z-index:5;
+    background:#0c0f16; border:1px solid var(--line); border-radius:8px;
+    padding:8px 11px; font-family:var(--font-mono); font-size:.74rem; color:var(--ink);
+    box-shadow:0 8px 20px -6px rgba(0,0,0,.5); white-space:nowrap;
+    opacity:0; transform:translate(-50%,-100%); transition:opacity .08s;
+  }
+  .chart-tooltip.visible{ opacity:1; }
+  .chart-tooltip .ct-time{ color:var(--ink-dim); font-size:.68rem; margin-bottom:4px; }
+  .chart-tooltip .ct-row{ display:flex; align-items:center; gap:6px; }
+  .chart-tooltip .ct-row + .ct-row{ margin-top:2px; }
+  .chart-tooltip .ct-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
+  .chart-tooltip .ct-val{ font-weight:700; }
+
+  /* ── EXPLICADOR DEL CANJE TEÓRICO ─────────────── */
+  .explain-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
+  .explain-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
+  .explain-sub{ font-size:.78rem; color:var(--ink-dim); margin-bottom:14px; }
+  .explain-flow{ display:flex; align-items:stretch; gap:8px; flex-wrap:wrap; }
+  .ex-step{
+    background:#0c0f16; border:1px solid var(--line); border-radius:9px; padding:10px 14px;
+    flex:1 1 150px; min-width:140px; display:flex; flex-direction:column; gap:4px; justify-content:center;
+  }
+  .ex-lbl{ font-size:.66rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
+  .ex-val{ font-family:var(--font-mono); font-weight:700; font-size:1.05rem; }
+  .ex-op{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:700; color:var(--ink-dim); font-size:1.15rem;
+    padding:0 2px; min-width:38px; text-align:center;
+  }
+  .ex-op-note{ font-size:.6rem; font-weight:600; color:var(--ink-dim); line-height:1.25; margin-top:2px; }
+  .ex-op-note b{ color:var(--accent); }
+  .ex-step.ex-result{ border-color:var(--accent); background:linear-gradient(180deg, var(--accent-dim), #0c0f16); }
+  .ex-big{ font-size:1.55rem; }
+  .explain-note{ margin-top:14px; font-size:.78rem; color:var(--ink-dim); line-height:1.45; }
+
+  @media(max-width:680px){
+    .explain-flow{ flex-direction:column; }
+    .ex-op{ flex-direction:row; gap:6px; padding:2px 0; }
+    .ex-op-note{ margin-top:0; }
+  }
+
+  /* ── ORDEN LISTA PARA EL BROKER ───────────────── */
+  .order-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; transition:border-color .25s, background .25s; }
+  .order-card.mode-open{
+    border-color:var(--green); background:linear-gradient(180deg, var(--green-bg), var(--card));
+  }
+  .order-card.mode-close{
+    border-color:var(--amber); background:linear-gradient(180deg, var(--amber-bg), var(--card));
+  }
+  .order-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .order-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .order-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:9px; padding:12px 14px; display:flex; flex-direction:column; gap:4px; transition:background .25s, border-color .25s; }
+  .order-leg.leg-buy{ background:var(--green-bg); border-color:var(--green); }
+  .order-leg.leg-sell{ background:var(--red-bg); border-color:var(--red); }
+  .ol-lbl{ font-size:.72rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
+  .ol-val{ font-family:var(--font-mono); font-weight:700; font-size:1.15rem; }
+  .ol-price{ font-family:var(--font-mono); font-size:.76rem; color:var(--ink-dim); }
+  .order-foot{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:.82rem; color:var(--ink-dim); }
+  .order-foot b{ font-family:var(--font-mono); color:var(--ink); }
+  .comm-switch{ display:flex; align-items:center; gap:6px; }
+  .comm-switch label{ font-size:.66rem; color:var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .comm-switch select{
+    font-family:var(--font-mono); font-size:.78rem; border:1px solid var(--line); border-radius:6px;
+    padding:4px 8px; background:#0c0f16; color:var(--ink); outline:none; cursor:pointer;
+  }
+  .comm-switch select:focus{ border-color:var(--accent); }
+
+  #status{ font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); text-align:center; }
+  .status-ok{ color:var(--green); }
+
+  #last-update-label{
+    font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); white-space:nowrap;
+  }
+  #last-update-label.stale-label{ color:var(--amber); font-weight:600; }
+  #footer-credit{
+    font-size:.72rem; color:var(--ink-dim); text-align:center; letter-spacing:.02em;
+    margin-top:-6px; padding-top:14px; border-top:1px solid var(--line); width:100%;
+  }
+
+  @media(max-width:680px){ .spread-grid, .tickers{ grid-template-columns:1fr; } }
+
+  /* ── CAPITAL SIMULADO (slider + input) ────────── */
+  .invest-box{ display:flex; justify-content:flex-end; align-items:center; gap:14px; flex-wrap:wrap; }
+  .invest-label{ font-size:.78rem; color:var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .invest-slider-wrap{ display:flex; align-items:center; gap:8px; flex:1 1 220px; max-width:280px; min-width:160px; }
+  .invest-slider-wrap span{ font-size:.68rem; color:var(--ink-dim); font-family:var(--font-mono); }
+  #invest-slider{
+    flex:1; -webkit-appearance:none; appearance:none; height:4px; border-radius:3px;
+    background:var(--line); outline:none; cursor:pointer;
+  }
+  #invest-slider::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none; width:15px; height:15px; border-radius:50%;
+    background:var(--accent); cursor:pointer; box-shadow:0 0 0 3px var(--accent-dim);
+  }
+  #invest-slider::-moz-range-thumb{
+    width:15px; height:15px; border-radius:50%; background:var(--accent); border:none;
+    cursor:pointer; box-shadow:0 0 0 3px var(--accent-dim);
+  }
+  .invest-input-wrap{
+    display:flex; align-items:center; gap:4px; background:#0c0f16; border:1px solid var(--line);
+    border-radius:7px; padding:5px 10px;
+  }
+  .invest-input-wrap span{ font-family:var(--font-mono); color:var(--ink-dim); font-size:.85rem; }
+  #invest-input{
+    font-family:var(--font-mono); font-weight:600; font-size:.9rem; color:var(--ink);
+    background:transparent; border:none; outline:none; width:100px; text-align:right;
+    -moz-appearance:textfield; appearance:textfield;
+  }
+  #invest-input::-webkit-outer-spin-button, #invest-input::-webkit-inner-spin-button{
+    -webkit-appearance:none; appearance:none; margin:0;
+  }
+
+  /* ── ENTRADAS DE ACCIONES POR PATA ── */
+  .shares-inputs-wrap{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .shares-input-wrap{
+    display:flex; align-items:center; gap:6px; background:#0c0f16; border:1px solid var(--line);
+    border-radius:7px; padding:5px 10px;
+  }
+  .shares-input-wrap .si-tag{
+    font-family:var(--font-mono); font-size:.66rem; font-weight:700; letter-spacing:.02em;
+  }
+  .shares-input-wrap.long .si-tag{ color:var(--green); }
+  .shares-input-wrap.short .si-tag{ color:var(--red); }
+  #shares-t-input, #shares-a-input{
+    font-family:var(--font-mono); font-weight:600; font-size:.9rem; color:var(--ink);
+    background:transparent; border:none; outline:none; width:78px; text-align:right;
+    -moz-appearance:textfield; appearance:textfield;
+  }
+  #shares-t-input::-webkit-outer-spin-button, #shares-t-input::-webkit-inner-spin-button,
+  #shares-a-input::-webkit-outer-spin-button, #shares-a-input::-webkit-inner-spin-button{
+    -webkit-appearance:none; appearance:none; margin:0;
+  }
+  .shares-input-wrap:focus-within{ border-color:var(--accent); }
+
+  /* ── RESPLANDOR AL CAMBIAR UN VALOR ── */
+  .value-flash{ border-radius:4px; animation: valueGlow .7s ease-out; }
+  @keyframes valueGlow{
+    0%{
+      box-shadow:0 0 0 0 var(--glow-color, rgba(255,255,255,.5));
+      background:var(--glow-bg, rgba(255,255,255,.12));
+    }
+    100%{
+      box-shadow:0 0 0 10px rgba(0,0,0,0);
+      background:transparent;
+    }
+  }
+
+  /* ── BOTÓN FLOTANTE + MODAL (posición simulada) ─── */
+  .pos-fab{
+    position:fixed; right:20px; bottom:20px; z-index:900;
+    background:var(--accent); color:#08130f; border:none; font-weight:700; font-size:.85rem;
+    padding:12px 18px; border-radius:30px; cursor:pointer; letter-spacing:.01em;
+    box-shadow:0 8px 24px -6px rgba(46,224,163,.5), 0 0 0 1px rgba(46,224,163,.25);
+    display:flex; align-items:center; gap:8px;
+  }
+  .pos-fab:hover{ opacity:.92; }
+
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(6,8,13,.72);
+    backdrop-filter:blur(2px); z-index:1000; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-overlay.active{ display:flex; }
+  .modal-box{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    max-width:440px; width:100%; max-height:88vh; overflow-y:auto; padding:24px 22px;
+    position:relative; box-shadow:0 24px 60px -20px rgba(0,0,0,.6);
+    animation:modalPop .16s ease-out;
+  }
+  @keyframes modalPop{
+    from{ opacity:0; transform:translateY(8px) scale(.98); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+  .modal-close{
+    position:absolute; top:14px; right:14px; width:28px; height:28px; border-radius:8px;
+    border:1px solid var(--line); background:#0c0f16; color:var(--ink-dim); font-size:.95rem;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;
+  }
+  .modal-close:hover{ color:var(--ink); border-color:var(--ink-dim); }
+
+  .position-card{ display:flex; flex-direction:column; gap:14px; padding-right:6px; }
+  .position-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
+
+  .pos-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
+  .pos-leg-head{ display:flex; justify-content:space-between; align-items:center; }
+  .pos-leg-name{ font-size:.78rem; font-weight:700; }
+  .pos-leg-name.long{ color:var(--green); }
+  .pos-leg-name.short{ color:var(--red); }
+  .pos-field{ display:flex; flex-direction:column; gap:3px; }
+  .pos-field label{ font-size:.66rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
+  .pos-field-row{ display:flex; gap:6px; align-items:center; }
+  .pos-field-row input{
+    flex:1; font-family:var(--font-mono); font-size:.85rem; color:var(--ink);
+    background:#0b0e14; border:1px solid var(--line); border-radius:6px; padding:6px 8px; outline:none; width:100%;
+  }
+  .pos-field-row input:focus{ border-color:var(--accent); }
+  .pos-mini-btn{
+    flex:0 0 auto; font-family:var(--font-mono); font-size:.64rem; font-weight:600; color:var(--ink-dim);
+    background:#171c27; border:1px solid var(--line); border-radius:6px; padding:6px 7px; cursor:pointer; white-space:nowrap;
+  }
+  .pos-mini-btn:hover{ color:var(--accent); border-color:var(--accent); }
+
+  .pos-results{ display:flex; flex-direction:column; gap:8px; padding-top:8px; border-top:1px solid var(--line); }
+  .pos-result-row{ display:flex; justify-content:space-between; align-items:baseline; font-size:.8rem; color:var(--ink-dim); gap:10px; }
+  .pos-result-row b{ font-family:var(--font-mono); color:var(--ink); font-size:.92rem; text-align:right; }
+  .pos-result-row.pos-pnl-row b{ font-size:1.15rem; }
+  .pos-be-note{ font-size:.68rem; color:var(--ink-dim); line-height:1.4; }
+
+  .pos-scenario{
+    background:#0c0f16; border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; display:flex; flex-direction:column; gap:6px;
+  }
+  .pos-scenario-title{ font-size:.8rem; font-weight:700; color:var(--ink); }
+  .pos-scenario-sub{ font-size:.68rem; color:var(--ink-dim); margin-top:-3px; margin-bottom:2px; }
+
+  .pos-alert-orange{
+    display:flex; gap:6px; align-items:flex-start;
+    font-size:.72rem; color:var(--amber); line-height:1.4; opacity:.92;
+  }
+  .pos-alert-orange b{ font-weight:700; }
+
+  .deal-note{
+    font-size:.74rem; color:var(--ink-dim); line-height:1.5; background:var(--card);
+    border:1px solid var(--line); border-radius:10px; padding:12px 16px;
+  }
+  .deal-note b{ color:var(--ink); }
+  .deal-note + .deal-note{ margin-top:-10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="index.html">← Situaciones especiales</a>
+
+  <div class="topbar">
+    <div>
+      <h1>Monitor de Arbitraje NCSM/WFRD</h1>
+      <div class="sub" id="pair-sub">Objetivo / Adquirente</div>
+    </div>
+    <div class="ir-buttons">
+      <a class="ir-btn" href="https://ir.ncsmultistage.com/" target="_blank" rel="noopener">
+        <span class="irb-tag">NCSM</span> Investor Relations <span class="irb-arrow">↗</span>
+      </a>
+      <a class="ir-btn" href="https://www.weatherford.com/investor-relations/home/" target="_blank" rel="noopener">
+        <span class="irb-tag">WFRD</span> Investor Relations <span class="irb-arrow">↗</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="cfg-row left">
+    <div class="deadline-badge" id="election-deadline-badge">⏱ –</div>
+  </div>
+
+  <div class="deal-note">
+    <b>Deal:</b> Weatherford International (WFRD) adquiere NCS Multistage (NCSM). Este monitor calcula <b>solo la Share Consideration: 0,554 acciones de WFRD por cada acción de NCSM</b>, que no está sujeta a prorrateo, límites ni ajustes, y que además es la opción <b>por defecto</b> — quien no haga una elección válida antes del <b>Election Deadline (31-ago-2026, 17:00 ET)</b> se considera que la ha elegido. La alternativa mixta del acuerdo (0,239 acciones + efectivo) sí está sujeta a prorrateo y queda deliberadamente fuera: no se puede cubrir con un ratio fijo. La operación está aprobada por ambos consejos y por el accionista de control de NCSM (&gt;50% del capital); cierre previsto <b>en torno al 1-sep-2026</b>. Si no cierra en esa fecha, el Election Deadline puede extenderse.
+  </div>
+
+  <div class="cfg-row">
+    <div class="cfg">
+      <span><label>Umbral entrada</label><input type="number" id="threshold-input" value="0.5" step="0.1" min="0"></span>
+      <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim); margin-right:6px;">%</span>
+      <span><label>Umbral salida</label><input type="number" id="threshold-exit-input" value="0.1" step="0.1"></span>
+      <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim);">%</span>
+      <select id="auto-interval">
+        <option value="10000" selected>10s</option>
+        <option value="30000">30s</option>
+        <option value="60000">1min</option>
+        <option value="0">Off</option>
+      </select>
+      <span><label>Cierre est.</label><input type="date" id="merger-date-input" value="2026-09-01"></span>
+      <span id="merger-days-label" style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim); white-space:nowrap;">–</span>
+      <button class="btn" id="main-btn" onclick="updateData()">Actualizar</button>
+      <span id="last-update-label">Sin actualizar</span>
+    </div>
+  </div>
+
+  <!-- ── CAPITAL ─────────────────────────────────── -->
+  <div class="invest-box">
+    <div class="shares-inputs-wrap">
+      <div class="shares-input-wrap long" title="Acciones NCSM a comprar (edítalo si tu orden se ejecutó parcialmente)">
+        <span class="si-tag">NCSM</span>
+        <input type="number" id="shares-t-input" step="1" min="0" placeholder="0">
+      </div>
+      <div class="shares-input-wrap short" title="Acciones WFRD a shortear según el ratio de canje de la elección activa">
+        <span class="si-tag">WFRD corto</span>
+        <input type="number" id="shares-a-input" step="1" min="0" placeholder="0">
+      </div>
+    </div>
+    <span class="invest-label">Capital simulado</span>
+    <div class="invest-slider-wrap">
+      <span>$100</span>
+      <input type="range" id="invest-slider" min="0" max="1000" step="1" value="492">
+      <span>$100k</span>
+    </div>
+    <div class="invest-input-wrap">
+      <span>$</span>
+      <input type="number" id="invest-input" value="3000" step="100" min="0">
+    </div>
+  </div>
+
+  <!-- ── ORDEN LISTA PARA EL BROKER ──────────────── -->
+  <div class="order-card mode-open" id="order-card">
+    <div class="order-title">
+      <span id="order-title-text">Orden a introducir (abrir)</span>
+      <div class="comm-switch">
+        <label for="commission-model">Comisión IBKR</label>
+        <select id="commission-model">
+          <option value="tiered" selected>Tiered (0,0035/acc.)</option>
+          <option value="fixed">Fixed (0,005/acc.)</option>
+        </select>
+      </div>
+    </div>
+    <div class="order-grid">
+      <div class="order-leg" id="ord-leg-buy">
+        <span class="ol-lbl" id="ord-buy-label">🟢 Comprar (largo)</span>
+        <span class="ol-val" id="ord-buy">–</span>
+        <span class="ol-price" id="ord-buy-price">–</span>
+      </div>
+      <div class="order-leg" id="ord-leg-sell">
+        <span class="ol-lbl" id="ord-sell-label">🔴 Vender (corto)</span>
+        <span class="ol-val" id="ord-sell">–</span>
+        <span class="ol-price" id="ord-sell-price">–</span>
+      </div>
+    </div>
+    <div class="order-foot">
+      <span><span id="ord-capital-label">Capital realmente usado</span>: <b id="ord-capital">–</b></span>
+      <span><span id="ord-commission-label">Comisiones estimadas (apertura)</span>: <b id="ord-commission">–</b></span>
+      <span><span id="ord-profit-label">Beneficio neto teórico (tras comisiones)</span>: <b id="ord-profit">–</b></span>
+    </div>
+  </div>
+
+  <!-- ── SPREADS ─────────────────────────────────── -->
+  <div class="spread-grid">
+    <div class="spread-card" id="entry-card">
+      <div class="card-top">
+        <div class="tag">Spread de entrada</div>
+        <button class="sound-btn" id="entry-sound-btn" onclick="toggleSound('entry')" title="Avisar con sonido en bucle mientras se cumpla la señal de entrada (se detiene solo si deja de cumplirse, pero queda armado)">🔔</button>
+      </div>
+      <div class="big-row">
+        <div class="big" id="in-pct">–</div>
+        <span class="tir-badge" id="in-tir" title="TIR anualizada si el deal se cierra en la fecha estimada">TIR –</span>
+      </div>
+      <div class="usd" id="in-usd">–</div>
+      <div class="note" id="in-usd-net">–</div>
+      <div class="last-ref"><span>Ref. last</span><b id="in-last">–</b></div>
+      <div class="last-ref">
+        <span>Liquidez p/ abrir</span>
+        <div class="last-ref-value">
+          <b id="in-liquidity">–</b>
+          <button class="liq-use-btn" id="in-liquidity-use" onclick="useLiquidity('open')" disabled title="Poner arriba las acciones que da la liquidez disponible para abrir">Usar</button>
+        </div>
+      </div>
+      <div class="tfresh" id="in-fresh">sin datos</div>
+    </div>
+    <div class="spread-card" id="exit-card">
+      <div class="card-top">
+        <div class="tag">Spread de salida</div>
+        <button class="sound-btn" id="exit-sound-btn" onclick="toggleSound('exit')" title="Avisar con sonido en bucle mientras se cumpla la señal de salida (se detiene solo si deja de cumplirse, pero queda armado)">🔔</button>
+      </div>
+      <div class="big-row">
+        <div class="big" id="out-pct">–</div>
+        <span class="tir-badge" id="out-tir" style="visibility:hidden;">TIR –</span>
+      </div>
+      <div class="usd" id="out-usd">–</div>
+      <div class="note" id="out-usd-net">–</div>
+      <div class="last-ref"><span>Ref. last</span><b id="out-last">–</b></div>
+      <div class="last-ref">
+        <span>Liquidez p/ cerrar</span>
+        <div class="last-ref-value">
+          <b id="out-liquidity">–</b>
+          <button class="liq-use-btn" id="out-liquidity-use" onclick="useLiquidity('close')" disabled title="Poner arriba las acciones que da la liquidez disponible para cerrar">Usar</button>
+        </div>
+      </div>
+      <div class="tfresh" id="out-fresh">sin datos</div>
+    </div>
+  </div>
+
+  <!-- ── TICKERS ─────────────────────────────────── -->
+  <div class="tickers">
+    <div class="tcard" id="card-A">
+      <div class="thead"><span class="tname" id="A-name">Objetivo</span><span class="texch" id="A-exch">—</span></div>
+      <div class="trow"><span class="l">Last</span><span class="v" id="A-last">–</span></div>
+      <div class="trow"><span class="l">Bid</span><span class="v" id="A-bid">–</span></div>
+      <div class="trow"><span class="l">Ask</span><span class="v" id="A-ask">–</span></div>
+      <div class="trow"><span class="l">Bid size</span><span class="v" id="A-bidsize">–</span></div>
+      <div class="trow"><span class="l">Ask size</span><span class="v" id="A-asksize">–</span></div>
+      <div class="tfresh" id="A-fresh">sin datos</div>
+    </div>
+    <div class="tcard" id="card-B">
+      <div class="thead"><span class="tname" id="B-name">Adquirente</span><span class="texch" id="B-exch">—</span></div>
+      <div class="trow"><span class="l">Last</span><span class="v" id="B-last">–</span></div>
+      <div class="trow"><span class="l">Bid</span><span class="v" id="B-bid">–</span></div>
+      <div class="trow"><span class="l">Ask</span><span class="v" id="B-ask">–</span></div>
+      <div class="trow"><span class="l">Bid size</span><span class="v" id="B-bidsize">–</span></div>
+      <div class="trow"><span class="l">Ask size</span><span class="v" id="B-asksize">–</span></div>
+      <div class="tfresh" id="B-fresh">sin datos</div>
+    </div>
+  </div>
+
+  <!-- ── CÓMO SE CALCULA EL CANJE TEÓRICO ─────────── -->
+  <div class="explain-card">
+    <div class="explain-title">Cómo se calcula el spread teórico</div>
+    <div class="explain-sub">Si compras 1 acción de NCSM ahora y vendes en corto sus 0,554 acciones equivalentes de WFRD, esto es lo que pasa (comisión IBKR incluida al final, con el modelo elegido arriba):</div>
+
+    <div class="explain-flow">
+      <div class="ex-step">
+        <div class="ex-lbl">① Vendes en corto WFRD (bid)</div>
+        <div class="ex-val" id="ex-abid">–</div>
+      </div>
+      <div class="ex-op">×<div class="ex-op-note">ratio de<br>canje<br><b id="ex-ratio">–</b></div></div>
+      <div class="ex-step">
+        <div class="ex-lbl">② Equivale por acción NCSM a</div>
+        <div class="ex-val" id="ex-equiv">–</div>
+      </div>
+      <div class="ex-op">÷</div>
+      <div class="ex-step">
+        <div class="ex-lbl">③ Compras NCSM (ask)</div>
+        <div class="ex-val" id="ex-task">–</div>
+      </div>
+      <div class="ex-op">−1<div class="ex-op-note">−<br>comisión<br><b id="ex-comm-amt">–</b></div></div>
+      <div class="ex-step ex-result">
+        <div class="ex-lbl">Spread neto (con comisiones)</div>
+        <div class="ex-val ex-big" id="ex-net-result">–</div>
+      </div>
+    </div>
+
+    <div class="explain-note">Es la ganancia (o pérdida) teórica neta de comisiones por cada dólar invertido si el deal se cierra hoy a estos precios y a este ratio de canje. Coincide con el % que ves en la tarjeta "Spread de entrada" de arriba.</div>
+  </div>
+
+  <!-- ── CHART ───────────────────────────────────── -->
+  <div class="chart-card">
+    <div class="chead">
+      <h3 id="chart-title">Evolución del spread (hoy)</h3>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="chart-legend">
+          <span><i style="background:var(--accent)"></i>Entrada</span>
+          <span><i style="background:var(--amber)"></i>Salida</span>
+        </div>
+        <div class="range-tabs" id="range-tabs">
+          <button data-range="1h">1h</button>
+          <button data-range="2h">2h</button>
+          <button data-range="3h">3h</button>
+          <button data-range="today" class="active">Hoy</button>
+          <button data-range="1d">1d</button>
+          <button data-range="3d">3d</button>
+          <button data-range="7d">7d</button>
+          <button data-range="14d">14d</button>
+          <button data-range="30d">30d</button>
+        </div>
+      </div>
+    </div>
+    <div class="chart-canvas-wrap">
+      <canvas id="chart"></canvas>
+      <div class="chart-tooltip" id="chart-tooltip">
+        <div class="ct-time" id="ct-time">–</div>
+        <div class="ct-row"><span class="ct-dot" style="background:var(--accent)"></span>Entrada: <span class="ct-val" id="ct-in">–</span></div>
+        <div class="ct-row"><span class="ct-dot" style="background:var(--amber)"></span>Salida: <span class="ct-val" id="ct-out">–</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="status">Iniciando…</div>
+  <div id="footer-credit">Monitor de arbitraje de situaciones especiales por Todd Lott y Phyera</div>
+</div>
+
+<button class="pos-fab" id="pos-fab" onclick="openPositionModal()">📊 Simular posición</button>
+
+<div class="modal-overlay" id="pos-modal-overlay" onclick="closePositionModalOnOverlay(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closePositionModal()" aria-label="Cerrar">✕</button>
+    <div class="position-card">
+    <div class="position-title">Posición simulada</div>
+
+    <div class="comm-switch" style="justify-content:flex-start;">
+      <label for="pos-commission-model">Comisión IBKR</label>
+      <select id="pos-commission-model">
+        <option value="tiered" selected>Tiered (0,0035/acc.)</option>
+        <option value="fixed">Fixed (0,005/acc.)</option>
+      </select>
+    </div>
+
+    <div class="pos-leg">
+      <div class="pos-leg-head"><span class="pos-leg-name long">Largo NCSM</span></div>
+      <div class="pos-field">
+        <label>Acciones compradas</label>
+        <div class="pos-field-row"><input type="number" id="pos-t-qty" placeholder="0" min="0" step="1"></div>
+      </div>
+      <div class="pos-field">
+        <label>Precio de compra (entrada)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-t-entry" placeholder="0.0000" min="0" step="0.0001">
+          <button class="pos-mini-btn" onclick="fillPosPrice('pos-t-entry','tAsk')" title="Usar el ask actual">ask act.</button>
+        </div>
+      </div>
+      <div class="pos-field">
+        <label>Precio objetivo de venta (cierre)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-t-exit" placeholder="0.0000" min="0" step="0.0001">
+          <button class="pos-mini-btn" onclick="fillPosPrice('pos-t-exit','tBid')" title="Usar el bid actual">bid act.</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pos-leg">
+      <div class="pos-leg-head"><span class="pos-leg-name short">Corto WFRD</span></div>
+      <div class="pos-field">
+        <label>Acciones vendidas en corto</label>
+        <div class="pos-field-row"><input type="number" id="pos-a-qty" placeholder="0" min="0" step="1"></div>
+      </div>
+      <div class="pos-field">
+        <label>Precio de venta corto (entrada)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-a-entry" placeholder="0.0000" min="0" step="0.0001">
+          <button class="pos-mini-btn" onclick="fillPosPrice('pos-a-entry','aBid')" title="Usar el bid actual">bid act.</button>
+        </div>
+      </div>
+      <div class="pos-field">
+        <label>Precio objetivo de recompra (cierre)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-a-exit" placeholder="0.0000" min="0" step="0.0001">
+          <button class="pos-mini-btn" onclick="fillPosPrice('pos-a-exit','aAsk')" title="Usar el ask actual">ask act.</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pos-results">
+      <div class="pos-result-row"><span>Capital empleado</span><b id="pos-capital">–</b></div>
+
+      <div class="pos-alert-orange" id="pos-ratio-alert" style="display:none;"></div>
+
+      <div class="pos-scenario">
+        <div class="pos-scenario-title">📦 Si se cierra el deal (canje al ratio oficial)</div>
+        <div class="pos-scenario-sub">Canje automático a 0,554 WFRD por acción NCSM — sin comisiones de cierre.</div>
+        <div class="pos-result-row"><span>Spread de entrada (tu posición)</span><b id="pos-spread-entry">–</b></div>
+        <div class="pos-result-row"><span>Comisiones (apertura)</span><b id="pos-merger-comm">–</b></div>
+        <div class="pos-result-row pos-pnl-row"><span>Beneficio neto</span><b id="pos-merger-pnl">–</b></div>
+      </div>
+
+      <div class="pos-scenario">
+        <div class="pos-scenario-title">💱 Si cierras ahora (a los precios introducidos)</div>
+        <div class="pos-result-row"><span>Spread de salida (objetivo)</span><b id="pos-spread-exit">–</b></div>
+        <div class="pos-result-row"><span>Comisiones (4 patas)</span><b id="pos-now-comm">–</b></div>
+        <div class="pos-result-row"><span>Beneficio bruto</span><b id="pos-now-gross">–</b></div>
+        <div class="pos-result-row pos-pnl-row"><span>Beneficio neto</span><b id="pos-now-pnl">–</b></div>
+        <div class="pos-result-row"><span>Breakeven venta NCSM ($)</span><b id="pos-be-t">–</b></div>
+        <div class="pos-result-row"><span>Breakeven recompra WFRD ($)</span><b id="pos-be-a">–</b></div>
+        <div class="pos-be-note">Precios a los que el beneficio neto (con comisiones) queda en cero.</div>
+      </div>
+    </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// CONFIG — edita esta sección para tu caso
+// ════════════════════════════════════════════════════════════════
+// Clave "anon" (pública), NUNCA la "service_role" en una página que
+// corre en el navegador. Protege las tablas con RLS de solo lectura.
+//
+// ⚠️ Estas credenciales son las mismas que usan el resto de monitores.
+// Para que esta página tenga datos, el streamer de IB tiene que estar
+// suscrito a NCSM y WFRD (situacion_ncsm_wfrd en SITUACIONES, o filas
+// active=true en `watchlist`); si no, se quedará en "sin datos".
+const DATA_URL = 'https://zkpvhtaktowevholyasa.supabase.co';
+const DATA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprcHZodGFrdG93ZXZob2x5YXNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MjcyMTMsImV4cCI6MjEwMDQwMzIxM30.0NMyJAPX7A4x6don1PB4siDpNtvU3bOiZruM9GwRd84';
+const db = supabase.createClient(DATA_URL, DATA_KEY);
+
+const SYMBOL_TARGET   = 'NCSM';
+const SYMBOL_ACQUIRER = 'WFRD';
+const NAME_TARGET     = 'NCS Multistage Holdings (NCSM)';
+const NAME_ACQUIRER   = 'Weatherford International (WFRD)';
+
+// ── Términos del canje (nota de prensa conjunta, 24-ago-2026) ──
+// Solo se modela la Share Consideration: 0,554 acciones ordinarias de
+// WFRD por cada acción de NCSM. Es el único escenario cubrible con un
+// ratio fijo, porque NO está sujeto a prorrateo, límites ni ajustes, y
+// es además la opción por defecto: quien elija acciones o no haga una
+// elección válida antes del Election Deadline la recibe.
+//
+// La alternativa del acuerdo (0,239 acciones + efectivo equivalente a
+// 0,137 acciones) queda fuera a propósito: al estar sujeta a prorrateo,
+// la cantidad realmente recibida no se conoce de antemano y no se puede
+// cubrir con un corto de tamaño fijo.
+const RATIO = 0.554;
+
+// ── Election Deadline: 31-ago-2026, 17:00 ET (EDT = UTC−4) ──
+const ELECTION_DEADLINE = new Date('2026-08-31T21:00:00Z');
+
+// ── Comisiones de Interactive Brokers ──
+// Dos planes disponibles, seleccionables desde el desplegable "Comisión
+// IBKR" (por defecto: Tiered). Cada modelo define su coste por acción,
+// su mínimo por orden y (si aplica) su tope como % del valor de la
+// operación.
+const COMMISSION_MODELS = {
+  // Tiered: USD 0.0035 por acción (tramo ≤300.000 acciones/mes),
+  // mínimo USD 0.35 por orden, máximo 1% del valor de la operación.
+  tiered: {
+    label: 'Tiered',
+    perShare: 0.0035,
+    minPerOrder: 0.35,
+    maxPctOfTrade: 0.01,
+  },
+  // Fixed: USD 0.005 por acción plana, mínimo USD 1.00 por orden,
+  // sin tope por % del valor de la operación.
+  fixed: {
+    label: 'Fixed',
+    perShare: 0.005,
+    minPerOrder: 1.00,
+    maxPctOfTrade: null,
+  },
+};
+let commissionModel = 'tiered';
+
+const STALE_MS = 60000;
+
+// ── Fecha estimada de cierre del deal ──
+// Se usa para "días hasta el cierre" y para anualizar el spread como TIR.
+// Por defecto 1-sep-2026 ("on or about"). Si el cierre se retrasa y se
+// extiende el Election Deadline, actualízala aquí o en el campo de fecha.
+let MERGER_DATE = new Date(document.getElementById('merger-date-input').value + 'T00:00:00');
+
+// Días hasta el cierre para USAR EN CÁLCULOS (TIR): nunca menor que 1,
+// para evitar divisiones por cero o exponentes absurdos.
+function daysToMerger(){
+  const ms = MERGER_DATE.getTime() - Date.now();
+  return Math.max(1, Math.ceil(ms/86400000));
+}
+
+// Con un horizonte tan corto como el de este deal (días, no meses), la
+// TIR anualizada se dispara: un 0,4% a 6 días son ~27% anualizados. Por
+// debajo de este umbral de días la TIR se marca como poco fiable en la UI
+// y NO debe usarse para decidir: el umbral de entrada es el SPREAD.
+const TIR_UNRELIABLE_DAYS = 21;
+
+// Anualiza un retorno simple (en %) al horizonte de `days` días, de forma
+// compuesta. Un retorno de −100% o peor no tiene anualización compuesta
+// real (base ≤ 0), así que en ese caso se limita a mostrar −100%.
+function annualizedReturn(netPct, days){
+  if(isNaN(netPct)) return NaN;
+  const d = Math.max(days||1, 1);
+  const base = 1 + netPct/100;
+  if(base <= 0) return -100;
+  return (Math.pow(base, 365/d) - 1) * 100;
+}
+
+// Pinta "faltan N días" (o "hoy" / "hace N días" si la fecha ya pasó)
+// junto al selector de fecha de cierre estimada.
+function updateMergerDaysLabel(){
+  const el = document.getElementById('merger-days-label');
+  if(!el) return;
+  const ms = MERGER_DATE.getTime() - Date.now();
+  const days = Math.ceil(ms/86400000);
+  if(days > 1){
+    el.innerText = `≈${days} días hasta el cierre`;
+    el.style.color = '';
+  } else if(days === 1){
+    el.innerText = 'mañana';
+    el.style.color = 'var(--amber)';
+  } else if(days === 0){
+    el.innerText = 'hoy';
+    el.style.color = 'var(--amber)';
+  } else {
+    el.innerText = `hace ${Math.abs(days)} día${Math.abs(days)===1?'':'s'}`;
+    el.style.color = 'var(--amber)';
+  }
+}
+
+// Cuenta atrás hasta el Election Deadline. Cuando pasa, el aviso recuerda
+// que no elegir equivale a haber elegido la Share Consideration.
+function updateElectionDeadlineLabel(){
+  const el = document.getElementById('election-deadline-badge');
+  if(!el) return;
+  const ms = ELECTION_DEADLINE.getTime() - Date.now();
+  if(ms <= 0){
+    el.classList.add('passed');
+    el.innerText = '⏱ Election Deadline (31-ago-2026, 17:00 ET) ya pasado — sin elección válida se recibe la Share Consideration (0,554×)';
+    return;
+  }
+  el.classList.remove('passed');
+  const d = Math.floor(ms/86400000);
+  const h = Math.floor(ms/3600000) % 24;
+  const m = Math.floor(ms/60000) % 60;
+  const s = Math.floor(ms/1000) % 60;
+  el.innerText = `⏱ Election Deadline en ${d}d ${h}h ${m}m ${s}s · 31-ago-2026, 17:00 ET`;
+}
+
+document.getElementById('merger-date-input').addEventListener('change', (e)=>{
+  if(!e.target.value) return;
+  MERGER_DATE = new Date(e.target.value + 'T00:00:00');
+  updateMergerDaysLabel();
+  recalc();
+  updateOrderTicket();
+});
+
+// Valor "centinela" que usa la fuente de datos para indicar
+// bid/ask no disponible. Estos ticks se descartan por completo.
+const INVALID_TICK = -1;
+
+document.getElementById('pair-sub').innerText = `${NAME_TARGET} / ${NAME_ACQUIRER}`;
+document.getElementById('A-name').innerText = NAME_TARGET;
+document.getElementById('B-name').innerText = NAME_ACQUIRER;
+
+// ════════════════════════════════════════════════════════════════
+let INVEST = 3000;
+let threshold = 0.5;
+let thresholdExit = 0.1;
+let priceCache = {};
+let orderMode = 'open'; // 'open' (comprar NCSM + shortear WFRD) | 'close' (deshacer)
+let entryPts = [];   // {t, v} — historial del spread de entrada
+let exitPts = [];    // {t, v} — historial del spread de salida
+// Rango del gráfico: {type:'hours', value:N} | {type:'today'} | {type:'days', value:N}
+let chartRange = { type:'today' };
+let autoTimer = null;
+
+// ── Capital simulado: slider logarítmico ($100 – $100,000) ──
+const INVEST_MIN = 100;
+const INVEST_MAX = 100000;
+const SLIDER_MAX = 1000;
+
+function sliderToInvest(s){
+  const minLog = Math.log10(INVEST_MIN), maxLog = Math.log10(INVEST_MAX);
+  const val = Math.pow(10, minLog + (s/SLIDER_MAX)*(maxLog-minLog));
+  return Math.round(val/10)*10;
+}
+function investToSlider(v){
+  const minLog = Math.log10(INVEST_MIN), maxLog = Math.log10(INVEST_MAX);
+  const clamped = Math.min(Math.max(v, INVEST_MIN), INVEST_MAX);
+  const s = ((Math.log10(clamped)-minLog)/(maxLog-minLog))*SLIDER_MAX;
+  return Math.round(s);
+}
+
+// Guarda, por símbolo, el último bid/ask/last/bidSize/askSize VÁLIDOS
+// vistos (ignorando -1) junto con la marca de tiempo de cada uno.
+let lastValid = {
+  [SYMBOL_TARGET]:   { bid:NaN, ask:NaN, last:NaN, bidSize:NaN, askSize:NaN, bidTs:null, askTs:null, lastTs:null, bidSizeTs:null, askSizeTs:null },
+  [SYMBOL_ACQUIRER]: { bid:NaN, ask:NaN, last:NaN, bidSize:NaN, askSize:NaN, bidTs:null, askTs:null, lastTs:null, bidSizeTs:null, askSizeTs:null },
+};
+
+const cvs = document.getElementById('chart');
+const ctx = cvs?.getContext('2d');
+
+function setupCanvas(){
+  if(!cvs||!ctx) return;
+  const r = cvs.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  cvs.width = r.width*dpr; cvs.height = r.height*dpr;
+  ctx.scale(dpr,dpr);
+  cvs.style.width = r.width+'px'; cvs.style.height = r.height+'px';
+}
+
+function fmtAxisTime(ms){
+  const d = new Date(ms);
+  const intraday = chartRange.type === 'hours' || chartRange.type === 'today' ||
+                    (chartRange.type === 'days' && chartRange.value <= 1);
+  if(intraday){
+    return d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
+  }
+  return d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'}) + ' ' +
+         d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
+}
+
+// Guarda la última "geometría" del gráfico para poder invertir
+// coordenadas de píxel -> tiempo en el hover.
+let chartLayout = null;
+
+function drawChart(){
+  if(!ctx||!cvs) return;
+  const r = cvs.getBoundingClientRect();
+  const W=r.width, H=r.height, P=46, PB=28; // PB: espacio inferior para etiquetas de tiempo
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+
+  const allPts = entryPts.concat(exitPts);
+  if(!allPts.length){
+    ctx.fillStyle='#7c8698'; ctx.font='13px Inter'; ctx.textAlign='center';
+    ctx.fillText('Esperando datos…', W/2, H/2);
+    chartLayout = null;
+    hideChartTooltip();
+    return;
+  }
+
+  const vals = allPts.map(d=>d.v).concat([threshold, thresholdExit]);
+  const rMin=Math.min(...vals), rMax=Math.max(...vals);
+  const pad=Math.max((rMax-rMin)*0.2,0.4);
+  const mn=rMin-pad, mx=rMax+pad, rng=(mx-mn)||1;
+
+  const tVals = allPts.map(d=>d.t);
+  const tMin = Math.min(...tVals), tMax = Math.max(...tVals);
+  const tRng = (tMax-tMin) || 1;
+
+  const getY = v => H-PB-((v-mn)/rng)*(H-PB-P*0.4);
+  const getX = t => P + ((t-tMin)/tRng)*(W-P*1.3);
+
+  chartLayout = { W, H, P, PB, tMin, tMax, tRng, getX, getY };
+
+  // Grid horizontal + etiquetas del eje Y
+  ctx.font='11px JetBrains Mono'; ctx.textAlign='right'; ctx.fillStyle='#7c8698';
+  for(let i=0;i<=4;i++){
+    const v = mn+(i/4)*rng, y=getY(v);
+    ctx.fillText(v.toFixed(2)+'%', P-8, y+4);
+    ctx.strokeStyle='rgba(255,255,255,.06)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(P,y); ctx.lineTo(W-P*0.3,y); ctx.stroke();
+  }
+
+  // Etiquetas del eje X (tiempo)
+  ctx.textAlign='center'; ctx.fillStyle='#7c8698';
+  const N_XLABELS = 5;
+  for(let i=0;i<=N_XLABELS;i++){
+    const t = tMin + (i/N_XLABELS)*tRng;
+    const x = getX(t);
+    ctx.fillText(fmtAxisTime(t), x, H-PB+16);
+  }
+
+  // Líneas de umbral
+  const yThIn = getY(threshold);
+  ctx.strokeStyle='#2ee0a3'; ctx.lineWidth=1.2; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(P,yThIn); ctx.lineTo(W-P*0.3,yThIn); ctx.stroke();
+
+  const yThOut = getY(thresholdExit);
+  ctx.strokeStyle='#ffb648'; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.moveTo(P,yThOut); ctx.lineTo(W-P*0.3,yThOut); ctx.stroke();
+  ctx.setLineDash([]);
+
+  function drawSeries(pts, color){
+    if(pts.length < 1) return;
+    ctx.strokeStyle=color; ctx.lineWidth=2.2;
+    ctx.beginPath();
+    pts.forEach((d,i)=>{ const x=getX(d.t),y=getY(d.v); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+    ctx.stroke();
+    const last = pts[pts.length-1];
+    ctx.beginPath(); ctx.arc(getX(last.t), getY(last.v), 4.5, 0, Math.PI*2);
+    ctx.fillStyle = color; ctx.fill();
+  }
+  drawSeries(entryPts, '#2ee0a3');
+  drawSeries(exitPts, '#ffb648');
+
+  if(hoverActive) drawHoverOverlay();
+}
+
+// ── HOVER / TOOLTIP DEL GRÁFICO ──
+let hoverActive = false;
+let hoverPxX = 0;
+
+function nearestPoint(pts, t){
+  if(!pts || !pts.length) return null;
+  let lo=0, hi=pts.length-1;
+  if(t <= pts[0].t) return pts[0];
+  if(t >= pts[hi].t) return pts[hi];
+  while(lo < hi){
+    const mid = (lo+hi)>>1;
+    if(pts[mid].t < t) lo = mid+1; else hi = mid;
+  }
+  const a = pts[lo-1], b = pts[lo];
+  if(!a) return b;
+  return (t - a.t) <= (b.t - t) ? a : b;
+}
+
+function fmtTooltipTime(ms){
+  const d = new Date(ms);
+  return d.toLocaleString('es-ES', {
+    day:'2-digit', month:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  });
+}
+
+function drawHoverOverlay(){
+  if(!chartLayout) return;
+  const { W, H, P, PB, tMin, tMax, getX, getY } = chartLayout;
+  const tAtCursor = tMin + ((hoverPxX-P)/(W-P*1.3))*(tMax-tMin || 1);
+  const clampedT = Math.min(Math.max(tAtCursor, tMin), tMax);
+
+  const nearEntry = nearestPoint(entryPts, clampedT);
+  const nearExit  = nearestPoint(exitPts, clampedT);
+  if(!nearEntry && !nearExit) return;
+
+  const refPt = [nearEntry, nearExit].filter(Boolean)
+    .reduce((best, p) => (!best || Math.abs(p.t-clampedT) < Math.abs(best.t-clampedT)) ? p : best, null);
+  const lineX = getX(refPt.t);
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.22)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4,3]);
+  ctx.beginPath();
+  ctx.moveTo(lineX, P*0.4);
+  ctx.lineTo(lineX, H-PB);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  function highlightDot(pt, color){
+    if(!pt) return;
+    const x = getX(pt.t), y = getY(pt.v);
+    ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2);
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2);
+    ctx.fillStyle = '#0b0e14'; ctx.fill();
+  }
+  highlightDot(nearEntry, '#2ee0a3');
+  highlightDot(nearExit, '#ffb648');
+
+  const tooltip = document.getElementById('chart-tooltip');
+  if(!tooltip) return;
+  document.getElementById('ct-time').innerText = fmtTooltipTime(refPt.t);
+  document.getElementById('ct-in').innerText  = nearEntry ? nearEntry.v.toFixed(3)+' %' : '–';
+  document.getElementById('ct-out').innerText = nearExit  ? nearExit.v.toFixed(3)+' %'  : '–';
+
+  const wrapWidth = cvs.getBoundingClientRect().width;
+  let left = lineX;
+  const margin = 8;
+  const estTooltipWidth = 170;
+  if(left < estTooltipWidth/2 + margin) left = estTooltipWidth/2 + margin;
+  if(left > wrapWidth - estTooltipWidth/2 - margin) left = wrapWidth - estTooltipWidth/2 - margin;
+
+  tooltip.style.left = left+'px';
+  tooltip.style.top = Math.max(getY(refPt.v)-14, 10)+'px';
+  tooltip.classList.add('visible');
+}
+
+function hideChartTooltip(){
+  const tooltip = document.getElementById('chart-tooltip');
+  if(tooltip) tooltip.classList.remove('visible');
+}
+
+function onChartPointerMove(clientX){
+  const rect = cvs.getBoundingClientRect();
+  hoverPxX = clientX - rect.left;
+  hoverActive = true;
+  drawChart();
+}
+function onChartPointerLeave(){
+  hoverActive = false;
+  hideChartTooltip();
+  drawChart();
+}
+
+if(cvs){
+  cvs.addEventListener('mousemove', (e)=> onChartPointerMove(e.clientX));
+  cvs.addEventListener('mouseleave', onChartPointerLeave);
+  cvs.addEventListener('touchstart', (e)=>{
+    if(e.touches && e.touches[0]){ onChartPointerMove(e.touches[0].clientX); e.preventDefault(); }
+  }, {passive:false});
+  cvs.addEventListener('touchmove', (e)=>{
+    if(e.touches && e.touches[0]){ onChartPointerMove(e.touches[0].clientX); e.preventDefault(); }
+  }, {passive:false});
+  cvs.addEventListener('touchend', onChartPointerLeave);
+}
+
+function fmt(n){ return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n); }
+function fmtSigned(n){ return n>=0 ? '+' + fmt(n) : fmt(n); }
+function fmtPct(n,d=3){ return (n*100).toFixed(d)+' %'; }
+function tiempoDesde(iso){
+  if(!iso) return {texto:'sin datos', stale:true};
+  const ms = Date.now()-new Date(iso).getTime();
+  const stale = ms > STALE_MS;
+  if(ms<1000) return {texto:'justo ahora', stale};
+  if(ms<60000) return {texto:`hace ${Math.round(ms/1000)}s`, stale};
+  return {texto:`hace ${Math.round(ms/60000)} min`, stale};
+}
+
+// Comisión estimada para una orden de `qty` acciones a precio `price`,
+// según el modelo de comisiones activo (Tiered o Fixed).
+function commissionForOrder(qty, price){
+  if(!qty || qty<=0 || isNaN(price) || price<=0) return 0;
+  const cfg = COMMISSION_MODELS[commissionModel];
+  const raw = qty * cfg.perShare;
+  let capped = raw;
+  if(cfg.maxPctOfTrade){
+    const maxCap = qty * price * cfg.maxPctOfTrade;
+    capped = Math.min(raw, maxCap);
+  }
+  return Math.max(capped, cfg.minPerOrder);
+}
+
+// Convierte un valor crudo de bid/ask a número, descartando el
+// centinela de "sin dato" (-1) y devolviendo NaN en ese caso.
+function cleanQuote(v){
+  const n = parseFloat(v);
+  if(isNaN(n) || n === INVALID_TICK) return NaN;
+  return n;
+}
+
+// Actualiza el store de "último valor válido" de un símbolo con un tick
+// crudo. Cada campo se actualiza de forma independiente: si viene con -1
+// o vacío, se conserva el valor anterior.
+function ingestQuote(symbol, q){
+  const store = lastValid[symbol];
+  if(!store || !q) return;
+  const ts = q.ib_timestamp || q.inserted_at || null;
+  const bid     = cleanQuote(q.bid);
+  const ask     = cleanQuote(q.ask);
+  const last    = cleanQuote(q.last);
+  const bidSize = cleanQuote(q.bid_size);
+  const askSize = cleanQuote(q.ask_size);
+  if(!isNaN(bid)){     store.bid     = bid;     store.bidTs     = ts; }
+  if(!isNaN(ask)){     store.ask     = ask;     store.askTs     = ts; }
+  if(!isNaN(last)){    store.last    = last;    store.lastTs    = ts; }
+  if(!isNaN(bidSize)){ store.bidSize = bidSize; store.bidSizeTs = ts; }
+  if(!isNaN(askSize)){ store.askSize = askSize; store.askSizeTs = ts; }
+}
+
+// ── Resplandor ("flash") en los valores al cambiar, estilo broker ──
+let displayedValues = {};
+
+function flashValue(el, direction){
+  if(!el || !direction) return;
+  const glow = {
+    up:      { color:'rgba(46,224,163,.65)', bg:'rgba(46,224,163,.18)' },
+    down:    { color:'rgba(255,84,112,.65)', bg:'rgba(255,84,112,.18)' },
+    neutral: { color:'rgba(255,255,255,.4)', bg:'rgba(255,255,255,.10)' },
+  }[direction];
+  el.style.setProperty('--glow-color', glow.color);
+  el.style.setProperty('--glow-bg', glow.bg);
+  el.classList.remove('value-flash');
+  void el.offsetWidth; // fuerza reflow para reiniciar la animación
+  el.classList.add('value-flash');
+}
+
+function setNumericText(id, newVal, decimals=4, formatter=null){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const prev = displayedValues[id];
+  const text = isNaN(newVal) ? 'N/A' : (formatter ? formatter(newVal) : newVal.toFixed(decimals));
+  el.innerText = text;
+  if(prev !== undefined && !isNaN(newVal) && !isNaN(prev) && newVal !== prev){
+    flashValue(el, newVal > prev ? 'up' : 'down');
+  }
+  if(!isNaN(newVal)) displayedValues[id] = newVal;
+}
+
+// ── Aviso sonoro por señal (entrada/salida) ──
+let soundArmed = { entry:false, exit:false };
+let alarmInterval = { entry:null, exit:null };
+const ALARM_LOOP_MS = 1300;
+let sharedAudioCtx = null;
+
+function getAudioCtx(){
+  if(!sharedAudioCtx){
+    sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if(sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
+  return sharedAudioCtx;
+}
+
+function beep(freq, delay, duration){
+  const ac = getAudioCtx();
+  const start = ac.currentTime + delay;
+  const o = ac.createOscillator();
+  const g = ac.createGain();
+  o.type = 'sine';
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, start);
+  g.gain.exponentialRampToValueAtTime(0.35, start + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  o.connect(g); g.connect(ac.destination);
+  o.start(start);
+  o.stop(start + duration + 0.05);
+}
+
+function playAlertSound(kind){
+  if(kind === 'entry'){
+    beep(740, 0,   0.28);
+    beep(1180, 0.16, 0.32);
+  } else {
+    beep(1180, 0,   0.28);
+    beep(740, 0.16, 0.32);
+  }
+}
+
+function startAlarmLoop(kind){
+  if(alarmInterval[kind]) return;
+  playAlertSound(kind);
+  alarmInterval[kind] = setInterval(() => playAlertSound(kind), ALARM_LOOP_MS);
+  updateSoundButtons();
+}
+
+function stopAlarmLoop(kind){
+  if(alarmInterval[kind]){
+    clearInterval(alarmInterval[kind]);
+    alarmInterval[kind] = null;
+  }
+  updateSoundButtons();
+}
+
+function toggleSound(which){
+  soundArmed[which] = !soundArmed[which];
+  if(soundArmed[which]){
+    getAudioCtx();
+  } else {
+    stopAlarmLoop(which);
+  }
+  updateSoundButtons();
+}
+
+function updateSoundButtons(){
+  const entryBtn = document.getElementById('entry-sound-btn');
+  const exitBtn = document.getElementById('exit-sound-btn');
+  entryBtn.classList.toggle('active', soundArmed.entry);
+  entryBtn.classList.toggle('alerting', !!alarmInterval.entry);
+  exitBtn.classList.toggle('active', soundArmed.exit);
+  exitBtn.classList.toggle('alerting', !!alarmInterval.exit);
+}
+
+function triggerSignalSound(which, isHit){
+  if(!soundArmed[which]) return;
+  if(isHit){
+    startAlarmLoop(which);
+  } else {
+    stopAlarmLoop(which);
+  }
+}
+
+// ── FÓRMULAS DE SPREAD ──
+// Entrada: valor recibido si entras AHORA (comprando NCSM al ask y
+// shorteando WFRD al bid) y mantienes hasta el cierre del deal:
+//   (ratio × bid de WFRD) / ask de NCSM − 1
+function grossEntrySpread(tAsk, aBid){
+  if(isNaN(tAsk) || tAsk<=0 || isNaN(aBid)) return NaN;
+  return (RATIO*aBid)/tAsk - 1;
+}
+// Salida: spread restante si deshaces AHORA (vendiendo NCSM al bid y
+// recomprando WFRD al ask).
+function grossExitSpread(tBid, aAsk){
+  if(isNaN(tBid) || tBid<=0 || isNaN(aAsk)) return NaN;
+  return (RATIO*aAsk)/tBid - 1;
+}
+
+function updateExchangeExplainer(){
+  document.getElementById('ex-ratio').innerText = RATIO.toFixed(3);
+
+  const {aBid, tAsk} = priceCache;
+  if(isNaN(aBid) || isNaN(tAsk) || tAsk<=0){
+    ['ex-abid','ex-equiv','ex-task'].forEach(id => document.getElementById(id).innerText = '–');
+    document.getElementById('ex-net-result').innerText = '–';
+    document.getElementById('ex-comm-amt').innerText = '–';
+  } else {
+    setNumericText('ex-abid', aBid, 4, v => '$' + v.toFixed(4));
+    setNumericText('ex-equiv', RATIO*aBid, 4, v => '$' + v.toFixed(4));
+    setNumericText('ex-task', tAsk, 4, v => '$' + v.toFixed(4));
+  }
+
+  // Comisiones: misma base que la orden y las tarjetas de spread
+  // (computeOrderBasis), para que este "spread neto" coincida siempre,
+  // al céntimo, con el % de la tarjeta "Spread de entrada".
+  const basis = computeOrderBasis();
+  const spread = grossEntrySpread(tAsk, aBid);
+  const netResEl = document.getElementById('ex-net-result');
+  const commAmtEl = document.getElementById('ex-comm-amt');
+
+  if(basis && !isNaN(spread)){
+    const grossProfit = spread * basis.capitalUsado;
+    const netProfit = grossProfit - basis.commOpen;
+    const netPct = basis.outlay>0 ? netProfit/basis.outlay : NaN;
+
+    commAmtEl.innerText = fmt(basis.commOpen);
+
+    const prevNet = displayedValues['ex-net-result'];
+    netResEl.innerText = isNaN(netPct) ? '–' : fmtPct(netPct);
+    netResEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+    if(prevNet !== undefined && !isNaN(netPct) && netPct !== prevNet){
+      flashValue(netResEl, netPct>prevNet?'up':'down');
+    }
+    if(!isNaN(netPct)) displayedValues['ex-net-result'] = netPct;
+  } else {
+    netResEl.innerText = '–';
+    commAmtEl.innerText = '–';
+  }
+}
+
+// ── BASE COMÚN PARA COMISIONES: acciones reales + capital + comisión ──
+function computeOrderBasis(){
+  const {aBid, tAsk} = priceCache;
+  if(isNaN(tAsk) || tAsk<=0 || isNaN(aBid)) return null;
+  const targetShares = Math.floor(INVEST / tAsk);
+  const acqShares = Math.round(targetShares * RATIO);
+  const capitalUsado = targetShares * tAsk;
+  const commOpen = commissionForOrder(targetShares, tAsk) + commissionForOrder(acqShares, aBid);
+  const outlay = capitalUsado + commOpen;
+  return { targetShares, acqShares, capitalUsado, commOpen, outlay };
+}
+
+// Equivalente de computeOrderBasis() para CERRAR: mismas acciones que al
+// abrir, pero valoradas a los precios de cierre.
+function computeCloseOrderBasis(){
+  const openBasis = computeOrderBasis();
+  if(!openBasis) return null;
+  const { tBid, aAsk } = priceCache;
+  if(isNaN(tBid) || tBid<=0 || isNaN(aAsk)) return null;
+  const { targetShares, acqShares } = openBasis;
+  const proceeds = targetShares * tBid;
+  const commClose = commissionForOrder(targetShares, tBid) + commissionForOrder(acqShares, aAsk);
+  return { targetShares, acqShares, tBid, aAsk, proceeds, commClose, openBasis };
+}
+
+function paintTirBadge(netPctIn){
+  const tirEl = document.getElementById('in-tir');
+  if(!tirEl) return;
+  const days = daysToMerger();
+  const annPct = annualizedReturn(netPctIn, days);
+  const unreliable = days <= TIR_UNRELIABLE_DAYS;
+  tirEl.classList.toggle('unreliable', unreliable);
+  tirEl.title = unreliable
+    ? `Quedan ${days} día(s) hasta el cierre: anualizar un spread tan corto infla mucho la cifra. Decide con el SPREAD, no con esta TIR.`
+    : 'TIR anualizada si el deal se cierra en la fecha estimada.';
+  if(isNaN(annPct)){
+    tirEl.innerText = 'TIR –';
+    tirEl.style.color = ''; tirEl.style.borderColor = '';
+  } else {
+    tirEl.innerText = `TIR ${annPct>=0?'+':''}${annPct.toFixed(1)}%`;
+    const c = annPct>=0 ? 'var(--green)' : 'var(--red)';
+    tirEl.style.color = c; tirEl.style.borderColor = c;
+  }
+}
+
+function recalc(){
+  const {aBid,aAsk,aLast,tBid,tAsk,tLast} = priceCache;
+
+  const inPct = grossEntrySpread(tAsk, aBid);
+  if(!isNaN(inPct)){
+    const basis = computeOrderBasis();
+    const pEl = document.getElementById('in-pct');
+    const netInEl = document.getElementById('in-usd-net');
+
+    if(basis){
+      const grossProfit = inPct * basis.capitalUsado;
+      const netProfit = grossProfit - basis.commOpen;
+      const netPctIn = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
+
+      const prevIn = displayedValues['in-pct'];
+      const absNetPctIn = Math.abs(netPctIn);
+      pEl.innerText = isNaN(netPctIn) ? 'N/A' : `${absNetPctIn.toFixed(3)} %`;
+      pEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+      if(prevIn !== undefined && !isNaN(netPctIn) && netPctIn !== prevIn) flashValue(pEl, netPctIn>prevIn?'up':'down');
+      if(!isNaN(netPctIn)) displayedValues['in-pct'] = netPctIn;
+
+      setNumericText('in-usd', netProfit, 2, v => fmt(Math.abs(v)));
+      netInEl.innerText = `Comisión de apertura estimada: ≈${fmt(basis.commOpen)}`;
+      netInEl.style.color = '';
+
+      const entryHit = netPctIn >= threshold;
+      const card = document.getElementById('entry-card');
+      card.classList.toggle('entry-hit', entryHit);
+      triggerSignalSound('entry', entryHit);
+
+      paintTirBadge(netPctIn);
+    } else {
+      pEl.innerText = 'N/A';
+      document.getElementById('in-usd').innerText = 'N/A';
+      netInEl.innerText = '–';
+    }
+  }
+  if(!isNaN(tLast) && tLast>0 && !isNaN(aLast)){
+    setNumericText('in-last', (RATIO*aLast)/tLast - 1, 3, fmtPct);
+  }
+
+  const outPct = grossExitSpread(tBid, aAsk);
+  if(!isNaN(outPct)){
+    const basis = computeOrderBasis();
+    const pEl = document.getElementById('out-pct');
+    const netOutEl = document.getElementById('out-usd-net');
+
+    if(basis){
+      const grossProfit = -outPct * basis.capitalUsado;
+      const commClose = commissionForOrder(basis.targetShares, tBid) + commissionForOrder(basis.acqShares, aAsk);
+      const netProfit = grossProfit - commClose;
+      const netPctOut = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
+
+      const prevOut = displayedValues['out-pct'];
+      const absNetPctOut = Math.abs(netPctOut);
+      pEl.innerText = isNaN(netPctOut) ? 'N/A' : `${absNetPctOut.toFixed(3)} %`;
+      pEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+      if(prevOut !== undefined && !isNaN(netPctOut) && netPctOut !== prevOut) flashValue(pEl, netPctOut>prevOut?'up':'down');
+      if(!isNaN(netPctOut)) displayedValues['out-pct'] = netPctOut;
+
+      setNumericText('out-usd', netProfit, 2, v => fmt(Math.abs(v)));
+      netOutEl.innerText = `Comisión de cierre estimada: ≈${fmt(commClose)}`;
+      netOutEl.style.color = '';
+
+      const exitHit = (outPct*100) <= thresholdExit;
+      const exitCard = document.getElementById('exit-card');
+      exitCard.classList.toggle('exit-hit', exitHit);
+      triggerSignalSound('exit', exitHit);
+    } else {
+      pEl.innerText = 'N/A';
+      document.getElementById('out-usd').innerText = 'N/A';
+      netOutEl.innerText = '–';
+    }
+  }
+  if(!isNaN(tLast) && tLast>0 && !isNaN(aLast)){
+    setNumericText('out-last', (RATIO*aLast)/tLast - 1, 3, fmtPct);
+  }
+}
+
+// Aplica color y etiquetas de cada minicard de la orden según el modo.
+// En modo "cerrar" las patas se invierten.
+function applyOrderModeStyle(){
+  const card = document.getElementById('order-card');
+  if(!card) return;
+  const isOpen = orderMode === 'open';
+  card.classList.toggle('mode-open', isOpen);
+  card.classList.toggle('mode-close', !isOpen);
+  document.getElementById('order-title-text').innerText = isOpen ? 'Orden a introducir (abrir)' : 'Orden a introducir (cerrar)';
+
+  const legBuyEl  = document.getElementById('ord-leg-buy');
+  const legSellEl = document.getElementById('ord-leg-sell');
+  const buyLabelEl  = document.getElementById('ord-buy-label');
+  const sellLabelEl = document.getElementById('ord-sell-label');
+
+  if(isOpen){
+    buyLabelEl.innerText  = '🟢 Comprar (largo)';
+    sellLabelEl.innerText = '🔴 Vender (corto)';
+    legBuyEl.classList.remove('leg-sell'); legBuyEl.classList.add('leg-buy');
+    legSellEl.classList.remove('leg-buy'); legSellEl.classList.add('leg-sell');
+  } else {
+    buyLabelEl.innerText  = '🔴 Vender (cerrar largo)';
+    sellLabelEl.innerText = '🟢 Comprar (cerrar corto)';
+    legBuyEl.classList.remove('leg-buy'); legBuyEl.classList.add('leg-sell');
+    legSellEl.classList.remove('leg-sell'); legSellEl.classList.add('leg-buy');
+  }
+
+  document.getElementById('ord-capital-label').innerText = isOpen ? 'Capital realmente usado' : 'Capital liberado al cerrar';
+  document.getElementById('ord-commission-label').innerText = isOpen ? 'Comisiones estimadas (apertura)' : 'Comisiones estimadas (cierre)';
+  document.getElementById('ord-profit-label').innerText = isOpen ? 'Beneficio neto teórico (tras comisiones)' : 'Beneficio neto si cierras ya (tras comisiones)';
+}
+
+function updateOrderTicket(){
+  const buyEl = document.getElementById('ord-buy');
+  const sellEl = document.getElementById('ord-sell');
+  const buyPriceEl = document.getElementById('ord-buy-price');
+  const sellPriceEl = document.getElementById('ord-sell-price');
+  const capEl = document.getElementById('ord-capital');
+  const commEl = document.getElementById('ord-commission');
+  const profitEl = document.getElementById('ord-profit');
+
+  if(orderMode === 'open'){
+    const {aBid, tAsk} = priceCache;
+    const basis = computeOrderBasis();
+    if(!basis){
+      buyEl.innerText = '–'; sellEl.innerText = '–';
+      buyPriceEl.innerText = '–'; sellPriceEl.innerText = '–';
+      capEl.innerText = '–'; commEl.innerText = '–'; profitEl.innerText = '–';
+      syncSharesFromInvest();
+      return;
+    }
+
+    const { targetShares, acqShares, capitalUsado, commOpen, outlay } = basis;
+    const inPct = grossEntrySpread(tAsk, aBid);
+    const grossProfit = inPct * capitalUsado;
+    const netProfit = grossProfit - commOpen;
+    const netPct = outlay>0 ? (netProfit/outlay)*100 : NaN;
+
+    buyEl.innerText = `${targetShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
+    buyPriceEl.innerText = `@ $${tAsk.toFixed(4)} (ask)`;
+    sellEl.innerText = `${acqShares.toLocaleString('en-US')} acc. ${SYMBOL_ACQUIRER}`;
+    sellPriceEl.innerText = `@ $${aBid.toFixed(4)} (bid)`;
+
+    const prevCap = displayedValues['ord-capital'];
+    capEl.innerText = fmt(capitalUsado);
+    if(prevCap !== undefined && capitalUsado !== prevCap) flashValue(capEl, capitalUsado>prevCap?'up':'down');
+    displayedValues['ord-capital'] = capitalUsado;
+
+    setNumericText('ord-commission', commOpen, 2, fmt);
+
+    const prevProfit = displayedValues['ord-profit'];
+    const days = daysToMerger();
+    const annPctOpen = annualizedReturn(netPct, days);
+    const tirTxt = isNaN(annPctOpen) ? '' : ` · TIR ${annPctOpen>=0?'+':''}${annPctOpen.toFixed(1)}%${days<=TIR_UNRELIABLE_DAYS?'⚠':''}`;
+    profitEl.innerText = fmtSigned(netProfit) + (isNaN(netPct) ? '' : ` (${netPct>=0?'+':''}${netPct.toFixed(2)}%${tirTxt})`);
+    profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
+    if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
+    displayedValues['ord-profit'] = netProfit;
+
+  } else {
+    const {tBid, aAsk} = priceCache;
+    const closeBasis = computeCloseOrderBasis();
+    if(!closeBasis){
+      buyEl.innerText = '–'; sellEl.innerText = '–';
+      buyPriceEl.innerText = '–'; sellPriceEl.innerText = '–';
+      capEl.innerText = '–'; commEl.innerText = '–'; profitEl.innerText = '–';
+      syncSharesFromInvest();
+      return;
+    }
+
+    const { targetShares, acqShares, proceeds, commClose, openBasis } = closeBasis;
+    const outPct = grossExitSpread(tBid, aAsk);
+    const grossProfit = -outPct * openBasis.capitalUsado;
+    const netProfit = grossProfit - commClose;
+    const netPct = openBasis.outlay>0 ? (netProfit/openBasis.outlay)*100 : NaN;
+
+    buyEl.innerText = `${targetShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
+    buyPriceEl.innerText = `@ $${tBid.toFixed(4)} (bid)`;
+    sellEl.innerText = `${acqShares.toLocaleString('en-US')} acc. ${SYMBOL_ACQUIRER}`;
+    sellPriceEl.innerText = `@ $${aAsk.toFixed(4)} (ask)`;
+
+    const prevCap = displayedValues['ord-capital'];
+    capEl.innerText = fmt(proceeds);
+    if(prevCap !== undefined && proceeds !== prevCap) flashValue(capEl, proceeds>prevCap?'up':'down');
+    displayedValues['ord-capital'] = proceeds;
+
+    setNumericText('ord-commission', commClose, 2, fmt);
+
+    const prevProfit = displayedValues['ord-profit'];
+    profitEl.innerText = fmtSigned(netProfit) + (isNaN(netPct) ? '' : ` (${netPct>=0?'+':''}${netPct.toFixed(2)}%)`);
+    profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
+    if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
+    displayedValues['ord-profit'] = netProfit;
+  }
+
+  syncSharesFromInvest();
+}
+
+// ── ENTRADAS DE ACCIONES POR PATA ──
+function syncSharesFromInvest(){
+  const tInput = document.getElementById('shares-t-input');
+  const aInput = document.getElementById('shares-a-input');
+  if(!tInput || !aInput) return;
+  if(document.activeElement === tInput || document.activeElement === aInput) return;
+
+  const tAsk = priceCache.tAsk;
+  if(isNaN(tAsk) || tAsk<=0){
+    tInput.value = '';
+    aInput.value = '';
+    return;
+  }
+  const targetShares = Math.floor(INVEST / tAsk);
+  tInput.value = targetShares;
+  aInput.value = Math.round(targetShares * RATIO);
+}
+
+function onSharesTInput(){
+  const tAsk = priceCache.tAsk;
+  if(isNaN(tAsk) || tAsk<=0) return;
+  let qtyT = parseFloat(document.getElementById('shares-t-input').value);
+  if(isNaN(qtyT) || qtyT<0) qtyT = 0;
+
+  document.getElementById('shares-a-input').value = Math.round(qtyT * RATIO);
+
+  INVEST = qtyT * tAsk;
+  document.getElementById('invest-input').value = Math.round(INVEST);
+  document.getElementById('invest-slider').value = investToSlider(INVEST);
+
+  recalc();
+  updateOrderTicket();
+  updatePositionCard();
+}
+
+function onSharesAInput(){
+  const tAsk = priceCache.tAsk;
+  if(isNaN(tAsk) || tAsk<=0) return;
+  let qtyA = parseFloat(document.getElementById('shares-a-input').value);
+  if(isNaN(qtyA) || qtyA<0) qtyA = 0;
+
+  const qtyT = Math.round(qtyA / RATIO);
+  document.getElementById('shares-t-input').value = qtyT;
+
+  INVEST = qtyT * tAsk;
+  document.getElementById('invest-input').value = Math.round(INVEST);
+  document.getElementById('invest-slider').value = investToSlider(INVEST);
+
+  recalc();
+  updateOrderTicket();
+  updatePositionCard();
+}
+
+// ── LIQUIDEZ DISPONIBLE según profundidad de bid/ask ──
+// El cuello de botella es el lado (NCSM o WFRD) que, al convertir su
+// tamaño de cotización a "acciones NCSM equivalentes" vía el ratio,
+// permite MENOS acciones.
+let liquidityMaxShares = { open: null, close: null };
+
+function updateLiquidityCard(){
+  const openEl = document.getElementById('in-liquidity');
+  const closeEl = document.getElementById('out-liquidity');
+  const openBtn = document.getElementById('in-liquidity-use');
+  const closeBtn = document.getElementById('out-liquidity-use');
+
+  const tAskSize = lastValid[SYMBOL_TARGET].askSize;
+  const tBidSize = lastValid[SYMBOL_TARGET].bidSize;
+  const aBidSize = lastValid[SYMBOL_ACQUIRER].bidSize;
+  const aAskSize = lastValid[SYMBOL_ACQUIRER].askSize;
+  const {tAsk, tBid} = priceCache;
+
+  // ── Abrir ──
+  if(!isNaN(tAskSize) && !isNaN(aBidSize) && !isNaN(tAsk) && tAsk>0){
+    const targetEquivFromAcq = aBidSize / RATIO;
+    const maxSharesOpen = Math.floor(Math.min(tAskSize, targetEquivFromAcq));
+    const limitaTarget = tAskSize <= targetEquivFromAcq;
+    const label = `${maxSharesOpen.toLocaleString('en-US')} acc. · limita ${limitaTarget ? SYMBOL_TARGET : SYMBOL_ACQUIRER}`;
+    openEl.innerText = `${fmt(maxSharesOpen * tAsk)} (${label})`;
+    liquidityMaxShares.open = maxSharesOpen;
+    if(openBtn) openBtn.disabled = !(maxSharesOpen>0);
+  } else {
+    openEl.innerText = '–';
+    liquidityMaxShares.open = null;
+    if(openBtn) openBtn.disabled = true;
+  }
+
+  // ── Cerrar ──
+  if(!isNaN(tBidSize) && !isNaN(aAskSize) && !isNaN(tBid) && tBid>0){
+    const targetEquivFromAcqClose = aAskSize / RATIO;
+    const maxSharesClose = Math.floor(Math.min(tBidSize, targetEquivFromAcqClose));
+    const limitaTargetClose = tBidSize <= targetEquivFromAcqClose;
+    const label = `${maxSharesClose.toLocaleString('en-US')} acc. · limita ${limitaTargetClose ? SYMBOL_TARGET : SYMBOL_ACQUIRER}`;
+    closeEl.innerText = `${fmt(maxSharesClose * tBid)} (${label})`;
+    liquidityMaxShares.close = maxSharesClose;
+    if(closeBtn) closeBtn.disabled = !(maxSharesClose>0);
+  } else {
+    closeEl.innerText = '–';
+    liquidityMaxShares.close = null;
+    if(closeBtn) closeBtn.disabled = true;
+  }
+}
+
+function useLiquidity(which){
+  const qty = liquidityMaxShares[which];
+  if(qty===null || qty===undefined || qty<=0) return;
+  const tInput = document.getElementById('shares-t-input');
+  if(!tInput) return;
+  orderMode = which;
+  applyOrderModeStyle();
+  tInput.value = qty;
+  onSharesTInput();
+}
+
+// ── FRESCURA: "el dato más lejano" ──
+function oldestIso(...isoList){
+  const valid = isoList.filter(Boolean);
+  if(!valid.length) return null;
+  return valid.reduce((oldest, cur) => new Date(cur) < new Date(oldest) ? cur : oldest);
+}
+function paintFreshLine(id, iso){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const fr = tiempoDesde(iso);
+  el.innerText = fr.texto;
+  el.classList.toggle('stale', fr.stale);
+}
+
+function updateSpreadFreshness(){
+  const t = lastValid[SYMBOL_TARGET];
+  const a = lastValid[SYMBOL_ACQUIRER];
+  paintFreshLine('in-fresh', oldestIso(t.askTs, a.bidTs));
+  paintFreshLine('out-fresh', oldestIso(t.bidTs, a.askTs));
+}
+
+function paintLastUpdateLabel(){
+  const el = document.getElementById('last-update-label');
+  if(!el) return;
+  const t = lastValid[SYMBOL_TARGET];
+  const a = lastValid[SYMBOL_ACQUIRER];
+  const oldest = oldestIso(t.bidTs, t.askTs, a.bidTs, a.askTs);
+  if(!oldest){ el.innerText = 'Sin datos'; el.classList.remove('stale-label'); return; }
+  const fr = tiempoDesde(oldest);
+  el.innerText = fr.texto;
+  el.classList.toggle('stale-label', fr.stale);
+}
+setInterval(paintLastUpdateLabel, 1000);
+setInterval(updateElectionDeadlineLabel, 1000);
+setInterval(updateMergerDaysLabel, 60000);
+
+// ── MODAL: simulador de posición ──
+function openPositionModal(){
+  document.getElementById('pos-modal-overlay').classList.add('active');
+}
+function closePositionModal(){
+  document.getElementById('pos-modal-overlay').classList.remove('active');
+}
+function closePositionModalOnOverlay(e){
+  if(e.target.id === 'pos-modal-overlay') closePositionModal();
+}
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape') closePositionModal();
+});
+
+// ── SIMULADOR DE POSICIÓN ABIERTA ──
+function posNum(id){
+  const v = parseFloat(document.getElementById(id).value);
+  return isNaN(v) ? 0 : v;
+}
+
+function fillPosPrice(id, key){
+  const v = priceCache ? priceCache[key] : undefined;
+  if(v===undefined || v===null || isNaN(v)) return;
+  document.getElementById(id).value = v.toFixed(4);
+  updatePositionCard();
+}
+
+function updatePositionCard(){
+  const qtyT   = posNum('pos-t-qty');
+  const entryT = posNum('pos-t-entry');
+  const exitT  = posNum('pos-t-exit');
+  const qtyA   = posNum('pos-a-qty');
+  const entryA = posNum('pos-a-entry');
+  const exitA  = posNum('pos-a-exit');
+
+  const capitalEl = document.getElementById('pos-capital');
+  const alertEl = document.getElementById('pos-ratio-alert');
+  const mergerCommEl = document.getElementById('pos-merger-comm');
+  const mergerPnlEl = document.getElementById('pos-merger-pnl');
+  const nowCommEl = document.getElementById('pos-now-comm');
+  const nowGrossEl = document.getElementById('pos-now-gross');
+  const nowPnlEl = document.getElementById('pos-now-pnl');
+  const beTEl = document.getElementById('pos-be-t');
+  const beAEl = document.getElementById('pos-be-a');
+  const spreadEntryEl = document.getElementById('pos-spread-entry');
+  const spreadExitEl = document.getElementById('pos-spread-exit');
+
+  const hasPosition = qtyT>0 && entryT>0 && qtyA>0 && entryA>0;
+  if(!hasPosition){
+    capitalEl.innerText = '–';
+    if(alertEl) alertEl.style.display = 'none';
+    mergerCommEl.innerText = '–';
+    mergerPnlEl.innerText = '–'; mergerPnlEl.style.color = '';
+    nowCommEl.innerText = '–';
+    nowGrossEl.innerText = '–';
+    nowPnlEl.innerText = '–'; nowPnlEl.style.color = '';
+    beTEl.innerText = '–';
+    beAEl.innerText = '–';
+    spreadEntryEl.innerText = '–';
+    spreadExitEl.innerText = '–';
+    return;
+  }
+
+  // Capital empleado: coste de la pata larga + valor nominal del corto.
+  const capital = qtyT*entryT + qtyA*entryA;
+  setNumericText('pos-capital', capital, 2, fmt);
+
+  // ── Alerta de ratio ──
+  if(alertEl){
+    const idealTargetShares = qtyA / RATIO;
+    const diffTarget = idealTargetShares - qtyT;
+    const diffRounded = Math.round(Math.abs(diffTarget));
+    if(diffRounded >= 1){
+      alertEl.style.display = 'flex';
+      if(diffTarget > 0){
+        alertEl.innerHTML = `⚠️ <span>El ratio de tu posición no coincide con el oficial: te faltan <b>≈${diffRounded.toLocaleString('en-US')} acciones ${SYMBOL_TARGET}</b> para cubrir tu corto de ${qtyA.toLocaleString('en-US')} ${SYMBOL_ACQUIRER}. Tendrías que comprar esa cantidad de más.</span>`;
+      } else {
+        alertEl.innerHTML = `⚠️ <span>El ratio de tu posición no coincide con el oficial: tienes <b>≈${diffRounded.toLocaleString('en-US')} acciones ${SYMBOL_TARGET} de más</b> para tu corto de ${qtyA.toLocaleString('en-US')} ${SYMBOL_ACQUIRER}.</span>`;
+      }
+    } else {
+      alertEl.style.display = 'none';
+    }
+  }
+
+  // ══ ESCENARIO 1: se cierra el deal ══
+  // Canje automático al ratio oficial, sin comisiones de cierre.
+  const spreadEntry = entryT>0 ? (RATIO*entryA)/entryT - 1 : NaN;
+  setNumericText('pos-spread-entry', spreadEntry, 3, fmtPct);
+
+  const commMerger = commissionForOrder(qtyT, entryT) + commissionForOrder(qtyA, entryA);
+  const grossMerger = qtyA*entryA - qtyT*entryT;
+  const netMerger = grossMerger - commMerger;
+  const pctMerger = capital>0 ? (netMerger/capital)*100 : NaN;
+
+  setNumericText('pos-merger-comm', commMerger, 2, fmt);
+  const prevMerger = displayedValues['pos-merger-pnl'];
+  mergerPnlEl.innerText = fmt(netMerger) + (isNaN(pctMerger) ? '' : ` (${pctMerger>=0?'+':''}${pctMerger.toFixed(2)}%)`);
+  mergerPnlEl.style.color = netMerger>=0 ? 'var(--green)' : 'var(--red)';
+  if(prevMerger !== undefined && netMerger !== prevMerger) flashValue(mergerPnlEl, netMerger>prevMerger?'up':'down');
+  displayedValues['pos-merger-pnl'] = netMerger;
+
+  // ══ ESCENARIO 2: cierras ahora, a los precios objetivo introducidos ══
+  const spreadExit = exitT>0 ? (RATIO*exitA)/exitT - 1 : NaN;
+  setNumericText('pos-spread-exit', spreadExit, 3, fmtPct);
+
+  const pnlGross = qtyT*(exitT - entryT) + qtyA*(entryA - exitA);
+  const totalComm = commissionForOrder(qtyT, entryT) + commissionForOrder(qtyT, exitT)
+                  + commissionForOrder(qtyA, entryA) + commissionForOrder(qtyA, exitA);
+  const pnl = pnlGross - totalComm;
+  const pnlPct = capital>0 ? (pnl/capital)*100 : NaN;
+
+  setNumericText('pos-now-comm', totalComm, 2, fmt);
+  setNumericText('pos-now-gross', pnlGross, 2, fmt);
+
+  const prevPnl = displayedValues['pos-now-pnl'];
+  nowPnlEl.innerText = fmt(pnl) + (isNaN(pnlPct) ? '' : ` (${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%)`);
+  nowPnlEl.style.color = pnl>=0 ? 'var(--green)' : 'var(--red)';
+  if(prevPnl !== undefined && pnl !== prevPnl) flashValue(nowPnlEl, pnl>prevPnl?'up':'down');
+  displayedValues['pos-now-pnl'] = pnl;
+
+  // Breakeven de cada pata: precio al que el beneficio NETO queda en 0,
+  // manteniendo fijo el precio objetivo de la otra pata.
+  if(qtyT>0){
+    const beT = entryT + (qtyA/qtyT)*(exitA - entryA) + totalComm/qtyT;
+    setNumericText('pos-be-t', beT, 4, v => '$'+v.toFixed(4));
+  } else {
+    beTEl.innerText = '–';
+  }
+
+  if(qtyA>0){
+    const beA = entryA + (qtyT/qtyA)*(exitT - entryT) - totalComm/qtyA;
+    setNumericText('pos-be-a', beA, 4, v => '$'+v.toFixed(4));
+  } else {
+    beAEl.innerText = '–';
+  }
+}
+
+['pos-t-qty','pos-t-entry','pos-t-exit','pos-a-qty','pos-a-entry','pos-a-exit'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', updatePositionCard);
+});
+
+// ── Handlers del control de capital simulado ──
+function onInvestSlider(){
+  const s = parseInt(document.getElementById('invest-slider').value, 10);
+  INVEST = sliderToInvest(s);
+  document.getElementById('invest-input').value = INVEST;
+  recalc();
+  updateOrderTicket();
+}
+function onInvestInput(){
+  let v = parseFloat(document.getElementById('invest-input').value);
+  if(isNaN(v) || v < 0) v = 0;
+  INVEST = v;
+  document.getElementById('invest-slider').value = investToSlider(v);
+  recalc();
+  updateOrderTicket();
+}
+document.getElementById('invest-slider').addEventListener('input', onInvestSlider);
+document.getElementById('invest-input').addEventListener('input', onInvestInput);
+document.getElementById('shares-t-input').addEventListener('input', onSharesTInput);
+document.getElementById('shares-a-input').addEventListener('input', onSharesAInput);
+
+// Umbrales: se leen con decimales (este deal se mueve en décimas de %,
+// así que redondear a entero, como hacían monitores anteriores, dejaría
+// el umbral inservible).
+document.getElementById('threshold-input').addEventListener('input', (e)=>{
+  const v = parseFloat(e.target.value);
+  threshold = isNaN(v) ? 0 : v;
+  recalc();
+  drawChart();
+});
+document.getElementById('threshold-exit-input').addEventListener('input', (e)=>{
+  const v = parseFloat(e.target.value);
+  thresholdExit = isNaN(v) ? 0 : v;
+  recalc();
+  drawChart();
+});
+document.getElementById('auto-interval').addEventListener('change', startAuto);
+
+// ── Selector de modelo de comisiones (Tiered / Fixed) ──
+document.getElementById('commission-model').addEventListener('change', (e)=>{
+  commissionModel = e.target.value;
+  document.getElementById('pos-commission-model').value = commissionModel;
+  recalc();
+  updateOrderTicket();
+  updatePositionCard();
+});
+
+document.getElementById('pos-commission-model').addEventListener('change', (e)=>{
+  commissionModel = e.target.value;
+  document.getElementById('commission-model').value = commissionModel;
+  recalc();
+  updateOrderTicket();
+  updatePositionCard();
+});
+
+function startAuto(){
+  clearInterval(autoTimer);
+  const ms = parseInt(document.getElementById('auto-interval').value);
+  if(ms>0) autoTimer = setInterval(updateData, ms);
+}
+
+// ── Selector de rango del gráfico ──
+function parseRangeAttr(str){
+  if(str === 'today') return { type:'today' };
+  const h = str.match(/^(\d+)h$/);
+  if(h) return { type:'hours', value: parseInt(h[1],10) };
+  const d = str.match(/^(\d+)d$/);
+  if(d) return { type:'days', value: parseInt(d[1],10) };
+  return { type:'days', value:1 };
+}
+function rangeTitleText(range){
+  if(range.type === 'today') return 'Evolución del spread (hoy)';
+  if(range.type === 'hours') return `Evolución del spread (última${range.value>1?'s':''} ${range.value} hora${range.value>1?'s':''})`;
+  return `Evolución del spread (últimos ${range.value} día${range.value>1?'s':''})`;
+}
+document.querySelectorAll('#range-tabs button').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    if(btn.classList.contains('active')) return;
+    document.querySelectorAll('#range-tabs button').forEach(b=>{ b.classList.remove('active'); b.disabled=true; });
+    chartRange = parseRangeAttr(btn.dataset.range);
+    btn.classList.add('active');
+    document.getElementById('chart-title').innerText = rangeTitleText(chartRange);
+    await loadHistoricalSpread();
+    drawChart();
+    document.querySelectorAll('#range-tabs button').forEach(b=>{ b.disabled=false; });
+  });
+});
+
+async function fetchLatestQuotes(){
+  const { data, error } = await db
+    .from('latest_quotes_by_symbol')
+    .select('*')
+    .in('symbol', [SYMBOL_TARGET, SYMBOL_ACQUIRER]);
+  if(error) throw error;
+  const bySymbol = {};
+  (data||[]).forEach(r => bySymbol[r.symbol] = r);
+  return bySymbol;
+}
+
+// Trae TODAS las filas del rango pidiendo por páginas (PostgREST limita
+// cada respuesta a ~1000 filas, así que un .limit(20000) se queda corto
+// en silencio). Se pagina con .range() hasta que una página vuelve
+// incompleta.
+async function fetchAllHistoryRows(sinceISO){
+  const PAGE_SIZE = 1000;
+  const MAX_PAGES = 200; // límite de seguridad (200k filas)
+  let allRows = [];
+  let from = 0;
+
+  for(let page=0; page<MAX_PAGES; page++){
+    const { data, error } = await db
+      .from('quotes_history')
+      .select('symbol,bid,ask,ib_timestamp,inserted_at')
+      .in('symbol', [SYMBOL_TARGET, SYMBOL_ACQUIRER])
+      .gte('inserted_at', sinceISO)
+      .order('inserted_at', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if(error) throw error;
+    if(!data || !data.length) break;
+
+    allRows = allRows.concat(data);
+    if(data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return allRows;
+}
+
+function rangeSinceDate(range){
+  if(range.type === 'today'){
+    const d = new Date();
+    d.setHours(0,0,0,0);
+    return d;
+  }
+  if(range.type === 'hours'){
+    return new Date(Date.now() - range.value*60*60*1000);
+  }
+  return new Date(Date.now() - range.value*24*60*60*1000);
+}
+
+async function loadHistoricalSpread(range = chartRange){
+  const sinceISO = rangeSinceDate(range).toISOString();
+
+  let data;
+  try{
+    data = await fetchAllHistoryRows(sinceISO);
+  }catch(e){
+    console.error('Error cargando histórico:', e.message);
+    return;
+  }
+  if(!data || !data.length) return;
+
+  let last = { tBid:null, tAsk:null, aBid:null, aAsk:null };
+  let lastTs = { tBid:null, tAsk:null, aBid:null, aAsk:null };
+  const inPts = [], outPts = [];
+
+  for(const row of data){
+    const rowBid = cleanQuote(row.bid);
+    const rowAsk = cleanQuote(row.ask);
+    const ts = row.ib_timestamp || row.inserted_at;
+
+    if(isNaN(rowBid) && isNaN(rowAsk)) continue;
+
+    if(row.symbol === SYMBOL_TARGET){
+      if(!isNaN(rowBid)){ last.tBid = rowBid; lastTs.tBid = ts; }
+      if(!isNaN(rowAsk)){ last.tAsk = rowAsk; lastTs.tAsk = ts; }
+    } else if(row.symbol === SYMBOL_ACQUIRER){
+      if(!isNaN(rowBid)){ last.aBid = rowBid; lastTs.aBid = ts; }
+      if(!isNaN(rowAsk)){ last.aAsk = rowAsk; lastTs.aAsk = ts; }
+    }
+
+    if(last.tAsk!=null && last.tAsk>0 && last.aBid!=null){
+      const inPct = grossEntrySpread(last.tAsk, last.aBid);
+      if(!isNaN(inPct)) inPts.push({ t: new Date(ts).getTime(), v: inPct*100 });
+    }
+    if(last.tBid!=null && last.tBid>0 && last.aAsk!=null){
+      const outPct = grossExitSpread(last.tBid, last.aAsk);
+      if(!isNaN(outPct)) outPts.push({ t: new Date(ts).getTime(), v: outPct*100 });
+    }
+  }
+
+  if(last.tBid != null){ lastValid[SYMBOL_TARGET].bid = last.tBid; lastValid[SYMBOL_TARGET].bidTs = lastTs.tBid; }
+  if(last.tAsk != null){ lastValid[SYMBOL_TARGET].ask = last.tAsk; lastValid[SYMBOL_TARGET].askTs = lastTs.tAsk; }
+  if(last.aBid != null){ lastValid[SYMBOL_ACQUIRER].bid = last.aBid; lastValid[SYMBOL_ACQUIRER].bidTs = lastTs.aBid; }
+  if(last.aAsk != null){ lastValid[SYMBOL_ACQUIRER].ask = last.aAsk; lastValid[SYMBOL_ACQUIRER].askTs = lastTs.aAsk; }
+
+  const MAX_POINTS = 400;
+  const downsample = pts => {
+    if(pts.length <= MAX_POINTS) return pts;
+    const step = Math.ceil(pts.length / MAX_POINTS);
+    return pts.filter((_,i)=> i % step === 0);
+  };
+  entryPts = downsample(inPts);
+  exitPts  = downsample(outPts);
+}
+
+async function updateData(){
+  const status = document.getElementById('status');
+
+  try{
+    const bySymbol = await fetchLatestQuotes();
+    const target = bySymbol[SYMBOL_TARGET] || {};
+    const acquirer = bySymbol[SYMBOL_ACQUIRER] || {};
+
+    ingestQuote(SYMBOL_TARGET, target);
+    ingestQuote(SYMBOL_ACQUIRER, acquirer);
+
+    const paint = (pfx, symbol, q) => {
+      const store = lastValid[symbol];
+      setNumericText(pfx+'-last', store.last, 4);
+      setNumericText(pfx+'-bid',  store.bid,  4);
+      setNumericText(pfx+'-ask',  store.ask,  4);
+      setNumericText(pfx+'-bidsize', store.bidSize, 0, v => v.toLocaleString('en-US'));
+      setNumericText(pfx+'-asksize', store.askSize, 0, v => v.toLocaleString('en-US'));
+      if(q.primary_exchange) document.getElementById(pfx+'-exch').innerText = q.primary_exchange;
+
+      const stamps = [store.bidTs, store.askTs, store.lastTs, store.bidSizeTs, store.askSizeTs].filter(Boolean).map(t => new Date(t).getTime());
+      const mostRecent = stamps.length ? new Date(Math.max(...stamps)).toISOString() : null;
+      const fr = tiempoDesde(mostRecent);
+      const frEl = document.getElementById(pfx+'-fresh');
+      frEl.innerText = fr.texto;
+      frEl.classList.toggle('stale', fr.stale);
+    };
+    paint('A', SYMBOL_TARGET, target);
+    paint('B', SYMBOL_ACQUIRER, acquirer);
+
+    priceCache = {
+      tBid: lastValid[SYMBOL_TARGET].bid,   tAsk: lastValid[SYMBOL_TARGET].ask,   tLast: lastValid[SYMBOL_TARGET].last,
+      aBid: lastValid[SYMBOL_ACQUIRER].bid, aAsk: lastValid[SYMBOL_ACQUIRER].ask, aLast: lastValid[SYMBOL_ACQUIRER].last,
+    };
+    recalc();
+    updateOrderTicket();
+    updateLiquidityCard();
+    updateExchangeExplainer();
+    updateSpreadFreshness();
+    paintLastUpdateLabel();
+
+    // Punto en vivo en ambas series del gráfico
+    const inPctLive = grossEntrySpread(priceCache.tAsk, priceCache.aBid);
+    if(!isNaN(inPctLive)){
+      entryPts.push({t:Date.now(), v: inPctLive*100});
+      if(entryPts.length>1000) entryPts.shift();
+    }
+    const outPctLive = grossExitSpread(priceCache.tBid, priceCache.aAsk);
+    if(!isNaN(outPctLive)){
+      exitPts.push({t:Date.now(), v: outPctLive*100});
+      if(exitPts.length>1000) exitPts.shift();
+    }
+    drawChart();
+
+    status.innerHTML = `<span class="status-ok">Actualizado</span> · ${new Date().toLocaleTimeString()}`;
+  }catch(e){
+    status.innerText = 'Error al consultar datos: ' + e.message;
+  }
+}
+
+window.onload = async () => {
+  setupCanvas();
+  paintLastUpdateLabel();
+  updateMergerDaysLabel();
+  updateElectionDeadlineLabel();
+  applyOrderModeStyle();
+  document.getElementById('invest-input').value = INVEST;
+  document.getElementById('invest-slider').value = investToSlider(INVEST);
+  updatePositionCard();
+  await loadHistoricalSpread();
+  drawChart();
+  updateSpreadFreshness();
+  paintLastUpdateLabel();
+  await updateData();
+  startAuto();
+};
+window.onresize = () => { setupCanvas(); drawChart(); };
+</script>
+</body>
+</html>
