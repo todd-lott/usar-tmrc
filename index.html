@@ -266,6 +266,30 @@ const SITUATIONS = [
     mergerDate: '2026-09-01', // "on or about", según la nota del 24/08/2026
     detailUrl: 'ncsm-wfrd.html',
   },
+    {
+    // Oferta de canje del propio emisor, no una fusión: Presidio ofrece
+    // 5,5 acciones nuevas de su ordinaria (SQFT) por cada preferente
+    // Serie D (SQFTP). Es "any and all": sin prorrateo ni tope, así que
+    // no hay que modelar un escenario alternativo como en RMAX/REAX.
+    //
+    // OJO con la fecha: el prospecto preliminar del S-4/A (21-ago-2026)
+    // deja la Expiration Date literalmente en blanco porque el registro
+    // aún no era efectivo, y la liquidación se espera cuatro días
+    // hábiles después. mergerDate es una ESTIMACIÓN, así que la columna
+    // TIR de esta fila vale menos que la de las demás: actualízala en
+    // cuanto salga el prospecto definitivo.
+    id: 'sqftp-sqft',
+    type: 'ratio',             // canje de acciones puro
+    targetSymbol: 'SQFTP',
+    targetName: 'Presidio Series D 9,375% (SQFTP)',
+    acquirerSymbol: 'SQFT',
+    acquirerName: 'Canje por Serie A Common (SQFT)',
+    ratio: 5.5,
+    threshold: 15,       // % — spread ancho: descuenta borrow caro y riesgo de que no cierre
+    thresholdExit: 3,
+    mergerDate: '2026-09-30',
+    detailUrl: 'sqftp.html',
+  },
 ];
 
 // Situaciones archivadas: solo un enlace de navegación, sin símbolos
