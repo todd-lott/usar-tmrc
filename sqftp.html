@@ -448,6 +448,8 @@
       </select>
       <span><label>Cierre est.</label><input type="date" id="merger-date-input" value="2026-09-30"></span>
       <span id="merger-days-label" style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim); white-space:nowrap;">–</span>
+      <span title="Tasa anual de préstamo de SQFT para el corto. Métela a mano mirando el borrow de tu bróker (en IBKR: Short Availability / SLB). Es un dato que cambia a diario y que en un valor tan pequeño puede ser enorme."><label>Borrow SQFT</label><input type="number" id="borrow-rate-input" value="0" step="0.5" min="0"></span>
+      <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim);">% anual</span>
       <button class="btn" id="main-btn" onclick="updateData()">Actualizar</button>
       <span id="last-update-label">Sin actualizar</span>
     </div>
@@ -504,7 +506,8 @@
     <div class="order-foot">
       <span><span id="ord-capital-label">Capital realmente usado</span>: <b id="ord-capital">–</b></span>
       <span><span id="ord-commission-label">Comisiones estimadas (apertura)</span>: <b id="ord-commission">–</b></span>
-      <span><span id="ord-profit-label">Beneficio neto teórico (tras comisiones)</span>: <b id="ord-profit">–</b></span>
+      <span><span id="ord-borrow-label">Préstamo SQFT hasta el cierre</span>: <b id="ord-borrow">–</b></span>
+      <span><span id="ord-profit-label">Beneficio neto teórico (tras comisiones y préstamo)</span>: <b id="ord-profit">–</b></span>
     </div>
   </div>
 
@@ -600,14 +603,14 @@
         <div class="ex-lbl">③ Compras SQFTP (ask)</div>
         <div class="ex-val" id="ex-task">–</div>
       </div>
-      <div class="ex-op">−1<div class="ex-op-note">−<br>comisión<br><b id="ex-comm-amt">–</b></div></div>
+      <div class="ex-op">−1<div class="ex-op-note">−<br>comisión<br><b id="ex-comm-amt">–</b><br>− préstamo<br><b id="ex-borrow-amt">–</b></div></div>
       <div class="ex-step ex-result">
-        <div class="ex-lbl">Spread neto (con comisiones)</div>
+        <div class="ex-lbl">Spread neto (comisiones + préstamo)</div>
         <div class="ex-val ex-big" id="ex-net-result">–</div>
       </div>
     </div>
 
-    <div class="explain-note">Es la ganancia (o pérdida) teórica neta de comisiones por cada dólar invertido si el canje se liquidara hoy a estos precios. Coincide con el % que ves en la tarjeta "Spread de entrada" de arriba. No incluye el coste del préstamo de SQFT para el corto, que en un valor tan pequeño puede ser significativo.</div>
+    <div class="explain-note">Es la ganancia (o pérdida) teórica neta por cada dólar invertido si el canje se liquidara en la fecha estimada a estos precios. Coincide con el % que ves en la tarjeta "Spread de entrada" de arriba. El coste de préstamo sale de la tasa que hayas metido a mano arriba, aplicada al valor del corto durante los días que quedan hasta el cierre (base 360, como cobra IBKR). Si la tasa está a 0 este término no resta nada, y en un valor tan pequeño eso es casi seguro irreal.</div>
   </div>
 
   <!-- ── CHART ───────────────────────────────────── -->
@@ -711,11 +714,20 @@
 
       <div class="pos-alert-orange" id="pos-ratio-alert" style="display:none;"></div>
 
+      <div class="pos-field">
+        <label>Días mantenido el corto (para el coste de préstamo)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-days" placeholder="0" min="0" step="1">
+          <button class="pos-mini-btn" onclick="fillPosDaysToMerger()" title="Usar los días que quedan hasta la fecha estimada de cierre">hasta cierre</button>
+        </div>
+      </div>
+
       <div class="pos-scenario">
         <div class="pos-scenario-title">📦 Si se liquida el canje (5,5 SQFT por SQFTP)</div>
         <div class="pos-scenario-sub">Entregas las preferentes y las 5,5 ordinarias que recibes cubren el corto — sin comisiones de cierre.</div>
         <div class="pos-result-row"><span>Spread de entrada (tu posición)</span><b id="pos-spread-entry">–</b></div>
         <div class="pos-result-row"><span>Comisiones (apertura)</span><b id="pos-merger-comm">–</b></div>
+        <div class="pos-result-row"><span>Préstamo SQFT (hasta el cierre)</span><b id="pos-merger-borrow">–</b></div>
         <div class="pos-result-row pos-pnl-row"><span>Beneficio neto</span><b id="pos-merger-pnl">–</b></div>
       </div>
 
@@ -723,11 +735,12 @@
         <div class="pos-scenario-title">💱 Si cierras ahora (a los precios introducidos)</div>
         <div class="pos-result-row"><span>Spread de salida (objetivo)</span><b id="pos-spread-exit">–</b></div>
         <div class="pos-result-row"><span>Comisiones (4 patas)</span><b id="pos-now-comm">–</b></div>
+        <div class="pos-result-row"><span>Préstamo SQFT (días indicados)</span><b id="pos-now-borrow">–</b></div>
         <div class="pos-result-row"><span>Beneficio bruto</span><b id="pos-now-gross">–</b></div>
         <div class="pos-result-row pos-pnl-row"><span>Beneficio neto</span><b id="pos-now-pnl">–</b></div>
         <div class="pos-result-row"><span>Breakeven venta SQFTP ($)</span><b id="pos-be-t">–</b></div>
         <div class="pos-result-row"><span>Breakeven recompra SQFT ($)</span><b id="pos-be-a">–</b></div>
-        <div class="pos-be-note">Precios a los que el beneficio neto (con comisiones) queda en cero. No incluye coste de préstamo del corto.</div>
+        <div class="pos-be-note">Precios a los que el beneficio neto (comisiones + préstamo de los días indicados) queda en cero.</div>
       </div>
     </div>
     </div>
@@ -791,6 +804,33 @@ const COMMISSION_MODELS = {
 };
 let commissionModel = 'tiered'; // por defecto: Tiered
 
+// ── Coste de préstamo del corto (borrow / stock loan) ──
+// SQFT es un microcap con ~1,43M de acciones en circulación: el préstamo
+// para shortearlo puede ser inexistente, o existir a tasas de dos o tres
+// dígitos. No hay forma de sacar ese dato de la cotización, así que se
+// mete A MANO desde el campo "Borrow SQFT" de la barra de arriba,
+// copiando la tasa que te dé tu bróker (en IBKR: Short Availability /
+// SLB, columna de fee rate). Cambia a diario, así que conviene mirarla
+// cada vez que se vaya a operar de verdad.
+//
+// Se deja a 0 por defecto a propósito: inventar una tasa "razonable"
+// sería peor que no ponerla. Mientras esté a 0, la interfaz avisa de
+// que el coste no está contemplado.
+const BORROW_DAY_COUNT = 360; // IBKR liquida los fees de préstamo en base 360
+let borrowRate = parseFloat(document.getElementById('borrow-rate-input').value) || 0;
+
+// Coste de mantener `shares` acciones prestadas a `price` durante `days`
+// días, a la tasa anual `borrowRate`. Se calcula sobre el valor de la
+// pata corta en el momento de abrir; en la realidad el bróker marca a
+// mercado a diario, así que si SQFT cae (que es lo que cabe esperar con
+// la dilución) el coste real será algo menor que este.
+function borrowCost(shares, price, days){
+  if(!shares || shares<=0 || isNaN(price) || price<=0) return 0;
+  if(!borrowRate || borrowRate<=0) return 0;
+  const d = Math.max(days||0, 0);
+  return shares * price * (borrowRate/100) * (d/BORROW_DAY_COUNT);
+}
+
 const STALE_MS = 60000;
 
 // ── Fecha estimada de liquidación del canje ──
@@ -848,8 +888,11 @@ document.getElementById('merger-date-input').addEventListener('change', (e)=>{
   if(!e.target.value) return;
   MERGER_DATE = new Date(e.target.value + 'T00:00:00');
   updateMergerDaysLabel();
+  // La fecha ya no solo mueve la TIR: también los días de préstamo.
   recalc();
   updateOrderTicket();
+  updateExchangeExplainer();
+  updatePositionCard();
 });
 
 // Valor "centinela" que usa la fuente de datos para indicar
@@ -1318,13 +1361,15 @@ function updateExchangeExplainer(){
   const spread = grossEntrySpread(tAsk, aBid);
   const netResEl = document.getElementById('ex-net-result');
   const commAmtEl = document.getElementById('ex-comm-amt');
+  const borrowAmtEl = document.getElementById('ex-borrow-amt');
 
   if(basis && !isNaN(spread)){
     const grossProfit = spread * basis.capitalUsado;
-    const netProfit = grossProfit - basis.commOpen;
+    const netProfit = grossProfit - basis.commOpen - basis.borrowOpen;
     const netPct = basis.outlay>0 ? netProfit/basis.outlay : NaN;
 
     commAmtEl.innerText = fmt(basis.commOpen);
+    borrowAmtEl.innerText = borrowRate>0 ? fmt(basis.borrowOpen) : 'n/c';
 
     const prevNet = displayedValues['ex-net-result'];
     netResEl.innerText = isNaN(netPct) ? '–' : fmtPct(netPct);
@@ -1336,6 +1381,7 @@ function updateExchangeExplainer(){
   } else {
     netResEl.innerText = '–';
     commAmtEl.innerText = '–';
+    borrowAmtEl.innerText = '–';
   }
 }
 
@@ -1347,8 +1393,13 @@ function computeOrderBasis(){
   const acquirerShares = Math.round(targetShares * RATIO);
   const capitalUsado = targetShares * tAsk;
   const commOpen = commissionForOrder(targetShares, tAsk) + commissionForOrder(acquirerShares, aBid);
+  // Préstamo del corto desde hoy hasta la fecha estimada de liquidación.
+  // Es un coste que se devenga con el tiempo, no un desembolso inicial,
+  // así que resta del beneficio pero NO entra en `outlay` (el capital
+  // sobre el que se calcula el % de rentabilidad).
+  const borrowOpen = borrowCost(acquirerShares, aBid, daysToMerger());
   const outlay = capitalUsado + commOpen;
-  return { targetShares, acquirerShares, capitalUsado, commOpen, outlay };
+  return { targetShares, acquirerShares, capitalUsado, commOpen, borrowOpen, outlay };
 }
 
 // Equivalente de computeOrderBasis() para CERRAR: mismas acciones que al
@@ -1375,7 +1426,7 @@ function recalc(){
 
     if(basis){
       const grossProfit = inPct * basis.capitalUsado;
-      const netProfit = grossProfit - basis.commOpen;
+      const netProfit = grossProfit - basis.commOpen - basis.borrowOpen;
       const netPctIn = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
 
       const prevIn = displayedValues['in-pct'];
@@ -1386,8 +1437,15 @@ function recalc(){
       if(!isNaN(netPctIn)) displayedValues['in-pct'] = netPctIn;
 
       setNumericText('in-usd', netProfit, 2, v => fmt(Math.abs(v)));
-      netInEl.innerText = `Comisión de apertura estimada: ≈${fmt(basis.commOpen)}`;
-      netInEl.style.color = '';
+      if(borrowRate > 0){
+        netInEl.innerText = `Comisión ≈${fmt(basis.commOpen)} · Préstamo SQFT ≈${fmt(basis.borrowOpen)} (${borrowRate}% × ${daysToMerger()} d)`;
+        netInEl.style.color = '';
+      } else {
+        // Sin tasa de préstamo el número de arriba está inflado: en un
+        // valor como SQFT el borrow puede ser la mitad del spread.
+        netInEl.innerText = `Comisión ≈${fmt(basis.commOpen)} · ⚠️ préstamo de SQFT NO incluido (borrow a 0%)`;
+        netInEl.style.color = 'var(--amber)';
+      }
 
       const entryHit = netPctIn >= threshold;
       const card = document.getElementById('entry-card');
@@ -1484,7 +1542,8 @@ function applyOrderModeStyle(){
 
   document.getElementById('ord-capital-label').innerText = isOpen ? 'Capital realmente usado' : 'Capital liberado al cerrar';
   document.getElementById('ord-commission-label').innerText = isOpen ? 'Comisiones estimadas (apertura)' : 'Comisiones estimadas (cierre)';
-  document.getElementById('ord-profit-label').innerText = isOpen ? 'Beneficio neto teórico (tras comisiones)' : 'Beneficio neto si cierras ya (tras comisiones)';
+  document.getElementById('ord-borrow-label').innerText = isOpen ? 'Préstamo SQFT hasta el cierre' : 'Préstamo SQFT ya devengado';
+  document.getElementById('ord-profit-label').innerText = isOpen ? 'Beneficio neto teórico (tras comisiones y préstamo)' : 'Beneficio neto si cierras ya (tras comisiones)';
 }
 
 function updateOrderTicket(){
@@ -1503,14 +1562,15 @@ function updateOrderTicket(){
       buyEl.innerText = '–'; sellEl.innerText = '–';
       buyPriceEl.innerText = '–'; sellPriceEl.innerText = '–';
       capEl.innerText = '–'; commEl.innerText = '–'; profitEl.innerText = '–';
+      document.getElementById('ord-borrow').innerText = '–';
       syncSharesFromInvest();
       return;
     }
 
-    const { targetShares, acquirerShares, capitalUsado, commOpen, outlay } = basis;
+    const { targetShares, acquirerShares, capitalUsado, commOpen, borrowOpen, outlay } = basis;
     const inPct = grossEntrySpread(tAsk, aBid);
     const grossProfit = inPct * capitalUsado;
-    const netProfit = grossProfit - commOpen;
+    const netProfit = grossProfit - commOpen - borrowOpen;
     const netPct = outlay>0 ? (netProfit/outlay)*100 : NaN;
 
     buyEl.innerText = `${targetShares.toLocaleString('en-US')} acc. ${SYMBOL_TARGET}`;
@@ -1524,6 +1584,15 @@ function updateOrderTicket(){
     displayedValues['ord-capital'] = capitalUsado;
 
     setNumericText('ord-commission', commOpen, 2, fmt);
+    const borrowElOpen = document.getElementById('ord-borrow');
+    if(borrowRate > 0){
+      setNumericText('ord-borrow', borrowOpen, 2, fmt);
+      borrowElOpen.style.color = '';
+    } else {
+      borrowElOpen.innerText = 'no configurado';
+      borrowElOpen.style.color = 'var(--amber)';
+      delete displayedValues['ord-borrow'];
+    }
 
     const prevProfit = displayedValues['ord-profit'];
     const annPctOpen = annualizedReturn(netPct, daysToMerger());
@@ -1540,6 +1609,7 @@ function updateOrderTicket(){
       buyEl.innerText = '–'; sellEl.innerText = '–';
       buyPriceEl.innerText = '–'; sellPriceEl.innerText = '–';
       capEl.innerText = '–'; commEl.innerText = '–'; profitEl.innerText = '–';
+      document.getElementById('ord-borrow').innerText = '–';
       syncSharesFromInvest();
       return;
     }
@@ -1561,6 +1631,13 @@ function updateOrderTicket(){
     displayedValues['ord-capital'] = proceeds;
 
     setNumericText('ord-commission', commClose, 2, fmt);
+    // Al cerrar, el préstamo ya devengado depende de cuántos días hayas
+    // tenido el corto abierto, que esta tarjeta no sabe. Ese cálculo
+    // vive en el simulador de posición, donde sí se indican los días.
+    const borrowElClose = document.getElementById('ord-borrow');
+    borrowElClose.innerText = 'ver simulador';
+    borrowElClose.style.color = 'var(--ink-dim)';
+    delete displayedValues['ord-borrow'];
 
     const prevProfit = displayedValues['ord-profit'];
     profitEl.innerText = fmtSigned(netProfit) + (isNaN(netPct) ? '' : ` (${netPct>=0?'+':''}${netPct.toFixed(2)}%)`);
@@ -1776,8 +1853,10 @@ function updatePositionCard(){
     capitalEl.innerText = '–';
     if(alertEl) alertEl.style.display = 'none';
     mergerCommEl.innerText = '–';
+    document.getElementById('pos-merger-borrow').innerText = '–';
     mergerPnlEl.innerText = '–'; mergerPnlEl.style.color = '';
     nowCommEl.innerText = '–';
+    document.getElementById('pos-now-borrow').innerText = '–';
     nowGrossEl.innerText = '–';
     nowPnlEl.innerText = '–'; nowPnlEl.style.color = '';
     beTEl.innerText = '–';
@@ -1815,11 +1894,21 @@ function updatePositionCard(){
   setNumericText('pos-spread-entry', spreadEntry, 3, fmtPct);
 
   const commMerger = commissionForOrder(qtyT, entryT) + commissionForOrder(qtyA, entryA);
+  const borrowMerger = borrowCost(qtyA, entryA, daysToMerger());
   const grossMerger = qtyA*entryA - qtyT*entryT;
-  const netMerger = grossMerger - commMerger;
+  const netMerger = grossMerger - commMerger - borrowMerger;
   const pctMerger = capital>0 ? (netMerger/capital)*100 : NaN;
 
   setNumericText('pos-merger-comm', commMerger, 2, fmt);
+  const mergerBorrowEl = document.getElementById('pos-merger-borrow');
+  if(borrowRate > 0){
+    setNumericText('pos-merger-borrow', borrowMerger, 2, fmt);
+    mergerBorrowEl.style.color = '';
+  } else {
+    mergerBorrowEl.innerText = 'no configurado';
+    mergerBorrowEl.style.color = 'var(--amber)';
+    delete displayedValues['pos-merger-borrow'];
+  }
   const prevMerger = displayedValues['pos-merger-pnl'];
   mergerPnlEl.innerText = fmt(netMerger) + (isNaN(pctMerger) ? '' : ` (${pctMerger>=0?'+':''}${pctMerger.toFixed(2)}%)`);
   mergerPnlEl.style.color = netMerger>=0 ? 'var(--green)' : 'var(--red)';
@@ -1833,10 +1922,26 @@ function updatePositionCard(){
   const pnlGross = qtyT*(exitT - entryT) + qtyA*(entryA - exitA);
   const totalComm = commissionForOrder(qtyT, entryT) + commissionForOrder(qtyT, exitT)
                   + commissionForOrder(qtyA, entryA) + commissionForOrder(qtyA, exitA);
-  const pnl = pnlGross - totalComm;
+  // Días que has tenido (o vas a tener) el corto abierto. Si el campo
+  // está vacío se asume el horizonte hasta la fecha estimada de cierre.
+  const heldDaysRaw = posNum('pos-days');
+  const heldDays = heldDaysRaw > 0 ? heldDaysRaw : daysToMerger();
+  const borrowNow = borrowCost(qtyA, entryA, heldDays);
+  // El préstamo es un coste más, igual que las comisiones: entra en el
+  // neto y, por tanto, también desplaza los dos breakeven.
+  const totalCost = totalComm + borrowNow;
+  const pnl = pnlGross - totalCost;
   const pnlPct = capital>0 ? (pnl/capital)*100 : NaN;
 
   setNumericText('pos-now-comm', totalComm, 2, fmt);
+  const nowBorrowEl = document.getElementById('pos-now-borrow');
+  if(borrowRate > 0){
+    nowBorrowEl.innerText = `${fmt(borrowNow)} (${borrowRate}% × ${Math.round(heldDays)} d)`;
+    nowBorrowEl.style.color = '';
+  } else {
+    nowBorrowEl.innerText = 'no configurado';
+    nowBorrowEl.style.color = 'var(--amber)';
+  }
   setNumericText('pos-now-gross', pnlGross, 2, fmt);
 
   const prevPnl = displayedValues['pos-now-pnl'];
@@ -1849,22 +1954,39 @@ function updatePositionCard(){
   // el precio objetivo de recompra del corto, el beneficio NETO (tras
   // comisiones) es 0. Y viceversa para la pata corta.
   if(qtyT>0){
-    const beT = entryT + (qtyA/qtyT)*(exitA - entryA) + totalComm/qtyT;
+    const beT = entryT + (qtyA/qtyT)*(exitA - entryA) + totalCost/qtyT;
     setNumericText('pos-be-t', beT, 4, v => '$'+v.toFixed(4));
   } else {
     beTEl.innerText = '–';
   }
 
   if(qtyA>0){
-    const beA = entryA + (qtyT/qtyA)*(exitT - entryT) - totalComm/qtyA;
+    const beA = entryA + (qtyT/qtyA)*(exitT - entryT) - totalCost/qtyA;
     setNumericText('pos-be-a', beA, 4, v => '$'+v.toFixed(4));
   } else {
     beAEl.innerText = '–';
   }
 }
 
-['pos-t-qty','pos-t-entry','pos-t-exit','pos-a-qty','pos-a-entry','pos-a-exit'].forEach(id=>{
+['pos-t-qty','pos-t-entry','pos-t-exit','pos-a-qty','pos-a-entry','pos-a-exit','pos-days'].forEach(id=>{
   document.getElementById(id).addEventListener('input', updatePositionCard);
+});
+
+// Rellena los días mantenidos con los que quedan hasta la fecha estimada.
+function fillPosDaysToMerger(){
+  document.getElementById('pos-days').value = daysToMerger();
+  updatePositionCard();
+}
+
+// La tasa de préstamo afecta a todo: tarjeta de entrada, ticket de
+// orden, explicador y simulador. Un solo listener los repinta todos.
+document.getElementById('borrow-rate-input').addEventListener('input', (e)=>{
+  const v = parseFloat(e.target.value);
+  borrowRate = (isNaN(v) || v < 0) ? 0 : v;
+  recalc();
+  updateOrderTicket();
+  updateExchangeExplainer();
+  updatePositionCard();
 });
 
 // ── Handlers del control de capital simulado ──
