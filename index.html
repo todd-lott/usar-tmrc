@@ -248,24 +248,6 @@ const SITUATIONS = [
     mergerDate: '2026-12-31', // fecha estimada de cierre (placeholder, sin fecha oficial confirmada)
     detailUrl: 'perf.html',
   },
-  {
-    // Solo se modela la Share Consideration (0,5537 acciones de WFRD por
-    // acción de NCSM): no está sujeta a prorrateo ni ajustes, y es la
-    // opción por defecto para quien no haga una elección válida antes
-    // del Election Deadline (31-ago-2026, 17:00 ET). La alternativa
-    // mixta del acuerdo sí prorratea y por eso queda fuera del board.
-    id: 'ncsm-wfrd',
-    type: 'ratio',             // canje de acciones puro
-    targetSymbol: 'NCSM',
-    targetName: 'NCS Multistage (NCSM)',
-    acquirerSymbol: 'WFRD',
-    acquirerName: 'Weatherford International (WFRD)',
-    ratio: 0.5537,       // valor contractual del S-4; la nota de prensa lo redondea a 0,554
-    threshold: 0.5,
-    thresholdExit: 0.1,
-    mergerDate: '2026-09-01', // "on or about", según la nota del 24/08/2026
-    detailUrl: 'ncsm-wfrd.html',
-  },
     {
     // Oferta de canje del propio emisor, no una fusión: Presidio ofrece
     // 5,5 acciones nuevas de su ordinaria (SQFT) por cada preferente
@@ -342,6 +324,24 @@ const STATIC_SITUATIONS = [
     targetSymbol: 'TMRC',
     acquirerSymbol: 'USAR',
     detailUrl: 'tmrc-usar.html',
+  },
+  {
+    // Solo se modela la Share Consideration (0,5537 acciones de WFRD por
+    // acción de NCSM): no está sujeta a prorrateo ni ajustes, y es la
+    // opción por defecto para quien no haga una elección válida antes
+    // del Election Deadline (31-ago-2026, 17:00 ET). La alternativa
+    // mixta del acuerdo sí prorratea y por eso queda fuera del board.
+    id: 'ncsm-wfrd',
+    type: 'ratio',
+    targetSymbol: 'NCSM',
+    targetName: 'NCS Multistage (NCSM)',
+    acquirerSymbol: 'WFRD',
+    acquirerName: 'Weatherford International (WFRD)',
+    ratio: 0.5537,
+    threshold: 0.5,
+    thresholdExit: 0.1,
+    mergerDate: '2026-09-01',
+    detailUrl: 'ncsm-wfrd.html',
   },
 ];
 
