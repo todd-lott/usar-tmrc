@@ -1,0 +1,2162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor de Spread — Silver47 / Bunker Hill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:       #0b0e14;
+    --bg-grad:  radial-gradient(1100px 500px at 50% -8%, rgba(46,224,163,.07), transparent 60%);
+    --card:     #12161f;
+    --card-hi:  #171c27;
+    --line:     #232a38;
+    --ink:      #e8ecf3;
+    --ink-dim:  #7c8698;
+    --accent:   #2ee0a3;
+    --accent-dim: rgba(46,224,163,.12);
+    --green:    #2ee0a3;
+    --green-bg: rgba(46,224,163,.10);
+    --red:      #ff5470;
+    --red-bg:   rgba(255,84,112,.10);
+    --amber:    #ffb648;
+    --amber-bg: rgba(255,182,72,.10);
+    --font-body:'Inter', sans-serif;
+    --font-mono:'JetBrains Mono', monospace;
+  }
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  ::selection{ background:var(--accent-dim); color:var(--ink); }
+  body{
+    background:var(--bg) var(--bg-grad); color:var(--ink); font-family:var(--font-body);
+    padding:26px 16px 60px; display:flex; flex-direction:column; align-items:center; gap:20px;
+    min-height:100vh;
+  }
+  .wrap{ width:100%; max-width:880px; display:flex; flex-direction:column; gap:20px; }
+
+  .back-link{
+    display:inline-flex; align-items:center; gap:6px; font-size:.8rem; color:var(--ink-dim);
+    text-decoration:none; font-family:var(--font-mono); width:fit-content; padding:4px 0;
+    transition:color .15s;
+  }
+  .back-link:hover{ color:var(--accent); }
+
+  .topbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+  .cfg-row{ display:flex; justify-content:center; flex-wrap:wrap; gap:10px; }
+  .topbar h1{ font-size:1.25rem; font-weight:700; letter-spacing:-.01em; }
+  .topbar h1::before{
+    content:''; display:inline-block; width:8px; height:8px; border-radius:50%;
+    background:var(--accent); margin-right:9px; box-shadow:0 0 0 3px var(--accent-dim), 0 0 10px rgba(46,224,163,.7);
+  }
+  .topbar .sub{ font-size:.8rem; color:var(--ink-dim); margin-top:2px; font-family:var(--font-mono); }
+  .cfg{ display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:8px 12px; flex-wrap:wrap; }
+  .cfg label{ font-size:.68rem; color:var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:.05em; margin-right:5px; }
+  .cfg input, .cfg select{
+    font-family:var(--font-mono); font-size:.85rem; border:1px solid var(--line); border-radius:6px;
+    padding:4px 7px; background:#0c0f16; color:var(--ink); outline:none; width:60px;
+  }
+  .cfg select{ width:auto; cursor:pointer; }
+  .cfg input:focus, .cfg select:focus{ border-color:var(--accent); }
+  #merger-date-input{ width:138px; }
+  .btn{
+    background:var(--accent); color:#08130f; border:none; font-weight:700; font-size:.82rem;
+    padding:8px 16px; border-radius:7px; cursor:pointer; letter-spacing:.01em;
+  }
+  .btn:hover{ opacity:.88; }
+
+  /* ── SELECTOR DE PLAZA DE COMPRA ──────────────── */
+  .plaza-picker{
+    display:flex; gap:8px; background:var(--card); border:1px solid var(--line);
+    border-radius:12px; padding:8px; flex-wrap:wrap;
+  }
+  .plaza-btn{
+    flex:1 1 240px; text-align:left; background:#0c0f16; border:1px solid var(--line);
+    border-radius:9px; padding:11px 14px; cursor:pointer; color:var(--ink);
+    display:flex; flex-direction:column; gap:3px; transition:all .18s; font-family:var(--font-body);
+  }
+  .plaza-btn:hover{ border-color:#333c4d; }
+  .plaza-btn.active{ border-color:var(--accent); background:linear-gradient(180deg, var(--accent-dim), #0c0f16); }
+  .plaza-btn .pb-title{ font-weight:700; font-size:.88rem; }
+  .plaza-btn .pb-sub{ font-size:.7rem; color:var(--ink-dim); font-family:var(--font-mono); line-height:1.4; }
+  .plaza-btn.active .pb-title{ color:var(--accent); }
+
+  /* ── SPREAD CARDS ───────────────────────────── */
+  .spread-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .spread-card{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:22px 24px; transition:border-color .25s, background .25s;
+  }
+  .spread-card .card-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .spread-card .tag{ font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-dim); }
+  .sound-btn{
+    flex:0 0 auto; width:30px; height:30px; border-radius:8px; border:1px solid var(--line);
+    background:#0c0f16; color:var(--ink-dim); font-size:.95rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; transition:all .18s; line-height:1;
+  }
+  .sound-btn:hover{ border-color:var(--ink-dim); color:var(--ink); }
+  .sound-btn.active{
+    background:var(--accent-dim); border-color:var(--accent); color:var(--accent);
+    box-shadow:0 0 0 3px rgba(46,224,163,.12);
+  }
+  .sound-btn.alerting{
+    background:var(--amber-bg); border-color:var(--amber); color:var(--amber);
+    animation:soundPulse 1s ease-in-out infinite;
+  }
+  @keyframes soundPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(255,182,72,.45); }
+    50%{ box-shadow:0 0 0 7px rgba(255,182,72,0); }
+  }
+  .spread-card .big{ font-family:var(--font-mono); font-weight:800; font-size:2.6rem; line-height:1.15; margin-top:6px; }
+  .big-row{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-top:6px; }
+  .big-row .big{ margin-top:0; }
+  .tir-badge{
+    display:inline-flex; align-items:center; font-family:var(--font-mono); font-size:.76rem;
+    font-weight:700; padding:3px 10px; border-radius:20px; background:var(--card-hi);
+    border:1px solid var(--line); color:var(--ink-dim); white-space:nowrap;
+  }
+  .spread-card .usd{ font-family:var(--font-mono); font-weight:600; font-size:1rem; margin-top:2px; color:var(--ink-dim); }
+  .spread-card .note{ font-size:.76rem; color:var(--ink-dim); margin-top:10px; }
+  .spread-card .last-ref{ margin-top:12px; padding-top:10px; border-top:1px solid var(--line); font-size:.78rem; color:var(--ink-dim); display:flex; justify-content:space-between; gap:10px; }
+  .spread-card .last-ref span{ flex:0 0 auto; }
+  .spread-card .last-ref b{ font-family:var(--font-mono); color:var(--ink); text-align:right; }
+  .last-ref-value{ display:flex; align-items:center; gap:8px; justify-content:flex-end; flex:1 1 auto; min-width:0; }
+  .liq-use-btn{
+    flex:0 0 auto; font-family:var(--font-mono); font-size:.64rem; font-weight:700;
+    color:var(--accent); background:var(--accent-dim); border:1px solid var(--accent);
+    border-radius:6px; padding:3px 9px; cursor:pointer; white-space:nowrap;
+  }
+  .liq-use-btn:hover{ opacity:.85; }
+  .liq-use-btn:disabled{ opacity:.4; cursor:not-allowed; color:var(--ink-dim); background:transparent; border-color:var(--line); }
+
+  .spread-card.entry-hit{
+    border-color:var(--green); background:linear-gradient(180deg, var(--green-bg), var(--card));
+    box-shadow:0 0 0 1px rgba(46,224,163,.15), 0 8px 28px -12px rgba(46,224,163,.35);
+  }
+  .spread-card.entry-hit .tag{ color:var(--green); }
+  .spread-card.entry-hit::after{
+    content:'✓ ENTRAR — supera umbral'; display:inline-block; margin-top:10px;
+    font-size:.74rem; font-weight:700; color:#08130f; background:var(--green);
+    padding:4px 10px; border-radius:20px;
+  }
+  .spread-card.exit-hit{
+    border-color:var(--amber); background:linear-gradient(180deg, var(--amber-bg), var(--card));
+    box-shadow:0 0 0 1px rgba(255,182,72,.15), 0 8px 28px -12px rgba(255,182,72,.35);
+  }
+  .spread-card.exit-hit .tag{ color:var(--amber); }
+  .spread-card.exit-hit::after{
+    content:'✓ SALIR — supera umbral'; display:inline-block; margin-top:10px;
+    font-size:.74rem; font-weight:700; color:#1a1204; background:var(--amber);
+    padding:4px 10px; border-radius:20px;
+  }
+
+  /* ── TICKERS ─────────────────────────────────── */
+  .tickers{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .tcard{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .tcard .thead{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--line); gap:8px; }
+  .tcard .tname{ font-weight:700; font-size:.92rem; }
+  .tcard .texch{ font-family:var(--font-mono); font-size:.66rem; color:var(--ink-dim); background:#1c2230; padding:2px 6px; border-radius:4px; white-space:nowrap; }
+  .trow{ display:flex; justify-content:space-between; padding:4px 0; font-size:.85rem; gap:10px; }
+  .trow .l{ color:var(--ink-dim); }
+  .trow .v{ font-family:var(--font-mono); font-weight:600; }
+  .tfresh{ margin-top:8px; font-size:.7rem; color:var(--ink-dim); font-family:var(--font-mono); }
+  .tfresh.stale{ color:var(--amber); font-weight:600; }
+  .tcard-note{ margin-top:8px; font-size:.68rem; color:var(--amber); font-family:var(--font-mono); line-height:1.4; }
+  .ir-link{
+    display:inline-flex; align-items:center; gap:4px; margin-top:8px;
+    font-size:.7rem; color:var(--ink-dim); text-decoration:none; font-family:var(--font-mono);
+    transition:color .15s;
+  }
+  .ir-link:hover{ color:var(--accent); }
+
+  /* ── REFERENCIA CRUZADA BNKR / FX ─────────────── */
+  .ref-strip{
+    display:grid; grid-template-columns:1fr 1fr; gap:16px;
+  }
+  .ref-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px; }
+  .ref-card.warn{ border-color:var(--amber); background:linear-gradient(180deg, var(--amber-bg), var(--card)); }
+  .ref-title{ font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-dim); margin-bottom:8px; }
+  .ref-body{ font-size:.82rem; color:var(--ink); }
+  .ref-body b{ font-family:var(--font-mono); }
+  .ref-note{ margin-top:7px; font-size:.7rem; color:var(--ink-dim); line-height:1.45; }
+  .ref-note.alert{ color:var(--amber); font-weight:600; }
+
+  /* ── CHART ───────────────────────────────────── */
+  .chart-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
+  .chart-card .chead{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+  .chart-card h3{ font-size:.85rem; font-weight:600; color:var(--ink-dim); }
+  .chart-legend{ display:flex; gap:14px; font-size:.72rem; color:var(--ink-dim); font-family:var(--font-mono); }
+  .chart-legend span{ display:flex; align-items:center; gap:6px; }
+  .chart-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; }
+  .range-tabs{ display:flex; gap:4px; background:#0c0f16; border:1px solid var(--line); border-radius:7px; padding:3px; flex-wrap:wrap; }
+  .range-tabs button{
+    background:transparent; border:none; color:var(--ink-dim); font-family:var(--font-mono);
+    font-size:.72rem; font-weight:600; padding:4px 9px; border-radius:5px; cursor:pointer;
+  }
+  .range-tabs button.active{ background:var(--accent); color:#08130f; }
+  .range-tabs button:disabled{ opacity:.5; cursor:wait; }
+  .chart-canvas-wrap{ position:relative; }
+  canvas{ width:100%; height:220px; display:block; cursor:crosshair; }
+
+  .chart-tooltip{
+    position:absolute; pointer-events:none; z-index:5;
+    background:#0c0f16; border:1px solid var(--line); border-radius:8px;
+    padding:8px 11px; font-family:var(--font-mono); font-size:.74rem; color:var(--ink);
+    box-shadow:0 8px 20px -6px rgba(0,0,0,.5); white-space:nowrap;
+    opacity:0; transform:translate(-50%,-100%); transition:opacity .08s;
+  }
+  .chart-tooltip.visible{ opacity:1; }
+  .chart-tooltip .ct-time{ color:var(--ink-dim); font-size:.68rem; margin-bottom:4px; }
+  .chart-tooltip .ct-row{ display:flex; align-items:center; gap:6px; }
+  .chart-tooltip .ct-row + .ct-row{ margin-top:2px; }
+  .chart-tooltip .ct-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
+  .chart-tooltip .ct-val{ font-weight:700; }
+
+  /* ── EXPLICADOR ───────────────────────────────── */
+  .explain-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
+  .explain-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
+  .explain-sub{ font-size:.78rem; color:var(--ink-dim); margin-bottom:14px; }
+  .explain-flow{ display:flex; align-items:stretch; gap:8px; flex-wrap:wrap; }
+  .ex-step{
+    background:#0c0f16; border:1px solid var(--line); border-radius:9px; padding:10px 14px;
+    flex:1 1 150px; min-width:140px; display:flex; flex-direction:column; gap:4px; justify-content:center;
+  }
+  .ex-lbl{ font-size:.66rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
+  .ex-val{ font-family:var(--font-mono); font-weight:700; font-size:1.05rem; }
+  .ex-op{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:700; color:var(--ink-dim); font-size:1.15rem;
+    padding:0 2px; min-width:38px; text-align:center;
+  }
+  .ex-op-note{ font-size:.6rem; font-weight:600; color:var(--ink-dim); line-height:1.25; margin-top:2px; }
+  .ex-op-note b{ color:var(--accent); }
+  .ex-step.ex-result{ border-color:var(--accent); background:linear-gradient(180deg, var(--accent-dim), #0c0f16); }
+  .ex-big{ font-size:1.55rem; }
+  .explain-note{ margin-top:14px; font-size:.78rem; color:var(--ink-dim); line-height:1.45; }
+
+  @media(max-width:680px){
+    .explain-flow{ flex-direction:column; }
+    .ex-op{ flex-direction:row; gap:6px; padding:2px 0; }
+    .ex-op-note{ margin-top:0; }
+  }
+
+  /* ── ORDEN ────────────────────────────────────── */
+  .order-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; transition:border-color .25s, background .25s; }
+  .order-card.mode-open{ border-color:var(--green); background:linear-gradient(180deg, var(--green-bg), var(--card)); }
+  .order-card.mode-close{ border-color:var(--amber); background:linear-gradient(180deg, var(--amber-bg), var(--card)); }
+  .order-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .order-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .order-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:9px; padding:12px 14px; display:flex; flex-direction:column; gap:4px; transition:background .25s, border-color .25s; }
+  .order-leg.leg-buy{ background:var(--green-bg); border-color:var(--green); }
+  .order-leg.leg-sell{ background:var(--red-bg); border-color:var(--red); }
+  .ol-lbl{ font-size:.72rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
+  .ol-val{ font-family:var(--font-mono); font-weight:700; font-size:1.15rem; }
+  .ol-price{ font-family:var(--font-mono); font-size:.76rem; color:var(--ink-dim); }
+  .order-foot{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:.82rem; color:var(--ink-dim); }
+  .order-foot b{ font-family:var(--font-mono); color:var(--ink); }
+
+  .comm-switch{ display:flex; align-items:center; gap:6px; }
+  .comm-switch label{ font-size:.66rem; color:var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .comm-switch select{
+    font-family:var(--font-mono); font-size:.78rem; border:1px solid var(--line); border-radius:6px;
+    padding:4px 8px; background:#0c0f16; color:var(--ink); outline:none; cursor:pointer;
+  }
+  .comm-switch select:focus{ border-color:var(--accent); }
+
+  #status{ font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); text-align:center; }
+  .status-ok{ color:var(--green); }
+  #last-update-label{ font-family:var(--font-mono); font-size:.72rem; color:var(--ink-dim); white-space:nowrap; }
+  #last-update-label.stale-label{ color:var(--amber); font-weight:600; }
+  #footer-credit{
+    font-size:.72rem; color:var(--ink-dim); text-align:center; letter-spacing:.02em;
+    margin-top:-6px; padding-top:14px; border-top:1px solid var(--line); width:100%;
+  }
+
+  @media(max-width:680px){ .spread-grid, .tickers, .ref-strip{ grid-template-columns:1fr; } }
+
+  /* ── CAPITAL ─────────────────────────────────── */
+  .invest-box{ display:flex; justify-content:flex-end; align-items:center; gap:14px; flex-wrap:wrap; }
+  .invest-label{ font-size:.78rem; color:var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .invest-slider-wrap{ display:flex; align-items:center; gap:8px; flex:1 1 220px; max-width:280px; min-width:160px; }
+  .invest-slider-wrap span{ font-size:.68rem; color:var(--ink-dim); font-family:var(--font-mono); }
+  #invest-slider{
+    flex:1; -webkit-appearance:none; appearance:none; height:4px; border-radius:3px;
+    background:var(--line); outline:none; cursor:pointer;
+  }
+  #invest-slider::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none; width:15px; height:15px; border-radius:50%;
+    background:var(--accent); cursor:pointer; box-shadow:0 0 0 3px var(--accent-dim);
+  }
+  #invest-slider::-moz-range-thumb{
+    width:15px; height:15px; border-radius:50%; background:var(--accent); border:none;
+    cursor:pointer; box-shadow:0 0 0 3px var(--accent-dim);
+  }
+  .invest-input-wrap{
+    display:flex; align-items:center; gap:4px; background:#0c0f16; border:1px solid var(--line);
+    border-radius:7px; padding:5px 10px;
+  }
+  .invest-input-wrap span{ font-family:var(--font-mono); color:var(--ink-dim); font-size:.85rem; }
+  #invest-input{
+    font-family:var(--font-mono); font-weight:600; font-size:.9rem; color:var(--ink);
+    background:transparent; border:none; outline:none; width:100px; text-align:right;
+    -moz-appearance:textfield; appearance:textfield;
+  }
+  #invest-input::-webkit-outer-spin-button, #invest-input::-webkit-inner-spin-button{
+    -webkit-appearance:none; appearance:none; margin:0;
+  }
+
+  .shares-inputs-wrap{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .shares-input-wrap{
+    display:flex; align-items:center; gap:6px; background:#0c0f16; border:1px solid var(--line);
+    border-radius:7px; padding:5px 10px;
+  }
+  .shares-input-wrap .si-tag{ font-family:var(--font-mono); font-size:.66rem; font-weight:700; letter-spacing:.02em; }
+  .shares-input-wrap.long .si-tag{ color:var(--green); }
+  .shares-input-wrap.short .si-tag{ color:var(--red); }
+  #shares-t-input, #shares-a-input{
+    font-family:var(--font-mono); font-weight:600; font-size:.9rem; color:var(--ink);
+    background:transparent; border:none; outline:none; width:78px; text-align:right;
+    -moz-appearance:textfield; appearance:textfield;
+  }
+  #shares-t-input::-webkit-outer-spin-button, #shares-t-input::-webkit-inner-spin-button,
+  #shares-a-input::-webkit-outer-spin-button, #shares-a-input::-webkit-inner-spin-button{
+    -webkit-appearance:none; appearance:none; margin:0;
+  }
+  .shares-input-wrap:focus-within{ border-color:var(--accent); }
+
+  .value-flash{ border-radius:4px; animation: valueGlow .7s ease-out; }
+  @keyframes valueGlow{
+    0%{ box-shadow:0 0 0 0 var(--glow-color, rgba(255,255,255,.5)); background:var(--glow-bg, rgba(255,255,255,.12)); }
+    100%{ box-shadow:0 0 0 10px rgba(0,0,0,0); background:transparent; }
+  }
+
+  /* ── MODAL POSICIÓN ───────────────────────────── */
+  .pos-fab{
+    position:fixed; right:20px; bottom:20px; z-index:900;
+    background:var(--accent); color:#08130f; border:none; font-weight:700; font-size:.85rem;
+    padding:12px 18px; border-radius:30px; cursor:pointer; letter-spacing:.01em;
+    box-shadow:0 8px 24px -6px rgba(46,224,163,.5), 0 0 0 1px rgba(46,224,163,.25);
+    display:flex; align-items:center; gap:8px;
+  }
+  .pos-fab:hover{ opacity:.92; }
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(6,8,13,.72);
+    backdrop-filter:blur(2px); z-index:1000; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-overlay.active{ display:flex; }
+  .modal-box{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    max-width:440px; width:100%; max-height:88vh; overflow-y:auto; padding:24px 22px;
+    position:relative; box-shadow:0 24px 60px -20px rgba(0,0,0,.6);
+    animation:modalPop .16s ease-out;
+  }
+  @keyframes modalPop{
+    from{ opacity:0; transform:translateY(8px) scale(.98); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+  .modal-close{
+    position:absolute; top:14px; right:14px; width:28px; height:28px; border-radius:8px;
+    border:1px solid var(--line); background:#0c0f16; color:var(--ink-dim); font-size:.95rem;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;
+  }
+  .modal-close:hover{ color:var(--ink); border-color:var(--ink-dim); }
+  .position-card{ display:flex; flex-direction:column; gap:14px; padding-right:6px; }
+  .position-title{ font-size:.85rem; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
+  .pos-leg{ background:#0c0f16; border:1px solid var(--line); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
+  .pos-leg-head{ display:flex; justify-content:space-between; align-items:center; }
+  .pos-leg-name{ font-size:.78rem; font-weight:700; }
+  .pos-leg-name.long{ color:var(--green); }
+  .pos-leg-name.short{ color:var(--red); }
+  .pos-field{ display:flex; flex-direction:column; gap:3px; }
+  .pos-field label{ font-size:.66rem; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.03em; }
+  .pos-field-row{ display:flex; gap:6px; align-items:center; }
+  .pos-field-row input{
+    flex:1; font-family:var(--font-mono); font-size:.85rem; color:var(--ink);
+    background:#0b0e14; border:1px solid var(--line); border-radius:6px; padding:6px 8px; outline:none; width:100%;
+  }
+  .pos-field-row input:focus{ border-color:var(--accent); }
+  .pos-mini-btn{
+    flex:0 0 auto; font-family:var(--font-mono); font-size:.64rem; font-weight:600; color:var(--ink-dim);
+    background:#171c27; border:1px solid var(--line); border-radius:6px; padding:6px 7px; cursor:pointer; white-space:nowrap;
+  }
+  .pos-mini-btn:hover{ color:var(--accent); border-color:var(--accent); }
+  .pos-results{ display:flex; flex-direction:column; gap:8px; padding-top:8px; border-top:1px solid var(--line); }
+  .pos-result-row{ display:flex; justify-content:space-between; align-items:baseline; font-size:.8rem; color:var(--ink-dim); gap:10px; }
+  .pos-result-row b{ font-family:var(--font-mono); color:var(--ink); font-size:.92rem; text-align:right; }
+  .pos-result-row.pos-pnl-row b{ font-size:1.15rem; }
+  .pos-be-note{ font-size:.68rem; color:var(--ink-dim); line-height:1.4; }
+  .pos-scenario{ background:#0c0f16; border:1px solid var(--line); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:6px; }
+  .pos-scenario-title{ font-size:.8rem; font-weight:700; color:var(--ink); }
+  .pos-scenario-sub{ font-size:.68rem; color:var(--ink-dim); margin-top:-3px; margin-bottom:2px; }
+  .pos-alert-orange{ display:flex; gap:6px; align-items:flex-start; font-size:.72rem; color:var(--amber); line-height:1.4; opacity:.92; }
+  .pos-alert-orange b{ font-weight:700; }
+
+  .deal-note{
+    font-size:.74rem; color:var(--ink-dim); line-height:1.5; background:var(--card);
+    border:1px solid var(--line); border-radius:10px; padding:12px 16px;
+  }
+  .deal-note b{ color:var(--ink); }
+  .deal-note.warn{ border-color:rgba(255,182,72,.35); background:linear-gradient(180deg, var(--amber-bg), var(--card)); }
+  .deal-note.warn b{ color:var(--amber); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="index.html">← Situaciones especiales</a>
+
+  <div class="topbar">
+    <div>
+      <h1>Monitor de Arbitraje Silver47 / Bunker Hill</h1>
+      <div class="sub" id="pair-sub">—</div>
+    </div>
+  </div>
+
+  <div class="deal-note">
+    <b>Deal:</b> plan of arrangement bajo la <b>Business Corporations Act (British Columbia)</b>. Bunker Hill Mining Corp. adquiere todas las acciones de Silver47 Exploration Corp.; cada acción de Silver47 se convierte en <b>0,1724 acciones de Bunker Hill</b> (ratio fijo, sin collar y sin componente en efectivo). Al cierre los accionistas de Bunker Hill tendrán ~57% de la combinada y los de Silver47 ~43%, la sociedad pasará a llamarse <b>Bunker Hill Silver Corp.</b> y seguirá cotizando en el TSX; las acciones de Silver47 se excluirán del TSXV y de Frankfurt. Ambas juntas de accionistas deben celebrarse <b>como muy tarde el 15-nov-2026</b> y el cierre se espera poco después. Referencias: Arrangement Agreement de 20-ago-2026 y nota de prensa conjunta de 21-ago-2026 (Form 8-K, Ex. 99.1).
+  </div>
+
+  <div class="deal-note warn">
+    <b>⚠️ Riesgos que el spread NO captura:</b> (1) <b>El borrow de BHLL es la restricción que define la operación</b> — es un OTCQB microcap; el préstamo puede no existir, encarecerse de un día para otro o provocar un buy-in forzado a mitad del deal. Ese coste solo entra aquí si metes la tasa a mano abajo. (2) <b>El voto de Silver47 no está asegurado</b>: exige 66⅔% de los votos emitidos <b>más</b> mayoría de la minoría (MI 61-101), y los acuerdos de voto firmados cubren solo ~6,3% de su capital. El lado de Bunker Hill sí está prácticamente cerrado (mayoría simple, ~51,5% comprometido, incluidos Sprott y Teck). (3) Faltan la aprobación del <b>Tribunal Supremo de Columbia Británica</b> y las del TSX y el TSXV. (4) Comisiones de ruptura: ~US$6,6M a Silver47 y ~US$5,7M a Bunker Hill según quién rompa. (5) En la plaza <b>AGA (CAD)</b> queda <b>riesgo de divisa abierto</b> hasta noviembre y hay <b>descuadre de entrega</b>: recibes BNKR en Canadá, no BHLL, y pasar la posición de CDS a DTC para cubrir el corto lleva días y cuesta. (6) Bunker Hill tramita un listado en NYSE American, sin garantía de conseguirlo.
+  </div>
+
+  <!-- ── SELECTOR DE PLAZA ────────────────────────── -->
+  <div class="plaza-picker" id="plaza-picker">
+    <button class="plaza-btn active" data-plaza="aagaf" onclick="setPlaza('aagaf')">
+      <span class="pb-title">Comprar AAGAF · shortear BHLL</span>
+      <span class="pb-sub">OTCQX / OTCQB · todo en USD · al cierre recibes BHLL, que cubre el corto</span>
+    </button>
+    <button class="plaza-btn" data-plaza="aga" onclick="setPlaza('aga')">
+      <span class="pb-title">Comprar AGA · shortear BHLL</span>
+      <span class="pb-sub">TSXV (CAD) / OTCQB (USD) · riesgo de divisa + descuadre de entrega</span>
+    </button>
+  </div>
+
+  <div class="cfg-row">
+    <div class="cfg">
+      <span><label>Umbral entrada</label><input type="number" id="threshold-input" value="6" step="0.5" min="0"></span>
+      <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim); margin-right:6px;">%</span>
+      <span><label>Umbral salida</label><input type="number" id="threshold-exit-input" value="1.5" step="0.5"></span>
+      <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim);">%</span>
+      <select id="auto-interval">
+        <option value="10000" selected>10s</option>
+        <option value="30000">30s</option>
+        <option value="60000">1min</option>
+        <option value="0">Off</option>
+      </select>
+      <span><label>Cierre est.</label><input type="date" id="merger-date-input" value="2026-11-30"></span>
+      <span id="merger-days-label" style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim); white-space:nowrap;">–</span>
+      <span title="Tasa anual de préstamo de BHLL para el corto. Métela a mano mirando el borrow de tu bróker (en IBKR: Short Availability / SLB). Cambia a diario y en un OTCQB microcap puede ser enorme."><label>Borrow BHLL</label><input type="number" id="borrow-rate-input" value="0" step="0.5" min="0"></span>
+      <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim);">% anual</span>
+      <button class="btn" onclick="updateData()">Actualizar</button>
+      <span id="last-update-label">Sin actualizar</span>
+    </div>
+  </div>
+
+  <!-- ── CAPITAL ─────────────────────────────────── -->
+  <div class="invest-box">
+    <div class="shares-inputs-wrap">
+      <div class="shares-input-wrap long" title="Acciones a comprar de la pata larga">
+        <span class="si-tag" id="si-tag-t">AAGAF</span>
+        <input type="number" id="shares-t-input" step="1" min="0" placeholder="0">
+      </div>
+      <div class="shares-input-wrap short" title="Acciones BHLL a shortear según el ratio de canje (0,1724 por acción de Silver47)">
+        <span class="si-tag">BHLL corto</span>
+        <input type="number" id="shares-a-input" step="1" min="0" placeholder="0">
+      </div>
+    </div>
+    <span class="invest-label">Capital simulado</span>
+    <div class="invest-slider-wrap">
+      <span id="invest-min-label">$100</span>
+      <input type="range" id="invest-slider" min="0" max="1000" step="1" value="492">
+      <span id="invest-max-label">$100k</span>
+    </div>
+    <div class="invest-input-wrap">
+      <span id="invest-ccy">$</span>
+      <input type="number" id="invest-input" value="3000" step="100" min="0">
+    </div>
+  </div>
+
+  <!-- ── ORDEN ───────────────────────────────────── -->
+  <div class="order-card mode-open" id="order-card">
+    <div class="order-title">
+      <span id="order-title-text">Orden a introducir (abrir)</span>
+      <div class="comm-switch">
+        <label for="commission-model">Comisión IBKR</label>
+        <select id="commission-model">
+          <option value="tiered" selected>Tiered</option>
+          <option value="fixed">Fixed</option>
+        </select>
+      </div>
+    </div>
+    <div class="order-grid">
+      <div class="order-leg" id="ord-leg-buy">
+        <span class="ol-lbl" id="ord-buy-label">🟢 Comprar (largo)</span>
+        <span class="ol-val" id="ord-buy">–</span>
+        <span class="ol-price" id="ord-buy-price">–</span>
+      </div>
+      <div class="order-leg" id="ord-leg-sell">
+        <span class="ol-lbl" id="ord-sell-label">🔴 Vender (corto)</span>
+        <span class="ol-val" id="ord-sell">–</span>
+        <span class="ol-price" id="ord-sell-price">–</span>
+      </div>
+    </div>
+    <div class="order-foot">
+      <span><span id="ord-capital-label">Capital realmente usado</span>: <b id="ord-capital">–</b></span>
+      <span><span id="ord-commission-label">Comisiones estimadas (apertura)</span>: <b id="ord-commission">–</b></span>
+      <span><span id="ord-borrow-label">Préstamo BHLL hasta el cierre</span>: <b id="ord-borrow">–</b></span>
+      <span><span id="ord-profit-label">Beneficio neto teórico (tras comisiones y préstamo)</span>: <b id="ord-profit">–</b></span>
+    </div>
+    <div class="order-foot" style="border-top:none; padding-top:4px;">
+      <span id="ord-rounding-note" style="font-size:.74rem;">–</span>
+    </div>
+  </div>
+
+  <!-- ── SPREADS ─────────────────────────────────── -->
+  <div class="spread-grid">
+    <div class="spread-card" id="entry-card">
+      <div class="card-top">
+        <div class="tag">Spread de entrada</div>
+        <button class="sound-btn" id="entry-sound-btn" onclick="toggleSound('entry')" title="Avisar con sonido en bucle mientras se cumpla la señal de entrada">🔔</button>
+      </div>
+      <div class="big-row">
+        <div class="big" id="in-pct">–</div>
+        <span class="tir-badge" id="in-tir" title="TIR anualizada si el canje se liquida en la fecha estimada">TIR –</span>
+      </div>
+      <div class="usd" id="in-usd">–</div>
+      <div class="note" id="in-usd-net">–</div>
+      <div class="last-ref"><span>Ref. last</span><b id="in-last">–</b></div>
+      <div class="last-ref">
+        <span>Liquidez p/ abrir</span>
+        <div class="last-ref-value">
+          <b id="in-liquidity">–</b>
+          <button class="liq-use-btn" id="in-liquidity-use" onclick="useLiquidity('open')" disabled title="Poner arriba las acciones que da la liquidez disponible para abrir">Usar</button>
+        </div>
+      </div>
+      <div class="tfresh" id="in-fresh">sin datos</div>
+    </div>
+    <div class="spread-card" id="exit-card">
+      <div class="card-top">
+        <div class="tag">Spread de salida</div>
+        <button class="sound-btn" id="exit-sound-btn" onclick="toggleSound('exit')" title="Avisar con sonido en bucle mientras se cumpla la señal de salida">🔔</button>
+      </div>
+      <div class="big-row">
+        <div class="big" id="out-pct">–</div>
+        <span class="tir-badge" id="out-tir" style="visibility:hidden;">TIR –</span>
+      </div>
+      <div class="usd" id="out-usd">–</div>
+      <div class="note" id="out-usd-net">–</div>
+      <div class="last-ref"><span>Ref. last</span><b id="out-last">–</b></div>
+      <div class="last-ref">
+        <span>Liquidez p/ cerrar</span>
+        <div class="last-ref-value">
+          <b id="out-liquidity">–</b>
+          <button class="liq-use-btn" id="out-liquidity-use" onclick="useLiquidity('close')" disabled title="Poner arriba las acciones que da la liquidez disponible para cerrar">Usar</button>
+        </div>
+      </div>
+      <div class="tfresh" id="out-fresh">sin datos</div>
+    </div>
+  </div>
+
+  <!-- ── TICKERS ─────────────────────────────────── -->
+  <div class="tickers">
+    <div class="tcard" id="card-A">
+      <div class="thead"><span class="tname" id="A-name">Objetivo</span><span class="texch" id="A-exch">—</span></div>
+      <div class="trow"><span class="l">Last</span><span class="v" id="A-last">–</span></div>
+      <div class="trow"><span class="l">Bid</span><span class="v" id="A-bid">–</span></div>
+      <div class="trow"><span class="l">Ask</span><span class="v" id="A-ask">–</span></div>
+      <div class="trow"><span class="l">Bid size</span><span class="v" id="A-bidsize">–</span></div>
+      <div class="trow"><span class="l">Ask size</span><span class="v" id="A-asksize">–</span></div>
+      <div class="tfresh" id="A-fresh">sin datos</div>
+      <div class="tcard-note" id="A-note">—</div>
+      <a class="ir-link" href="https://silver-47.com/investors/" target="_blank" rel="noopener">↗ Silver47 · IR</a>
+    </div>
+    <div class="tcard" id="card-B">
+      <div class="thead"><span class="tname">Bunker Hill Mining (BHLL · OTCQB)</span><span class="texch" id="B-exch">—</span></div>
+      <div class="trow"><span class="l">Last</span><span class="v" id="B-last">–</span></div>
+      <div class="trow"><span class="l">Bid</span><span class="v" id="B-bid">–</span></div>
+      <div class="trow"><span class="l">Ask</span><span class="v" id="B-ask">–</span></div>
+      <div class="trow"><span class="l">Bid size</span><span class="v" id="B-bidsize">–</span></div>
+      <div class="trow"><span class="l">Ask size</span><span class="v" id="B-asksize">–</span></div>
+      <div class="tfresh" id="B-fresh">sin datos</div>
+      <div class="tcard-note">Única pata shortable. Verifica el borrow en IBKR antes de entrar.</div>
+      <a class="ir-link" href="https://bunkerhillmining.com/investors/" target="_blank" rel="noopener">↗ Bunker Hill · IR</a>
+    </div>
+  </div>
+
+  <!-- ── REFERENCIAS CRUZADAS ─────────────────────── -->
+  <div class="ref-strip">
+    <div class="ref-card" id="ref-bnkr-card">
+      <div class="ref-title">Control de precio: BHLL vs BNKR</div>
+      <div class="ref-body">
+        BHLL bid <b id="ref-bhll-bid">–</b> · BNKR bid convertido <b id="ref-bnkr-bid">–</b>
+      </div>
+      <div class="ref-note" id="ref-bnkr-note">
+        BNKR (TSX) es el mismo valor que BHLL y tiene mucha más liquidez. Si el bid de BHLL se aleja del de BNKR convertido, es que el OTC está colgado y el spread que ves arriba no es real.
+      </div>
+    </div>
+    <div class="ref-card">
+      <div class="ref-title">Tipo de cambio USD/CAD</div>
+      <div class="ref-body">
+        bid <b id="fx-bid">–</b> · ask <b id="fx-ask">–</b>
+      </div>
+      <div class="ref-note" id="fx-note">
+        Par USD.CAD de IDEALPRO (CAD por 1 USD), publicado por el streamer cada minuto. Para valorar la pata que recibes se usa siempre el lado que da el valor más bajo, igual que en las alertas de Discord.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── EXPLICADOR ───────────────────────────────── -->
+  <div class="explain-card">
+    <div class="explain-title">Cómo se calcula el spread teórico</div>
+    <div class="explain-sub" id="explain-sub">—</div>
+
+    <div class="explain-flow">
+      <div class="ex-step">
+        <div class="ex-lbl" id="ex-lbl-1">① Vendes en corto BHLL (bid)</div>
+        <div class="ex-val" id="ex-abid">–</div>
+      </div>
+      <div class="ex-op">×<div class="ex-op-note">ratio de<br>canje<br><b id="ex-ratio">–</b></div></div>
+      <div class="ex-step">
+        <div class="ex-lbl" id="ex-lbl-2">② Equivale por acción a</div>
+        <div class="ex-val" id="ex-equiv">–</div>
+      </div>
+      <div class="ex-op">÷</div>
+      <div class="ex-step">
+        <div class="ex-lbl" id="ex-lbl-3">③ Compras (ask)</div>
+        <div class="ex-val" id="ex-task">–</div>
+      </div>
+      <div class="ex-op">−1<div class="ex-op-note">−<br>comisión<br><b id="ex-comm-amt">–</b><br>− préstamo<br><b id="ex-borrow-amt">–</b></div></div>
+      <div class="ex-step ex-result">
+        <div class="ex-lbl">Spread neto (comisiones + préstamo)</div>
+        <div class="ex-val ex-big" id="ex-net-result">–</div>
+      </div>
+    </div>
+
+    <div class="explain-note" id="explain-note">—</div>
+  </div>
+
+  <!-- ── CHART ───────────────────────────────────── -->
+  <div class="chart-card">
+    <div class="chead">
+      <h3 id="chart-title">Evolución del spread (hoy)</h3>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="chart-legend">
+          <span><i style="background:var(--accent)"></i>Entrada</span>
+          <span><i style="background:var(--amber)"></i>Salida</span>
+        </div>
+        <div class="range-tabs" id="range-tabs">
+          <button data-range="1h">1h</button>
+          <button data-range="2h">2h</button>
+          <button data-range="3h">3h</button>
+          <button data-range="today" class="active">Hoy</button>
+          <button data-range="1d">1d</button>
+          <button data-range="3d">3d</button>
+          <button data-range="7d">7d</button>
+          <button data-range="14d">14d</button>
+          <button data-range="30d">30d</button>
+        </div>
+      </div>
+    </div>
+    <div class="chart-canvas-wrap">
+      <canvas id="chart"></canvas>
+      <div class="chart-tooltip" id="chart-tooltip">
+        <div class="ct-time" id="ct-time">–</div>
+        <div class="ct-row"><span class="ct-dot" style="background:var(--accent)"></span>Entrada: <span class="ct-val" id="ct-in">–</span></div>
+        <div class="ct-row"><span class="ct-dot" style="background:var(--amber)"></span>Salida: <span class="ct-val" id="ct-out">–</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="status">Iniciando…</div>
+  <div id="footer-credit">Monitor de arbitraje de situaciones especiales por Todd Lott y Phyera</div>
+</div>
+
+<button class="pos-fab" onclick="openPositionModal()">📊 Simular posición</button>
+
+<div class="modal-overlay" id="pos-modal-overlay" onclick="closePositionModalOnOverlay(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closePositionModal()" aria-label="Cerrar">✕</button>
+    <div class="position-card">
+    <div class="position-title">Posición simulada</div>
+
+    <div class="comm-switch" style="justify-content:flex-start;">
+      <label for="pos-commission-model">Comisión IBKR</label>
+      <select id="pos-commission-model">
+        <option value="tiered" selected>Tiered</option>
+        <option value="fixed">Fixed</option>
+      </select>
+    </div>
+
+    <div class="pos-alert-orange" id="pos-ccy-alert" style="display:none;"></div>
+
+    <div class="pos-leg">
+      <div class="pos-leg-head"><span class="pos-leg-name long" id="pos-long-name">Largo</span></div>
+      <div class="pos-field">
+        <label>Acciones compradas</label>
+        <div class="pos-field-row"><input type="number" id="pos-t-qty" placeholder="0" min="0" step="1"></div>
+      </div>
+      <div class="pos-field">
+        <label id="pos-t-entry-label">Precio de compra (entrada)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-t-entry" placeholder="0.0000" min="0" step="0.0001">
+          <button class="pos-mini-btn" onclick="fillPosPrice('pos-t-entry','tAsk')" title="Usar el ask actual">ask act.</button>
+        </div>
+      </div>
+      <div class="pos-field">
+        <label id="pos-t-exit-label">Precio objetivo de venta (cierre)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-t-exit" placeholder="0.0000" min="0" step="0.0001">
+          <button class="pos-mini-btn" onclick="fillPosPrice('pos-t-exit','tBid')" title="Usar el bid actual">bid act.</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pos-leg">
+      <div class="pos-leg-head"><span class="pos-leg-name short">Corto BHLL (USD)</span></div>
+      <div class="pos-field">
+        <label>Acciones vendidas en corto</label>
+        <div class="pos-field-row"><input type="number" id="pos-a-qty" placeholder="0" min="0" step="1"></div>
+      </div>
+      <div class="pos-field">
+        <label>Precio de venta corto ($, entrada)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-a-entry" placeholder="0.0000" min="0" step="0.0001">
+          <button class="pos-mini-btn" onclick="fillPosPrice('pos-a-entry','aBidUsd')" title="Usar el bid actual">bid act.</button>
+        </div>
+      </div>
+      <div class="pos-field">
+        <label>Precio objetivo de recompra ($, cierre)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-a-exit" placeholder="0.0000" min="0" step="0.0001">
+          <button class="pos-mini-btn" onclick="fillPosPrice('pos-a-exit','aAskUsd')" title="Usar el ask actual">ask act.</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pos-results">
+      <div class="pos-result-row"><span>Capital empleado</span><b id="pos-capital">–</b></div>
+
+      <div class="pos-alert-orange" id="pos-ratio-alert" style="display:none;"></div>
+
+      <div class="pos-field">
+        <label>Días mantenido el corto (para el coste de préstamo)</label>
+        <div class="pos-field-row">
+          <input type="number" id="pos-days" placeholder="0" min="0" step="1">
+          <button class="pos-mini-btn" onclick="fillPosDaysToMerger()" title="Usar los días que quedan hasta la fecha estimada de cierre">hasta cierre</button>
+        </div>
+      </div>
+
+      <div class="pos-scenario">
+        <div class="pos-scenario-title">📦 Si se liquida el canje (0,1724 BHLL por Silver47)</div>
+        <div class="pos-scenario-sub" id="pos-merger-sub">—</div>
+        <div class="pos-result-row"><span>Spread de entrada (tu posición)</span><b id="pos-spread-entry">–</b></div>
+        <div class="pos-result-row"><span>Comisiones (apertura)</span><b id="pos-merger-comm">–</b></div>
+        <div class="pos-result-row"><span>Préstamo BHLL (hasta el cierre)</span><b id="pos-merger-borrow">–</b></div>
+        <div class="pos-result-row pos-pnl-row"><span>Beneficio neto</span><b id="pos-merger-pnl">–</b></div>
+      </div>
+
+      <div class="pos-scenario">
+        <div class="pos-scenario-title">💱 Si cierras ahora (a los precios introducidos)</div>
+        <div class="pos-result-row"><span>Spread de salida (objetivo)</span><b id="pos-spread-exit">–</b></div>
+        <div class="pos-result-row"><span>Comisiones (4 patas)</span><b id="pos-now-comm">–</b></div>
+        <div class="pos-result-row"><span>Préstamo BHLL (días indicados)</span><b id="pos-now-borrow">–</b></div>
+        <div class="pos-result-row"><span>Beneficio bruto</span><b id="pos-now-gross">–</b></div>
+        <div class="pos-result-row pos-pnl-row"><span>Beneficio neto</span><b id="pos-now-pnl">–</b></div>
+        <div class="pos-result-row"><span>Breakeven venta pata larga</span><b id="pos-be-t">–</b></div>
+        <div class="pos-result-row"><span>Breakeven recompra BHLL ($)</span><b id="pos-be-a">–</b></div>
+        <div class="pos-be-note">Precios a los que el beneficio neto (comisiones + préstamo de los días indicados) queda en cero.</div>
+      </div>
+    </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════════════════
+// Clave "anon" (pública), NUNCA la "service_role" en una página que
+// corre en el navegador. Protege las tablas con RLS de solo lectura.
+//
+// ⚠️ Para que este monitor funcione, el streamer de IB tiene que estar
+// suscrito a AAGAF, AGA, BHLL, BNKR y al par USD.CAD, y escribiendo sus
+// ticks en esta misma base de datos. Es lo que hace la situación
+// `situacion_aagaf_bhll` del script de Python. El par de divisas se
+// publica throttleado (INTERVALO_MIN_ESCRITURA_FX): sin él, la plaza
+// AGA se queda en "sin datos" en vez de mostrar un spread que mezcla
+// divisas.
+const DATA_URL = 'https://zkpvhtaktowevholyasa.supabase.co';
+const DATA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprcHZodGFrdG93ZXZob2x5YXNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MjcyMTMsImV4cCI6MjEwMDQwMzIxM30.0NMyJAPX7A4x6don1PB4siDpNtvU3bOiZruM9GwRd84';
+const db = supabase.createClient(DATA_URL, DATA_KEY);
+
+// ── Términos del canje ──
+// 0,1724 acciones de Bunker Hill por cada acción de Silver47. Ratio
+// fijo: no hay collar, ni componente en efectivo, ni escenario
+// alternativo que modelar.
+const RATIO = 0.1724;
+
+const SYMBOL_SHORT = 'BHLL';   // única pata shortable (OTCQB, USD)
+const CCY_SHORT    = 'USD';
+const SYMBOL_REF   = 'BNKR';   // TSX, CAD — referencia, no operable en corto
+const CCY_REF      = 'CAD';
+const FX_SYMBOL    = 'USD';    // Forex("USDCAD") -> contract.symbol es la divisa BASE
+
+// Las dos plazas de compra. Comparten pata corta (BHLL), así que no son
+// alternativas a rankear entre sí: son dos operaciones distintas, cada
+// una con su umbral. En la SALIDA la plaza no se elige — se vende donde
+// se tiene la posición — y por eso el selector de arriba cambia la
+// página entera en vez de mostrar la "mejor de las dos".
+const PLAZAS = {
+  aagaf: {
+    id:'aagaf', symbol:'AAGAF', ccy:'USD', prefix:'$', market:'us',
+    name:'Silver47 (AAGAF · OTCQX)',
+    threshold:6, thresholdExit:1.5,
+    note:'Al cierre recibes acciones BHLL, que cubren el corto directamente.',
+    cross:false,
+  },
+  aga: {
+    id:'aga', symbol:'AGA', ccy:'CAD', prefix:'C$', market:'ca',
+    name:'Silver47 (AGA · TSXV)',
+    threshold:9, thresholdExit:2.5,
+    note:'Al cierre recibes BNKR en Canadá, no BHLL: traspasar de CDS a DTC lleva días y cuesta.',
+    cross:true,
+  },
+};
+let plaza = PLAZAS.aagaf;
+
+// ── Comisiones de Interactive Brokers ──
+// Por mercado, porque las patas pueden estar en países distintos. Los
+// importes de cada mercado están en SU divisa (USD para las americanas,
+// CAD para las canadienses) y se convierten al final si hace falta.
+// Los tramos canadienses son aproximados: verifícalos en tu cuenta
+// antes de darlos por buenos.
+const COMMISSION_MODELS = {
+  tiered: {
+    label: 'Tiered',
+    us: { perShare:0.0035, minPerOrder:0.35, maxPctOfTrade:0.01  },
+    ca: { perShare:0.008,  minPerOrder:1.00, maxPctOfTrade:0.005 },
+  },
+  fixed: {
+    label: 'Fixed',
+    us: { perShare:0.005, minPerOrder:1.00, maxPctOfTrade:null   },
+    ca: { perShare:0.01,  minPerOrder:1.00, maxPctOfTrade:0.005  },
+  },
+};
+let commissionModel = 'tiered';
+
+// ── Coste de préstamo del corto ──
+// BHLL es un OTCQB microcap: el borrow puede ser inexistente o costar
+// tres dígitos. No hay forma de sacarlo de la cotización, así que se
+// mete a mano. Se deja a 0 por defecto a propósito, con aviso en la
+// interfaz: inventar una tasa "razonable" sería peor que no ponerla.
+const BORROW_DAY_COUNT = 360; // IBKR liquida los fees de préstamo en base 360
+let borrowRate = parseFloat(document.getElementById('borrow-rate-input').value) || 0;
+
+const STALE_MS = 60000;
+const INVALID_TICK = -1;
+
+// Si BHLL y BNKR (convertido) se separan más que esto, damos por hecho
+// que el bid del OTC está colgado y avisamos: el spread calculado sobre
+// una cotización muerta no es operable.
+const REF_DIVERGENCE_ALERT = 0.03; // 3%
+
+// ── Fecha estimada de cierre ──
+// Ambas juntas deben celebrarse como muy tarde el 15-nov-2026 y el
+// cierre se espera "poco después". 30-nov es una estimación conservadora
+// dentro de esa ventana; ajústala cuando haya fecha efectiva.
+let MERGER_DATE = new Date(document.getElementById('merger-date-input').value + 'T00:00:00');
+
+function daysToMerger(){
+  const ms = MERGER_DATE.getTime() - Date.now();
+  return Math.max(1, Math.ceil(ms/86400000));
+}
+
+function annualizedReturn(netPct, days){
+  if(isNaN(netPct)) return NaN;
+  const d = Math.max(days||1, 1);
+  const base = 1 + netPct/100;
+  if(base <= 0) return -100;
+  return (Math.pow(base, 365/d) - 1) * 100;
+}
+
+function updateMergerDaysLabel(){
+  const el = document.getElementById('merger-days-label');
+  if(!el) return;
+  const days = Math.ceil((MERGER_DATE.getTime() - Date.now())/86400000);
+  if(days > 1){ el.innerText = `≈${days} días hasta el cierre`; el.style.color = ''; }
+  else if(days === 1){ el.innerText = 'mañana'; el.style.color = 'var(--amber)'; }
+  else if(days === 0){ el.innerText = 'hoy'; el.style.color = 'var(--amber)'; }
+  else { el.innerText = `hace ${Math.abs(days)} día${Math.abs(days)===1?'':'s'}`; el.style.color = 'var(--amber)'; }
+}
+
+document.getElementById('merger-date-input').addEventListener('change', (e)=>{
+  if(!e.target.value) return;
+  MERGER_DATE = new Date(e.target.value + 'T00:00:00');
+  updateMergerDaysLabel();
+  repaintAll();
+});
+
+// ════════════════════════════════════════════════════════════════
+let INVEST = 3000;
+let threshold = parseFloat(document.getElementById('threshold-input').value) || 0;
+let thresholdExit = parseFloat(document.getElementById('threshold-exit-input').value) || 0;
+let priceCache = {};
+let orderMode = 'open';
+let entryPts = [];
+let exitPts  = [];
+let chartRange = { type:'today' };
+let autoTimer = null;
+
+const INVEST_MIN = 100, INVEST_MAX = 100000, SLIDER_MAX = 1000;
+function sliderToInvest(s){
+  const minLog = Math.log10(INVEST_MIN), maxLog = Math.log10(INVEST_MAX);
+  return Math.round(Math.pow(10, minLog + (s/SLIDER_MAX)*(maxLog-minLog))/10)*10;
+}
+function investToSlider(v){
+  const minLog = Math.log10(INVEST_MIN), maxLog = Math.log10(INVEST_MAX);
+  const clamped = Math.min(Math.max(v, INVEST_MIN), INVEST_MAX);
+  return Math.round(((Math.log10(clamped)-minLog)/(maxLog-minLog))*SLIDER_MAX);
+}
+
+// Último bid/ask/last/tamaño VÁLIDO por símbolo (ignorando -1), con su
+// marca de tiempo. Con valores tan ilíquidos, un tick sin dato es la
+// norma y no debe borrar lo último bueno que vimos.
+function emptyStore(){
+  return { bid:NaN, ask:NaN, last:NaN, bidSize:NaN, askSize:NaN,
+           bidTs:null, askTs:null, lastTs:null, bidSizeTs:null, askSizeTs:null };
+}
+const ALL_SYMBOLS = ['AAGAF','AGA',SYMBOL_SHORT,SYMBOL_REF,FX_SYMBOL];
+let lastValid = {};
+ALL_SYMBOLS.forEach(s => lastValid[s] = emptyStore());
+
+// ── CONVERSIÓN DE DIVISA ──
+// El par USD.CAD viene en CAD por 1 USD. Para valorar la pata que se
+// RECIBE en el canje se elige siempre el lado que da el valor más bajo
+// en la divisa de destino: ser conservador aquí significa subestimar el
+// spread y no disparar nunca una señal por el lado bueno del cambio.
+// Es exactamente el criterio de `_fx_convertir` en el monitor de
+// Python, para que esta página y los avisos de Discord no den números
+// distintos.
+function fxConvert(price, from, to, fxBid, fxAsk){
+  if(isNaN(price)) return NaN;
+  if(from === to) return price;
+  if(from === 'USD' && to === 'CAD') return (!isNaN(fxBid) && fxBid>0) ? price*fxBid : NaN;
+  if(from === 'CAD' && to === 'USD') return (!isNaN(fxAsk) && fxAsk>0) ? price/fxAsk : NaN;
+  return NaN;
+}
+// Lleva un precio de BHLL (USD) a la divisa de la plaza activa.
+function shortToPlaza(priceUsd){
+  return fxConvert(priceUsd, CCY_SHORT, plaza.ccy,
+                   lastValid[FX_SYMBOL].bid, lastValid[FX_SYMBOL].ask);
+}
+
+const cvs = document.getElementById('chart');
+const ctx = cvs?.getContext('2d');
+
+function setupCanvas(){
+  if(!cvs||!ctx) return;
+  const r = cvs.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  cvs.width = r.width*dpr; cvs.height = r.height*dpr;
+  ctx.scale(dpr,dpr);
+  cvs.style.width = r.width+'px'; cvs.style.height = r.height+'px';
+}
+
+function fmtAxisTime(ms){
+  const d = new Date(ms);
+  const intraday = chartRange.type === 'hours' || chartRange.type === 'today' ||
+                    (chartRange.type === 'days' && chartRange.value <= 1);
+  if(intraday) return d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
+  return d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'}) + ' ' +
+         d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'});
+}
+
+let chartLayout = null;
+
+function drawChart(){
+  if(!ctx||!cvs) return;
+  const r = cvs.getBoundingClientRect();
+  const W=r.width, H=r.height, P=46, PB=28;
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+
+  const allPts = entryPts.concat(exitPts);
+  if(!allPts.length){
+    ctx.fillStyle='#7c8698'; ctx.font='13px Inter'; ctx.textAlign='center';
+    ctx.fillText('Esperando datos…', W/2, H/2);
+    chartLayout = null; hideChartTooltip(); return;
+  }
+
+  const vals = allPts.map(d=>d.v).concat([threshold, thresholdExit]);
+  const rMin=Math.min(...vals), rMax=Math.max(...vals);
+  const pad=Math.max((rMax-rMin)*0.2,0.4);
+  const mn=rMin-pad, mx=rMax+pad, rng=(mx-mn)||1;
+
+  const tVals = allPts.map(d=>d.t);
+  const tMin = Math.min(...tVals), tMax = Math.max(...tVals);
+  const tRng = (tMax-tMin) || 1;
+
+  const getY = v => H-PB-((v-mn)/rng)*(H-PB-P*0.4);
+  const getX = t => P + ((t-tMin)/tRng)*(W-P*1.3);
+  chartLayout = { W, H, P, PB, tMin, tMax, tRng, getX, getY };
+
+  ctx.font='11px JetBrains Mono'; ctx.textAlign='right'; ctx.fillStyle='#7c8698';
+  for(let i=0;i<=4;i++){
+    const v = mn+(i/4)*rng, y=getY(v);
+    ctx.fillText(v.toFixed(2)+'%', P-8, y+4);
+    ctx.strokeStyle='rgba(255,255,255,.06)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(P,y); ctx.lineTo(W-P*0.3,y); ctx.stroke();
+  }
+
+  ctx.textAlign='center'; ctx.fillStyle='#7c8698';
+  for(let i=0;i<=5;i++){
+    const t = tMin + (i/5)*tRng;
+    ctx.fillText(fmtAxisTime(t), getX(t), H-PB+16);
+  }
+
+  ctx.strokeStyle='#2ee0a3'; ctx.lineWidth=1.2; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(P,getY(threshold)); ctx.lineTo(W-P*0.3,getY(threshold)); ctx.stroke();
+  ctx.strokeStyle='#ffb648'; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.moveTo(P,getY(thresholdExit)); ctx.lineTo(W-P*0.3,getY(thresholdExit)); ctx.stroke();
+  ctx.setLineDash([]);
+
+  function drawSeries(pts, color){
+    if(pts.length < 1) return;
+    ctx.strokeStyle=color; ctx.lineWidth=2.2;
+    ctx.beginPath();
+    pts.forEach((d,i)=>{ const x=getX(d.t),y=getY(d.v); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+    ctx.stroke();
+    const last = pts[pts.length-1];
+    ctx.beginPath(); ctx.arc(getX(last.t), getY(last.v), 4.5, 0, Math.PI*2);
+    ctx.fillStyle = color; ctx.fill();
+  }
+  drawSeries(entryPts, '#2ee0a3');
+  drawSeries(exitPts, '#ffb648');
+
+  if(hoverActive) drawHoverOverlay();
+}
+
+let hoverActive = false, hoverPxX = 0;
+
+function nearestPoint(pts, t){
+  if(!pts || !pts.length) return null;
+  let lo=0, hi=pts.length-1;
+  if(t <= pts[0].t) return pts[0];
+  if(t >= pts[hi].t) return pts[hi];
+  while(lo < hi){ const mid=(lo+hi)>>1; if(pts[mid].t < t) lo=mid+1; else hi=mid; }
+  const a = pts[lo-1], b = pts[lo];
+  if(!a) return b;
+  return (t - a.t) <= (b.t - t) ? a : b;
+}
+
+function fmtTooltipTime(ms){
+  return new Date(ms).toLocaleString('es-ES', {
+    day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit'
+  });
+}
+
+function drawHoverOverlay(){
+  if(!chartLayout) return;
+  const { W, H, P, PB, tMin, tMax, getX, getY } = chartLayout;
+  const tAtCursor = tMin + ((hoverPxX-P)/(W-P*1.3))*(tMax-tMin || 1);
+  const clampedT = Math.min(Math.max(tAtCursor, tMin), tMax);
+
+  const nearEntry = nearestPoint(entryPts, clampedT);
+  const nearExit  = nearestPoint(exitPts, clampedT);
+  if(!nearEntry && !nearExit) return;
+
+  const refPt = [nearEntry, nearExit].filter(Boolean)
+    .reduce((best, p) => (!best || Math.abs(p.t-clampedT) < Math.abs(best.t-clampedT)) ? p : best, null);
+  const lineX = getX(refPt.t);
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(lineX, P*0.4); ctx.lineTo(lineX, H-PB); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
+
+  function highlightDot(pt, color){
+    if(!pt) return;
+    const x = getX(pt.t), y = getY(pt.v);
+    ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2);
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2);
+    ctx.fillStyle = '#0b0e14'; ctx.fill();
+  }
+  highlightDot(nearEntry, '#2ee0a3');
+  highlightDot(nearExit, '#ffb648');
+
+  const tooltip = document.getElementById('chart-tooltip');
+  if(!tooltip) return;
+  document.getElementById('ct-time').innerText = fmtTooltipTime(refPt.t);
+  document.getElementById('ct-in').innerText  = nearEntry ? nearEntry.v.toFixed(3)+' %' : '–';
+  document.getElementById('ct-out').innerText = nearExit  ? nearExit.v.toFixed(3)+' %'  : '–';
+
+  const wrapWidth = cvs.getBoundingClientRect().width;
+  let left = lineX; const margin = 8, estW = 170;
+  if(left < estW/2 + margin) left = estW/2 + margin;
+  if(left > wrapWidth - estW/2 - margin) left = wrapWidth - estW/2 - margin;
+  tooltip.style.left = left+'px';
+  tooltip.style.top = Math.max(getY(refPt.v)-14, 10)+'px';
+  tooltip.classList.add('visible');
+}
+
+function hideChartTooltip(){
+  const t = document.getElementById('chart-tooltip');
+  if(t) t.classList.remove('visible');
+}
+function onChartPointerMove(clientX){
+  hoverPxX = clientX - cvs.getBoundingClientRect().left;
+  hoverActive = true; drawChart();
+}
+function onChartPointerLeave(){ hoverActive = false; hideChartTooltip(); drawChart(); }
+
+if(cvs){
+  cvs.addEventListener('mousemove', (e)=> onChartPointerMove(e.clientX));
+  cvs.addEventListener('mouseleave', onChartPointerLeave);
+  cvs.addEventListener('touchstart', (e)=>{ if(e.touches?.[0]){ onChartPointerMove(e.touches[0].clientX); e.preventDefault(); } }, {passive:false});
+  cvs.addEventListener('touchmove',  (e)=>{ if(e.touches?.[0]){ onChartPointerMove(e.touches[0].clientX); e.preventDefault(); } }, {passive:false});
+  cvs.addEventListener('touchend', onChartPointerLeave);
+}
+
+// ── FORMATO ──
+// Nada de Intl con "currency": las dos divisas conviven en la misma
+// pantalla y hace falta que el prefijo diga sin ambigüedad cuál es.
+function fmtAmt(n, prefix){
+  if(isNaN(n)) return 'N/A';
+  const neg = n < 0;
+  const s = Math.abs(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  return (neg?'-':'') + prefix + s;
+}
+function fmt(n){ return fmtAmt(n, plaza.prefix); }          // divisa de la plaza activa
+function fmtUsd(n){ return fmtAmt(n, '$'); }                // siempre USD (pata corta)
+function fmtCad(n){ return fmtAmt(n, 'C$'); }
+function fmtSigned(n){ return (n>=0?'+':'') + fmt(n); }
+function fmtPrice(n, prefix){ return isNaN(n) ? 'N/A' : prefix + n.toFixed(4); }
+function fmtPct(n,d=3){ return (n*100).toFixed(d)+' %'; }
+
+function tiempoDesde(iso){
+  if(!iso) return {texto:'sin datos', stale:true};
+  const ms = Date.now()-new Date(iso).getTime();
+  const stale = ms > STALE_MS;
+  if(ms<1000) return {texto:'justo ahora', stale};
+  if(ms<60000) return {texto:`hace ${Math.round(ms/1000)}s`, stale};
+  return {texto:`hace ${Math.round(ms/60000)} min`, stale};
+}
+
+// Comisión de una orden, en la divisa del mercado donde se ejecuta.
+function commissionForOrder(qty, price, market){
+  if(!qty || qty<=0 || isNaN(price) || price<=0) return 0;
+  const cfg = COMMISSION_MODELS[commissionModel][market];
+  const raw = qty * cfg.perShare;
+  let capped = raw;
+  if(cfg.maxPctOfTrade) capped = Math.min(raw, qty*price*cfg.maxPctOfTrade);
+  return Math.max(capped, cfg.minPerOrder);
+}
+// Comisión de la pata corta (siempre mercado US, en USD) llevada a la
+// divisa de la plaza activa.
+function shortCommissionInPlaza(qty, priceUsd){
+  const usd = commissionForOrder(qty, priceUsd, 'us');
+  const conv = shortToPlaza(usd);
+  return isNaN(conv) ? 0 : conv;
+}
+
+// Coste de préstamo del corto, en USD, llevado a la divisa de la plaza.
+function borrowCostPlaza(shares, priceUsd, days){
+  if(!shares || shares<=0 || isNaN(priceUsd) || priceUsd<=0) return 0;
+  if(!borrowRate || borrowRate<=0) return 0;
+  const usd = shares * priceUsd * (borrowRate/100) * (Math.max(days||0,0)/BORROW_DAY_COUNT);
+  const conv = shortToPlaza(usd);
+  return isNaN(conv) ? 0 : conv;
+}
+
+function cleanQuote(v){
+  const n = parseFloat(v);
+  if(isNaN(n) || n === INVALID_TICK) return NaN;
+  return n;
+}
+
+function ingestQuote(symbol, q){
+  const store = lastValid[symbol];
+  if(!store || !q) return;
+  const ts = q.ib_timestamp || q.inserted_at || null;
+  const f = {
+    bid: cleanQuote(q.bid), ask: cleanQuote(q.ask), last: cleanQuote(q.last),
+    bidSize: cleanQuote(q.bid_size), askSize: cleanQuote(q.ask_size),
+  };
+  if(!isNaN(f.bid)){     store.bid=f.bid;         store.bidTs=ts; }
+  if(!isNaN(f.ask)){     store.ask=f.ask;         store.askTs=ts; }
+  if(!isNaN(f.last)){    store.last=f.last;       store.lastTs=ts; }
+  if(!isNaN(f.bidSize)){ store.bidSize=f.bidSize; store.bidSizeTs=ts; }
+  if(!isNaN(f.askSize)){ store.askSize=f.askSize; store.askSizeTs=ts; }
+}
+
+// ── Resplandor al cambiar un valor ──
+let displayedValues = {};
+function flashValue(el, direction){
+  if(!el || !direction) return;
+  const glow = {
+    up:   { color:'rgba(46,224,163,.65)', bg:'rgba(46,224,163,.18)' },
+    down: { color:'rgba(255,84,112,.65)', bg:'rgba(255,84,112,.18)' },
+  }[direction];
+  el.style.setProperty('--glow-color', glow.color);
+  el.style.setProperty('--glow-bg', glow.bg);
+  el.classList.remove('value-flash');
+  void el.offsetWidth;
+  el.classList.add('value-flash');
+}
+function setNumericText(id, newVal, decimals=4, formatter=null){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const prev = displayedValues[id];
+  el.innerText = isNaN(newVal) ? 'N/A' : (formatter ? formatter(newVal) : newVal.toFixed(decimals));
+  if(prev !== undefined && !isNaN(newVal) && !isNaN(prev) && newVal !== prev){
+    flashValue(el, newVal > prev ? 'up' : 'down');
+  }
+  if(!isNaN(newVal)) displayedValues[id] = newVal;
+}
+
+// ── Aviso sonoro ──
+let soundArmed = { entry:false, exit:false };
+let alarmInterval = { entry:null, exit:null };
+const ALARM_LOOP_MS = 1300;
+let sharedAudioCtx = null;
+
+function getAudioCtx(){
+  if(!sharedAudioCtx) sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
+  return sharedAudioCtx;
+}
+function beep(freq, delay, duration){
+  const ac = getAudioCtx(); const start = ac.currentTime + delay;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type='sine'; o.frequency.value=freq;
+  g.gain.setValueAtTime(0.0001, start);
+  g.gain.exponentialRampToValueAtTime(0.35, start + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  o.connect(g); g.connect(ac.destination);
+  o.start(start); o.stop(start + duration + 0.05);
+}
+function playAlertSound(kind){
+  if(kind === 'entry'){ beep(740,0,0.28); beep(1180,0.16,0.32); }
+  else { beep(1180,0,0.28); beep(740,0.16,0.32); }
+}
+function startAlarmLoop(kind){
+  if(alarmInterval[kind]) return;
+  playAlertSound(kind);
+  alarmInterval[kind] = setInterval(()=>playAlertSound(kind), ALARM_LOOP_MS);
+  updateSoundButtons();
+}
+function stopAlarmLoop(kind){
+  if(alarmInterval[kind]){ clearInterval(alarmInterval[kind]); alarmInterval[kind]=null; }
+  updateSoundButtons();
+}
+function toggleSound(which){
+  soundArmed[which] = !soundArmed[which];
+  if(soundArmed[which]) getAudioCtx(); else stopAlarmLoop(which);
+  updateSoundButtons();
+}
+function updateSoundButtons(){
+  const e = document.getElementById('entry-sound-btn'), x = document.getElementById('exit-sound-btn');
+  e.classList.toggle('active', soundArmed.entry);
+  e.classList.toggle('alerting', !!alarmInterval.entry);
+  x.classList.toggle('active', soundArmed.exit);
+  x.classList.toggle('alerting', !!alarmInterval.exit);
+}
+function triggerSignalSound(which, isHit){
+  if(!soundArmed[which]) return;
+  if(isHit) startAlarmLoop(which); else stopAlarmLoop(which);
+}
+
+// ── FÓRMULAS DE SPREAD ──
+// Todo se calcula en la divisa de la plaza de compra: la pata corta
+// (siempre en USD) se convierte antes con shortToPlaza().
+//
+// Entrada: compras la pata larga al ask y shorteas BHLL al bid.
+//   (RATIO × bid BHLL convertido) / ask pata larga − 1
+function grossEntrySpread(tAsk, aBidPlaza){
+  if(isNaN(tAsk) || tAsk<=0 || isNaN(aBidPlaza)) return NaN;
+  return (RATIO*aBidPlaza)/tAsk - 1;
+}
+// Salida: spread restante si deshaces ahora (vendes al bid, recompras al ask).
+function grossExitSpread(tBid, aAskPlaza){
+  if(isNaN(tBid) || tBid<=0 || isNaN(aAskPlaza)) return NaN;
+  return (RATIO*aAskPlaza)/tBid - 1;
+}
+
+// ── BASE COMÚN: acciones, capital y costes de apertura ──
+function computeOrderBasis(){
+  const { tAsk, aBidPlaza, aBidUsd } = priceCache;
+  if(isNaN(tAsk) || tAsk<=0 || isNaN(aBidPlaza)) return null;
+  const targetShares = Math.floor(INVEST / tAsk);
+  // Con ratio 0,1724 (=431/2500) no hay lote pequeño que deje la pata
+  // corta en acciones enteras, así que se redondea y se avisa de la
+  // cobertura exacta en la tarjeta de orden.
+  const exactShort = targetShares * RATIO;
+  const shortShares = Math.round(exactShort);
+  const capitalUsado = targetShares * tAsk;
+  const commOpen = commissionForOrder(targetShares, tAsk, plaza.market)
+                 + shortCommissionInPlaza(shortShares, aBidUsd);
+  // El préstamo se devenga con el tiempo: resta del beneficio pero NO
+  // entra en `outlay`, que es el capital sobre el que se mide el %.
+  const borrowOpen = borrowCostPlaza(shortShares, aBidUsd, daysToMerger());
+  const outlay = capitalUsado + commOpen;
+  return { targetShares, shortShares, exactShort, capitalUsado, commOpen, borrowOpen, outlay };
+}
+
+function computeCloseOrderBasis(){
+  const openBasis = computeOrderBasis();
+  if(!openBasis) return null;
+  const { tBid, aAskUsd } = priceCache;
+  if(isNaN(tBid) || tBid<=0 || isNaN(aAskUsd)) return null;
+  const { targetShares, shortShares } = openBasis;
+  const proceeds = targetShares * tBid;
+  const commClose = commissionForOrder(targetShares, tBid, plaza.market)
+                  + shortCommissionInPlaza(shortShares, aAskUsd);
+  return { targetShares, shortShares, proceeds, commClose, openBasis };
+}
+
+function recalc(){
+  const { tAsk, tBid, tLast, aBidPlaza, aAskPlaza, aLastPlaza } = priceCache;
+
+  // ── ENTRADA ──
+  const inPct = grossEntrySpread(tAsk, aBidPlaza);
+  const pInEl = document.getElementById('in-pct');
+  const netInEl = document.getElementById('in-usd-net');
+  const basis = computeOrderBasis();
+
+  if(!isNaN(inPct) && basis){
+    const grossProfit = inPct * basis.capitalUsado;
+    const netProfit = grossProfit - basis.commOpen - basis.borrowOpen;
+    const netPctIn = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
+
+    const prevIn = displayedValues['in-pct'];
+    pInEl.innerText = isNaN(netPctIn) ? 'N/A' : `${Math.abs(netPctIn).toFixed(3)} %`;
+    pInEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+    if(prevIn !== undefined && !isNaN(netPctIn) && netPctIn !== prevIn) flashValue(pInEl, netPctIn>prevIn?'up':'down');
+    if(!isNaN(netPctIn)) displayedValues['in-pct'] = netPctIn;
+
+    setNumericText('in-usd', netProfit, 2, v => fmt(Math.abs(v)));
+    if(borrowRate > 0){
+      netInEl.innerText = `Comisión ≈${fmt(basis.commOpen)} · Préstamo BHLL ≈${fmt(basis.borrowOpen)} (${borrowRate}% × ${daysToMerger()} d)`;
+      netInEl.style.color = '';
+    } else {
+      netInEl.innerText = `Comisión ≈${fmt(basis.commOpen)} · ⚠️ préstamo de BHLL NO incluido (borrow a 0%)`;
+      netInEl.style.color = 'var(--amber)';
+    }
+
+    const entryHit = netPctIn >= threshold;
+    document.getElementById('entry-card').classList.toggle('entry-hit', entryHit);
+    triggerSignalSound('entry', entryHit);
+
+    const tirEl = document.getElementById('in-tir');
+    const annPct = annualizedReturn(netPctIn, daysToMerger());
+    if(isNaN(annPct)){ tirEl.innerText='TIR –'; tirEl.style.color=''; tirEl.style.borderColor=''; }
+    else {
+      tirEl.innerText = `TIR ${annPct>=0?'+':''}${annPct.toFixed(1)}%`;
+      const c = annPct>=0 ? 'var(--green)' : 'var(--red)';
+      tirEl.style.color = c; tirEl.style.borderColor = c;
+    }
+  } else {
+    pInEl.innerText = 'N/A';
+    document.getElementById('in-usd').innerText = 'N/A';
+    netInEl.innerText = plaza.cross ? 'Sin tipo de cambio USD/CAD: no se calcula para no mezclar divisas.' : '–';
+    netInEl.style.color = plaza.cross ? 'var(--amber)' : '';
+    document.getElementById('entry-card').classList.remove('entry-hit');
+    triggerSignalSound('entry', false);
+  }
+  if(!isNaN(tLast) && tLast>0 && !isNaN(aLastPlaza)){
+    setNumericText('in-last', (RATIO*aLastPlaza)/tLast - 1, 3, fmtPct);
+  }
+
+  // ── SALIDA ──
+  const outPct = grossExitSpread(tBid, aAskPlaza);
+  const pOutEl = document.getElementById('out-pct');
+  const netOutEl = document.getElementById('out-usd-net');
+
+  if(!isNaN(outPct) && basis){
+    const grossProfit = -outPct * basis.capitalUsado;
+    const commClose = commissionForOrder(basis.targetShares, tBid, plaza.market)
+                    + shortCommissionInPlaza(basis.shortShares, priceCache.aAskUsd);
+    const netProfit = grossProfit - commClose;
+    const netPctOut = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
+
+    const prevOut = displayedValues['out-pct'];
+    pOutEl.innerText = isNaN(netPctOut) ? 'N/A' : `${Math.abs(netPctOut).toFixed(3)} %`;
+    pOutEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+    if(prevOut !== undefined && !isNaN(netPctOut) && netPctOut !== prevOut) flashValue(pOutEl, netPctOut>prevOut?'up':'down');
+    if(!isNaN(netPctOut)) displayedValues['out-pct'] = netPctOut;
+
+    setNumericText('out-usd', netProfit, 2, v => fmt(Math.abs(v)));
+    netOutEl.innerText = `Comisión de cierre estimada: ≈${fmt(commClose)}`;
+    netOutEl.style.color = '';
+
+    const exitHit = (outPct*100) <= thresholdExit;
+    document.getElementById('exit-card').classList.toggle('exit-hit', exitHit);
+    triggerSignalSound('exit', exitHit);
+  } else {
+    pOutEl.innerText = 'N/A';
+    document.getElementById('out-usd').innerText = 'N/A';
+    netOutEl.innerText = '–';
+    document.getElementById('exit-card').classList.remove('exit-hit');
+    triggerSignalSound('exit', false);
+  }
+  if(!isNaN(tLast) && tLast>0 && !isNaN(aLastPlaza)){
+    setNumericText('out-last', (RATIO*aLastPlaza)/tLast - 1, 3, fmtPct);
+  }
+}
+
+function applyOrderModeStyle(){
+  const card = document.getElementById('order-card');
+  if(!card) return;
+  const isOpen = orderMode === 'open';
+  card.classList.toggle('mode-open', isOpen);
+  card.classList.toggle('mode-close', !isOpen);
+  document.getElementById('order-title-text').innerText = isOpen ? 'Orden a introducir (abrir)' : 'Orden a introducir (cerrar)';
+
+  const legBuyEl = document.getElementById('ord-leg-buy'), legSellEl = document.getElementById('ord-leg-sell');
+  const buyLabelEl = document.getElementById('ord-buy-label'), sellLabelEl = document.getElementById('ord-sell-label');
+
+  if(isOpen){
+    buyLabelEl.innerText = '🟢 Comprar (largo)';
+    sellLabelEl.innerText = '🔴 Vender en corto';
+    legBuyEl.classList.remove('leg-sell'); legBuyEl.classList.add('leg-buy');
+    legSellEl.classList.remove('leg-buy'); legSellEl.classList.add('leg-sell');
+  } else {
+    buyLabelEl.innerText = '🔴 Vender (cerrar largo)';
+    sellLabelEl.innerText = '🟢 Comprar (cerrar corto)';
+    legBuyEl.classList.remove('leg-buy'); legBuyEl.classList.add('leg-sell');
+    legSellEl.classList.remove('leg-sell'); legSellEl.classList.add('leg-buy');
+  }
+
+  document.getElementById('ord-capital-label').innerText = isOpen ? 'Capital realmente usado' : 'Capital liberado al cerrar';
+  document.getElementById('ord-commission-label').innerText = isOpen ? 'Comisiones estimadas (apertura)' : 'Comisiones estimadas (cierre)';
+  document.getElementById('ord-borrow-label').innerText = isOpen ? 'Préstamo BHLL hasta el cierre' : 'Préstamo BHLL ya devengado';
+  document.getElementById('ord-profit-label').innerText = isOpen ? 'Beneficio neto teórico (tras comisiones y préstamo)' : 'Beneficio neto si cierras ya (tras comisiones)';
+}
+
+function updateOrderTicket(){
+  const buyEl = document.getElementById('ord-buy'), sellEl = document.getElementById('ord-sell');
+  const buyPriceEl = document.getElementById('ord-buy-price'), sellPriceEl = document.getElementById('ord-sell-price');
+  const capEl = document.getElementById('ord-capital'), profitEl = document.getElementById('ord-profit');
+  const roundEl = document.getElementById('ord-rounding-note');
+
+  const vaciar = () => {
+    buyEl.innerText='–'; sellEl.innerText='–'; buyPriceEl.innerText='–'; sellPriceEl.innerText='–';
+    capEl.innerText='–'; document.getElementById('ord-commission').innerText='–';
+    profitEl.innerText='–'; document.getElementById('ord-borrow').innerText='–';
+    roundEl.innerText = plaza.cross ? '⚠️ Sin tipo de cambio USD/CAD no se puede montar la orden cruzada.' : '–';
+    syncSharesFromInvest();
+  };
+
+  if(orderMode === 'open'){
+    const basis = computeOrderBasis();
+    if(!basis){ vaciar(); return; }
+    const { tAsk, aBidUsd, aBidPlaza } = priceCache;
+    const { targetShares, shortShares, exactShort, capitalUsado, commOpen, borrowOpen, outlay } = basis;
+    const inPct = grossEntrySpread(tAsk, aBidPlaza);
+    const netProfit = inPct*capitalUsado - commOpen - borrowOpen;
+    const netPct = outlay>0 ? (netProfit/outlay)*100 : NaN;
+
+    buyEl.innerText = `${targetShares.toLocaleString('en-US')} acc. ${plaza.symbol}`;
+    buyPriceEl.innerText = `@ ${fmtPrice(tAsk, plaza.prefix)} (ask)`;
+    sellEl.innerText = `${shortShares.toLocaleString('en-US')} acc. ${SYMBOL_SHORT}`;
+    sellPriceEl.innerText = `@ ${fmtPrice(aBidUsd,'$')} (bid)`;
+
+    const prevCap = displayedValues['ord-capital'];
+    capEl.innerText = fmt(capitalUsado);
+    if(prevCap !== undefined && capitalUsado !== prevCap) flashValue(capEl, capitalUsado>prevCap?'up':'down');
+    displayedValues['ord-capital'] = capitalUsado;
+
+    setNumericText('ord-commission', commOpen, 2, fmt);
+    const borrowEl = document.getElementById('ord-borrow');
+    if(borrowRate > 0){ setNumericText('ord-borrow', borrowOpen, 2, fmt); borrowEl.style.color=''; }
+    else { borrowEl.innerText = 'no configurado'; borrowEl.style.color = 'var(--amber)'; delete displayedValues['ord-borrow']; }
+
+    const prevProfit = displayedValues['ord-profit'];
+    const annPct = annualizedReturn(netPct, daysToMerger());
+    const tirTxt = isNaN(annPct) ? '' : ` · TIR ${annPct>=0?'+':''}${annPct.toFixed(1)}%`;
+    profitEl.innerText = fmtSigned(netProfit) + (isNaN(netPct) ? '' : ` (${netPct>=0?'+':''}${netPct.toFixed(2)}%${tirTxt})`);
+    profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
+    if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
+    displayedValues['ord-profit'] = netProfit;
+
+    const diff = Math.abs(shortShares - exactShort);
+    roundEl.innerText = diff > 1e-9
+      ? `Cobertura exacta: ${exactShort.toFixed(2)} ${SYMBOL_SHORT} → redondeada a ${shortShares.toLocaleString('en-US')} (el ratio 0,1724 no admite un lote entero pequeño).`
+      : `Cobertura exacta: ${shortShares.toLocaleString('en-US')} ${SYMBOL_SHORT}.`;
+
+  } else {
+    const closeBasis = computeCloseOrderBasis();
+    if(!closeBasis){ vaciar(); return; }
+    const { tBid, aAskUsd, aAskPlaza } = priceCache;
+    const { targetShares, shortShares, proceeds, commClose, openBasis } = closeBasis;
+    const outPct = grossExitSpread(tBid, aAskPlaza);
+    const netProfit = -outPct*openBasis.capitalUsado - commClose;
+    const netPct = openBasis.outlay>0 ? (netProfit/openBasis.outlay)*100 : NaN;
+
+    buyEl.innerText = `${targetShares.toLocaleString('en-US')} acc. ${plaza.symbol}`;
+    buyPriceEl.innerText = `@ ${fmtPrice(tBid, plaza.prefix)} (bid)`;
+    sellEl.innerText = `${shortShares.toLocaleString('en-US')} acc. ${SYMBOL_SHORT}`;
+    sellPriceEl.innerText = `@ ${fmtPrice(aAskUsd,'$')} (ask)`;
+
+    const prevCap = displayedValues['ord-capital'];
+    capEl.innerText = fmt(proceeds);
+    if(prevCap !== undefined && proceeds !== prevCap) flashValue(capEl, proceeds>prevCap?'up':'down');
+    displayedValues['ord-capital'] = proceeds;
+
+    setNumericText('ord-commission', commClose, 2, fmt);
+    const borrowEl = document.getElementById('ord-borrow');
+    borrowEl.innerText = 'ver simulador';
+    borrowEl.style.color = 'var(--ink-dim)';
+    delete displayedValues['ord-borrow'];
+
+    const prevProfit = displayedValues['ord-profit'];
+    profitEl.innerText = fmtSigned(netProfit) + (isNaN(netPct) ? '' : ` (${netPct>=0?'+':''}${netPct.toFixed(2)}%)`);
+    profitEl.style.color = netProfit >= 0 ? 'var(--green)' : 'var(--red)';
+    if(prevProfit !== undefined && netProfit !== prevProfit) flashValue(profitEl, netProfit>prevProfit?'up':'down');
+    displayedValues['ord-profit'] = netProfit;
+
+    roundEl.innerText = 'Cierre a mercado: se deshacen las mismas acciones que se abrieron.';
+  }
+
+  syncSharesFromInvest();
+}
+
+// ── ENTRADAS DE ACCIONES POR PATA ──
+function syncSharesFromInvest(){
+  const tInput = document.getElementById('shares-t-input'), aInput = document.getElementById('shares-a-input');
+  if(!tInput || !aInput) return;
+  if(document.activeElement === tInput || document.activeElement === aInput) return;
+  const tAsk = priceCache.tAsk;
+  if(isNaN(tAsk) || tAsk<=0){ tInput.value=''; aInput.value=''; return; }
+  const targetShares = Math.floor(INVEST / tAsk);
+  tInput.value = targetShares;
+  aInput.value = Math.round(targetShares * RATIO);
+}
+function onSharesTInput(){
+  const tAsk = priceCache.tAsk;
+  if(isNaN(tAsk) || tAsk<=0) return;
+  let qtyT = parseFloat(document.getElementById('shares-t-input').value);
+  if(isNaN(qtyT) || qtyT<0) qtyT = 0;
+  document.getElementById('shares-a-input').value = Math.round(qtyT * RATIO);
+  INVEST = qtyT * tAsk;
+  document.getElementById('invest-input').value = Math.round(INVEST);
+  document.getElementById('invest-slider').value = investToSlider(INVEST);
+  recalc(); updateOrderTicket(); updatePositionCard();
+}
+function onSharesAInput(){
+  const tAsk = priceCache.tAsk;
+  if(isNaN(tAsk) || tAsk<=0) return;
+  let qtyA = parseFloat(document.getElementById('shares-a-input').value);
+  if(isNaN(qtyA) || qtyA<0) qtyA = 0;
+  const qtyT = Math.round(qtyA / RATIO);
+  document.getElementById('shares-t-input').value = qtyT;
+  INVEST = qtyT * tAsk;
+  document.getElementById('invest-input').value = Math.round(INVEST);
+  document.getElementById('invest-slider').value = investToSlider(INVEST);
+  recalc(); updateOrderTicket(); updatePositionCard();
+}
+
+// ── LIQUIDEZ ──
+// Con ratio 0,1724 la pata corta necesita ~6 veces MENOS profundidad que
+// la larga, así que lo normal es que limite la pata que compras. Aun
+// así se comprueban las dos.
+let liquidityMaxShares = { open:null, close:null };
+
+function updateLiquidityCard(){
+  const openEl = document.getElementById('in-liquidity'), closeEl = document.getElementById('out-liquidity');
+  const openBtn = document.getElementById('in-liquidity-use'), closeBtn = document.getElementById('out-liquidity-use');
+  const t = lastValid[plaza.symbol], a = lastValid[SYMBOL_SHORT];
+  const { tAsk, tBid } = priceCache;
+
+  if(!isNaN(t.askSize) && !isNaN(tAsk) && tAsk>0 && !isNaN(a.bidSize)){
+    const equivFromShort = a.bidSize / RATIO;
+    const maxOpen = Math.floor(Math.min(t.askSize, equivFromShort));
+    const limita = t.askSize <= equivFromShort ? plaza.symbol : SYMBOL_SHORT;
+    openEl.innerText = `${fmt(maxOpen*tAsk)} (${maxOpen.toLocaleString('en-US')} acc. · limita ${limita})`;
+    liquidityMaxShares.open = maxOpen;
+    if(openBtn) openBtn.disabled = !(maxOpen>0);
+  } else {
+    openEl.innerText='–'; liquidityMaxShares.open=null; if(openBtn) openBtn.disabled=true;
+  }
+
+  if(!isNaN(t.bidSize) && !isNaN(tBid) && tBid>0 && !isNaN(a.askSize)){
+    const equivFromShort = a.askSize / RATIO;
+    const maxClose = Math.floor(Math.min(t.bidSize, equivFromShort));
+    const limita = t.bidSize <= equivFromShort ? plaza.symbol : SYMBOL_SHORT;
+    closeEl.innerText = `${fmt(maxClose*tBid)} (${maxClose.toLocaleString('en-US')} acc. · limita ${limita})`;
+    liquidityMaxShares.close = maxClose;
+    if(closeBtn) closeBtn.disabled = !(maxClose>0);
+  } else {
+    closeEl.innerText='–'; liquidityMaxShares.close=null; if(closeBtn) closeBtn.disabled=true;
+  }
+}
+
+function useLiquidity(which){
+  const qty = liquidityMaxShares[which];
+  if(qty===null || qty===undefined || qty<=0) return;
+  orderMode = which;
+  applyOrderModeStyle();
+  document.getElementById('shares-t-input').value = qty;
+  onSharesTInput();
+}
+
+// ── FRESCURA ──
+function oldestIso(...isoList){
+  const valid = isoList.filter(Boolean);
+  if(!valid.length) return null;
+  return valid.reduce((oldest, cur) => new Date(cur) < new Date(oldest) ? cur : oldest);
+}
+function paintFreshLine(id, iso){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const fr = tiempoDesde(iso);
+  el.innerText = fr.texto;
+  el.classList.toggle('stale', fr.stale);
+}
+function updateSpreadFreshness(){
+  const t = lastValid[plaza.symbol], a = lastValid[SYMBOL_SHORT], fx = lastValid[FX_SYMBOL];
+  // En la plaza cruzada el tipo de cambio es una pata más: si lleva
+  // horas parado, el spread convertido está tan muerto como si lo
+  // estuviera una de las acciones.
+  const fxTs = plaza.cross ? oldestIso(fx.bidTs, fx.askTs) : null;
+  paintFreshLine('in-fresh',  oldestIso(t.askTs, a.bidTs, fxTs));
+  paintFreshLine('out-fresh', oldestIso(t.bidTs, a.askTs, fxTs));
+}
+function paintLastUpdateLabel(){
+  const el = document.getElementById('last-update-label');
+  if(!el) return;
+  const t = lastValid[plaza.symbol], a = lastValid[SYMBOL_SHORT];
+  const oldest = oldestIso(t.bidTs, t.askTs, a.bidTs, a.askTs);
+  if(!oldest){ el.innerText='Sin datos'; el.classList.remove('stale-label'); return; }
+  const fr = tiempoDesde(oldest);
+  el.innerText = fr.texto;
+  el.classList.toggle('stale-label', fr.stale);
+}
+setInterval(paintLastUpdateLabel, 1000);
+setInterval(updateMergerDaysLabel, 60000);
+
+// ── REFERENCIA BNKR + FX ──
+function updateRefCards(){
+  const fx = lastValid[FX_SYMBOL];
+  document.getElementById('fx-bid').innerText = isNaN(fx.bid) ? '–' : fx.bid.toFixed(5);
+  document.getElementById('fx-ask').innerText = isNaN(fx.ask) ? '–' : fx.ask.toFixed(5);
+
+  const bhllBid = lastValid[SYMBOL_SHORT].bid;
+  const bnkrBid = lastValid[SYMBOL_REF].bid;
+  const bnkrInUsd = fxConvert(bnkrBid, CCY_REF, CCY_SHORT, fx.bid, fx.ask);
+
+  document.getElementById('ref-bhll-bid').innerText = fmtPrice(bhllBid, '$');
+  document.getElementById('ref-bnkr-bid').innerText = fmtPrice(bnkrInUsd, '$');
+
+  const card = document.getElementById('ref-bnkr-card');
+  const note = document.getElementById('ref-bnkr-note');
+  if(!isNaN(bhllBid) && !isNaN(bnkrInUsd) && bnkrInUsd>0){
+    const div = Math.abs(bhllBid - bnkrInUsd) / bnkrInUsd;
+    if(div > REF_DIVERGENCE_ALERT){
+      card.classList.add('warn');
+      note.classList.add('alert');
+      note.innerText = `⚠️ BHLL se aparta un ${(div*100).toFixed(1)}% de BNKR convertido. Lo más probable es que el bid del OTC esté colgado: no te fíes del spread hasta que converjan.`;
+    } else {
+      card.classList.remove('warn');
+      note.classList.remove('alert');
+      note.innerText = `Divergencia actual ${(div*100).toFixed(1)}%. BNKR (TSX) es el mismo valor y tiene mucha más liquidez: si BHLL se aparta mucho, el OTC está colgado y el spread no es operable.`;
+    }
+  } else {
+    card.classList.remove('warn');
+    note.classList.remove('alert');
+    note.innerText = 'BNKR (TSX) es el mismo valor que BHLL y tiene mucha más liquidez. Sirve para detectar que el bid del OTC se ha quedado colgado.';
+  }
+}
+
+// ── EXPLICADOR ──
+function updateExchangeExplainer(){
+  document.getElementById('ex-ratio').innerText = RATIO.toFixed(4);
+  const { aBidPlaza, aBidUsd, tAsk } = priceCache;
+  const netResEl = document.getElementById('ex-net-result');
+  const commAmtEl = document.getElementById('ex-comm-amt');
+  const borrowAmtEl = document.getElementById('ex-borrow-amt');
+
+  if(isNaN(aBidPlaza) || isNaN(tAsk) || tAsk<=0){
+    ['ex-abid','ex-equiv','ex-task'].forEach(id => document.getElementById(id).innerText = '–');
+    netResEl.innerText='–'; commAmtEl.innerText='–'; borrowAmtEl.innerText='–';
+    return;
+  }
+
+  // La primera casilla muestra el precio nativo de BHLL (USD); la
+  // segunda ya va en la divisa de la plaza, que es donde vive el resto
+  // del cálculo.
+  document.getElementById('ex-abid').innerText = fmtPrice(aBidUsd, '$');
+  setNumericText('ex-equiv', RATIO*aBidPlaza, 4, v => fmtPrice(v, plaza.prefix));
+  setNumericText('ex-task', tAsk, 4, v => fmtPrice(v, plaza.prefix));
+
+  const basis = computeOrderBasis();
+  const spread = grossEntrySpread(tAsk, aBidPlaza);
+  if(basis && !isNaN(spread)){
+    const netProfit = spread*basis.capitalUsado - basis.commOpen - basis.borrowOpen;
+    const netPct = basis.outlay>0 ? netProfit/basis.outlay : NaN;
+    commAmtEl.innerText = fmt(basis.commOpen);
+    borrowAmtEl.innerText = borrowRate>0 ? fmt(basis.borrowOpen) : 'n/c';
+    const prevNet = displayedValues['ex-net-result'];
+    netResEl.innerText = isNaN(netPct) ? '–' : fmtPct(netPct);
+    netResEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+    if(prevNet !== undefined && !isNaN(netPct) && netPct !== prevNet) flashValue(netResEl, netPct>prevNet?'up':'down');
+    if(!isNaN(netPct)) displayedValues['ex-net-result'] = netPct;
+  } else {
+    netResEl.innerText='–'; commAmtEl.innerText='–'; borrowAmtEl.innerText='–';
+  }
+}
+
+// ── MODAL POSICIÓN ──
+function openPositionModal(){ document.getElementById('pos-modal-overlay').classList.add('active'); }
+function closePositionModal(){ document.getElementById('pos-modal-overlay').classList.remove('active'); }
+function closePositionModalOnOverlay(e){ if(e.target.id === 'pos-modal-overlay') closePositionModal(); }
+document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closePositionModal(); });
+
+function posNum(id){
+  const v = parseFloat(document.getElementById(id).value);
+  return isNaN(v) ? 0 : v;
+}
+function fillPosPrice(id, key){
+  const v = priceCache ? priceCache[key] : undefined;
+  if(v===undefined || v===null || isNaN(v)) return;
+  document.getElementById(id).value = v.toFixed(4);
+  updatePositionCard();
+}
+function fillPosDaysToMerger(){
+  document.getElementById('pos-days').value = daysToMerger();
+  updatePositionCard();
+}
+
+function updatePositionCard(){
+  const qtyT = posNum('pos-t-qty'), entryT = posNum('pos-t-entry'), exitT = posNum('pos-t-exit');
+  const qtyA = posNum('pos-a-qty'), entryAUsd = posNum('pos-a-entry'), exitAUsd = posNum('pos-a-exit');
+
+  const ids = ['pos-capital','pos-merger-comm','pos-merger-borrow','pos-merger-pnl','pos-now-comm',
+               'pos-now-borrow','pos-now-gross','pos-now-pnl','pos-be-t','pos-be-a',
+               'pos-spread-entry','pos-spread-exit'];
+
+  const hasPosition = qtyT>0 && entryT>0 && qtyA>0 && entryAUsd>0;
+  if(!hasPosition){
+    ids.forEach(id => { const el=document.getElementById(id); el.innerText='–'; el.style.color=''; });
+    document.getElementById('pos-ratio-alert').style.display='none';
+    return;
+  }
+
+  // Los precios del corto se introducen en USD (es como los ve el
+  // bróker) y se convierten aquí a la divisa de la plaza para poder
+  // sumarlos con la pata larga.
+  const entryA = plaza.cross ? shortToPlaza(entryAUsd) : entryAUsd;
+  const exitA  = plaza.cross ? shortToPlaza(exitAUsd)  : exitAUsd;
+  if(isNaN(entryA)){
+    ids.forEach(id => { const el=document.getElementById(id); el.innerText='–'; el.style.color=''; });
+    return;
+  }
+
+  const capital = qtyT*entryT + qtyA*entryA;
+  setNumericText('pos-capital', capital, 2, fmt);
+
+  // Alerta de ratio frente al oficial (0,1724)
+  const alertEl = document.getElementById('pos-ratio-alert');
+  const idealTargetShares = qtyA / RATIO;
+  const diffTarget = idealTargetShares - qtyT;
+  const diffRounded = Math.round(Math.abs(diffTarget));
+  if(diffRounded >= 1){
+    alertEl.style.display = 'flex';
+    alertEl.innerHTML = diffTarget > 0
+      ? `⚠️ <span>Tu ratio no coincide con el oficial: te faltan <b>≈${diffRounded.toLocaleString('en-US')} acciones ${plaza.symbol}</b> para cubrir tu corto de ${qtyA.toLocaleString('en-US')} ${SYMBOL_SHORT}.</span>`
+      : `⚠️ <span>Tu ratio no coincide con el oficial: tienes <b>≈${diffRounded.toLocaleString('en-US')} acciones ${plaza.symbol} de más</b> para tu corto de ${qtyA.toLocaleString('en-US')} ${SYMBOL_SHORT}.</span>`;
+  } else {
+    alertEl.style.display = 'none';
+  }
+
+  // ══ ESCENARIO 1: se liquida el canje ══
+  const spreadEntry = entryT>0 ? (RATIO*entryA)/entryT - 1 : NaN;
+  setNumericText('pos-spread-entry', spreadEntry, 3, fmtPct);
+
+  const commMerger = commissionForOrder(qtyT, entryT, plaza.market) + shortCommissionInPlaza(qtyA, entryAUsd);
+  const borrowMerger = borrowCostPlaza(qtyA, entryAUsd, daysToMerger());
+  const grossMerger = qtyA*entryA - qtyT*entryT;
+  const netMerger = grossMerger - commMerger - borrowMerger;
+  const pctMerger = capital>0 ? (netMerger/capital)*100 : NaN;
+
+  setNumericText('pos-merger-comm', commMerger, 2, fmt);
+  const mBorrowEl = document.getElementById('pos-merger-borrow');
+  if(borrowRate > 0){ setNumericText('pos-merger-borrow', borrowMerger, 2, fmt); mBorrowEl.style.color=''; }
+  else { mBorrowEl.innerText='no configurado'; mBorrowEl.style.color='var(--amber)'; delete displayedValues['pos-merger-borrow']; }
+
+  const mergerPnlEl = document.getElementById('pos-merger-pnl');
+  const prevMerger = displayedValues['pos-merger-pnl'];
+  mergerPnlEl.innerText = fmt(netMerger) + (isNaN(pctMerger) ? '' : ` (${pctMerger>=0?'+':''}${pctMerger.toFixed(2)}%)`);
+  mergerPnlEl.style.color = netMerger>=0 ? 'var(--green)' : 'var(--red)';
+  if(prevMerger !== undefined && netMerger !== prevMerger) flashValue(mergerPnlEl, netMerger>prevMerger?'up':'down');
+  displayedValues['pos-merger-pnl'] = netMerger;
+
+  // ══ ESCENARIO 2: cierras ahora ══
+  const spreadExit = (exitT>0 && !isNaN(exitA)) ? (RATIO*exitA)/exitT - 1 : NaN;
+  setNumericText('pos-spread-exit', spreadExit, 3, fmtPct);
+
+  const pnlGross = qtyT*(exitT - entryT) + qtyA*(entryA - (isNaN(exitA)?entryA:exitA));
+  const totalComm = commissionForOrder(qtyT, entryT, plaza.market) + commissionForOrder(qtyT, exitT, plaza.market)
+                  + shortCommissionInPlaza(qtyA, entryAUsd) + shortCommissionInPlaza(qtyA, exitAUsd);
+  const heldDaysRaw = posNum('pos-days');
+  const heldDays = heldDaysRaw > 0 ? heldDaysRaw : daysToMerger();
+  const borrowNow = borrowCostPlaza(qtyA, entryAUsd, heldDays);
+  const totalCost = totalComm + borrowNow;
+  const pnl = pnlGross - totalCost;
+  const pnlPct = capital>0 ? (pnl/capital)*100 : NaN;
+
+  setNumericText('pos-now-comm', totalComm, 2, fmt);
+  const nBorrowEl = document.getElementById('pos-now-borrow');
+  if(borrowRate > 0){ nBorrowEl.innerText = `${fmt(borrowNow)} (${borrowRate}% × ${Math.round(heldDays)} d)`; nBorrowEl.style.color=''; }
+  else { nBorrowEl.innerText='no configurado'; nBorrowEl.style.color='var(--amber)'; }
+  setNumericText('pos-now-gross', pnlGross, 2, fmt);
+
+  const nowPnlEl = document.getElementById('pos-now-pnl');
+  const prevPnl = displayedValues['pos-now-pnl'];
+  nowPnlEl.innerText = fmt(pnl) + (isNaN(pnlPct) ? '' : ` (${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%)`);
+  nowPnlEl.style.color = pnl>=0 ? 'var(--green)' : 'var(--red)';
+  if(prevPnl !== undefined && pnl !== prevPnl) flashValue(nowPnlEl, pnl>prevPnl?'up':'down');
+  displayedValues['pos-now-pnl'] = pnl;
+
+  if(qtyT>0 && !isNaN(exitA)){
+    const beT = entryT + (qtyA/qtyT)*(exitA - entryA) + totalCost/qtyT;
+    setNumericText('pos-be-t', beT, 4, v => fmtPrice(v, plaza.prefix));
+  } else document.getElementById('pos-be-t').innerText = '–';
+
+  if(qtyA>0 && !isNaN(exitA)){
+    // El breakeven del corto se expresa en USD, que es como se
+    // introduce el precio; por eso se calcula en divisa de plaza y se
+    // devuelve a USD al final.
+    const beAPlaza = entryA + (qtyT/qtyA)*(exitT - entryT) - totalCost/qtyA;
+    const beAUsd = plaza.cross
+      ? fxConvert(beAPlaza, plaza.ccy, CCY_SHORT, lastValid[FX_SYMBOL].bid, lastValid[FX_SYMBOL].ask)
+      : beAPlaza;
+    setNumericText('pos-be-a', beAUsd, 4, v => fmtPrice(v, '$'));
+  } else document.getElementById('pos-be-a').innerText = '–';
+}
+
+['pos-t-qty','pos-t-entry','pos-t-exit','pos-a-qty','pos-a-entry','pos-a-exit','pos-days'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', updatePositionCard);
+});
+
+document.getElementById('borrow-rate-input').addEventListener('input', (e)=>{
+  const v = parseFloat(e.target.value);
+  borrowRate = (isNaN(v) || v < 0) ? 0 : v;
+  repaintAll();
+});
+
+function onInvestSlider(){
+  INVEST = sliderToInvest(parseInt(document.getElementById('invest-slider').value, 10));
+  document.getElementById('invest-input').value = INVEST;
+  recalc(); updateOrderTicket();
+}
+function onInvestInput(){
+  let v = parseFloat(document.getElementById('invest-input').value);
+  if(isNaN(v) || v < 0) v = 0;
+  INVEST = v;
+  document.getElementById('invest-slider').value = investToSlider(v);
+  recalc(); updateOrderTicket();
+}
+document.getElementById('invest-slider').addEventListener('input', onInvestSlider);
+document.getElementById('invest-input').addEventListener('input', onInvestInput);
+document.getElementById('shares-t-input').addEventListener('input', onSharesTInput);
+document.getElementById('shares-a-input').addEventListener('input', onSharesAInput);
+
+document.getElementById('threshold-input').addEventListener('input', (e)=>{
+  threshold = parseFloat(e.target.value) || 0;
+  plaza.threshold = threshold;   // el umbral se recuerda por plaza
+  recalc(); drawChart();
+});
+document.getElementById('threshold-exit-input').addEventListener('input', (e)=>{
+  thresholdExit = parseFloat(e.target.value) || 0;
+  plaza.thresholdExit = thresholdExit;
+  recalc(); drawChart();
+});
+document.getElementById('auto-interval').addEventListener('change', startAuto);
+
+document.getElementById('commission-model').addEventListener('change', (e)=>{
+  commissionModel = e.target.value;
+  document.getElementById('pos-commission-model').value = commissionModel;
+  repaintAll();
+});
+document.getElementById('pos-commission-model').addEventListener('change', (e)=>{
+  commissionModel = e.target.value;
+  document.getElementById('commission-model').value = commissionModel;
+  repaintAll();
+});
+
+function startAuto(){
+  clearInterval(autoTimer);
+  const ms = parseInt(document.getElementById('auto-interval').value);
+  if(ms>0) autoTimer = setInterval(updateData, ms);
+}
+
+// ── SELECTOR DE PLAZA ──
+async function setPlaza(id){
+  if(!PLAZAS[id] || plaza.id === id) return;
+  plaza = PLAZAS[id];
+
+  document.querySelectorAll('.plaza-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.plaza === id);
+  });
+
+  // Cada plaza tiene su propio umbral: cambiarla repone los inputs.
+  threshold = plaza.threshold;
+  thresholdExit = plaza.thresholdExit;
+  document.getElementById('threshold-input').value = threshold;
+  document.getElementById('threshold-exit-input').value = thresholdExit;
+
+  // El historial del gráfico y los valores "anteriores" del resplandor
+  // son de la otra plaza: se tiran para no comparar peras con manzanas.
+  entryPts = []; exitPts = [];
+  displayedValues = {};
+
+  applyPlazaLabels();
+  await loadHistoricalSpread();
+  await updateData();
+  drawChart();
+}
+
+function applyPlazaLabels(){
+  document.getElementById('pair-sub').innerText = `${plaza.name} → Bunker Hill (BHLL · OTCQB) · ratio ${RATIO}`;
+  document.getElementById('A-name').innerText = plaza.name;
+  document.getElementById('A-note').innerText = plaza.note;
+  document.getElementById('si-tag-t').innerText = plaza.symbol;
+  document.getElementById('invest-ccy').innerText = plaza.prefix;
+  document.getElementById('invest-min-label').innerText = `${plaza.prefix}100`;
+  document.getElementById('invest-max-label').innerText = `${plaza.prefix}100k`;
+  document.getElementById('pos-long-name').innerText = `Largo ${plaza.symbol} (${plaza.ccy})`;
+  document.getElementById('pos-t-entry-label').innerText = `Precio de compra (${plaza.prefix}, entrada)`;
+  document.getElementById('pos-t-exit-label').innerText = `Precio objetivo de venta (${plaza.prefix}, cierre)`;
+
+  document.getElementById('ex-lbl-1').innerText = `① Vendes en corto ${SYMBOL_SHORT} (bid, USD)`;
+  document.getElementById('ex-lbl-2').innerText = plaza.cross
+    ? `② Convertido a CAD y × ratio, por acción ${plaza.symbol}`
+    : `② Equivale por acción ${plaza.symbol} a`;
+  document.getElementById('ex-lbl-3').innerText = `③ Compras ${plaza.symbol} (ask)`;
+
+  document.getElementById('explain-sub').innerText = plaza.cross
+    ? `Si compras 1 acción de ${plaza.symbol} en el TSXV y vendes en corto sus ${RATIO} acciones equivalentes de ${SYMBOL_SHORT} en el OTCQB, esto es lo que pasa. La pata corta cotiza en USD y se convierte a CAD con el par USD.CAD antes de comparar:`
+    : `Si compras 1 acción de ${plaza.symbol} y vendes en corto sus ${RATIO} acciones equivalentes de ${SYMBOL_SHORT}, esto es lo que pasa (todo en USD):`;
+
+  document.getElementById('explain-note').innerText = plaza.cross
+    ? `Es la ganancia teórica neta por cada dólar canadiense invertido si el canje se liquidara en la fecha estimada a estos precios. OJO: el tipo de cambio de hoy es solo el de hoy — mientras la posición siga abierta, un movimiento del CAD/USD puede comerse el spread entero, y eso no está modelado aquí. Tampoco lo está el coste de traspasar de CDS a DTC las acciones BNKR que recibirás.`
+    : `Es la ganancia teórica neta por cada dólar invertido si el canje se liquidara en la fecha estimada a estos precios. Coincide con el % de la tarjeta "Spread de entrada". El coste de préstamo sale de la tasa que hayas metido arriba, aplicada al valor del corto durante los días que quedan hasta el cierre (base 360, como cobra IBKR).`;
+
+  const ccyAlert = document.getElementById('pos-ccy-alert');
+  if(plaza.cross){
+    ccyAlert.style.display = 'flex';
+    ccyAlert.innerHTML = `⚠️ <span>La pata larga está en <b>CAD</b> y la corta en <b>USD</b>. Los precios de ${SYMBOL_SHORT} se introducen en dólares y se convierten al tipo actual; los resultados salen en ${plaza.prefix}. El riesgo de divisa hasta el cierre <b>no está cubierto</b> por este cálculo.</span>`;
+  } else {
+    ccyAlert.style.display = 'none';
+  }
+
+  document.getElementById('pos-merger-sub').innerText = plaza.cross
+    ? 'Entregas las acciones de Silver47 y recibes BNKR en Canadá: para cubrir el corto de BHLL hay que traspasarlas o deshacer con dos operaciones más.'
+    : 'Entregas las acciones de Silver47 y las BHLL que recibes cubren el corto — sin comisiones de cierre.';
+}
+
+// ── RANGO DEL GRÁFICO ──
+function parseRangeAttr(str){
+  if(str === 'today') return { type:'today' };
+  const h = str.match(/^(\d+)h$/); if(h) return { type:'hours', value: parseInt(h[1],10) };
+  const d = str.match(/^(\d+)d$/); if(d) return { type:'days', value: parseInt(d[1],10) };
+  return { type:'days', value:1 };
+}
+function rangeTitleText(range){
+  if(range.type === 'today') return 'Evolución del spread (hoy)';
+  if(range.type === 'hours') return `Evolución del spread (última${range.value>1?'s':''} ${range.value} hora${range.value>1?'s':''})`;
+  return `Evolución del spread (últimos ${range.value} día${range.value>1?'s':''})`;
+}
+document.querySelectorAll('#range-tabs button').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    if(btn.classList.contains('active')) return;
+    document.querySelectorAll('#range-tabs button').forEach(b=>{ b.classList.remove('active'); b.disabled=true; });
+    chartRange = parseRangeAttr(btn.dataset.range);
+    btn.classList.add('active');
+    document.getElementById('chart-title').innerText = rangeTitleText(chartRange);
+    await loadHistoricalSpread();
+    drawChart();
+    document.querySelectorAll('#range-tabs button').forEach(b=>{ b.disabled=false; });
+  });
+});
+
+// ── DATOS ──
+async function fetchLatestQuotes(){
+  const { data, error } = await db
+    .from('latest_quotes_by_symbol')
+    .select('*')
+    .in('symbol', ALL_SYMBOLS);
+  if(error) throw error;
+  const bySymbol = {};
+  (data||[]).forEach(r => bySymbol[r.symbol] = r);
+  return bySymbol;
+}
+
+// Trae TODAS las filas del rango paginando: PostgREST corta cada
+// respuesta en ~1000 filas, así que un .limit() grande se queda corto
+// en silencio.
+async function fetchAllHistoryRows(sinceISO, symbols){
+  const PAGE_SIZE = 1000, MAX_PAGES = 200;
+  let allRows = [], from = 0;
+  for(let page=0; page<MAX_PAGES; page++){
+    const { data, error } = await db
+      .from('quotes_history')
+      .select('symbol,bid,ask,ib_timestamp,inserted_at')
+      .in('symbol', symbols)
+      .gte('inserted_at', sinceISO)
+      .order('inserted_at', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if(error) throw error;
+    if(!data || !data.length) break;
+    allRows = allRows.concat(data);
+    if(data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return allRows;
+}
+
+function rangeSinceDate(range){
+  if(range.type === 'today'){ const d = new Date(); d.setHours(0,0,0,0); return d; }
+  if(range.type === 'hours') return new Date(Date.now() - range.value*60*60*1000);
+  return new Date(Date.now() - range.value*24*60*60*1000);
+}
+
+async function loadHistoricalSpread(range = chartRange){
+  const sinceISO = rangeSinceDate(range).toISOString();
+  const symbols = plaza.cross
+    ? [plaza.symbol, SYMBOL_SHORT, FX_SYMBOL]
+    : [plaza.symbol, SYMBOL_SHORT];
+
+  let data;
+  try{ data = await fetchAllHistoryRows(sinceISO, symbols); }
+  catch(e){ console.error('Error cargando histórico:', e.message); return; }
+  if(!data || !data.length) return;
+
+  // Se arrastra el último valor conocido de cada pata (incluido el tipo
+  // de cambio) y se recalcula el spread en cada tick que llega.
+  let last = { tBid:null, tAsk:null, aBid:null, aAsk:null, fxBid:null, fxAsk:null };
+  const inPts = [], outPts = [];
+
+  for(const row of data){
+    const rowBid = cleanQuote(row.bid), rowAsk = cleanQuote(row.ask);
+    const ts = row.ib_timestamp || row.inserted_at;
+    if(isNaN(rowBid) && isNaN(rowAsk)) continue;
+
+    if(row.symbol === plaza.symbol){
+      if(!isNaN(rowBid)) last.tBid = rowBid;
+      if(!isNaN(rowAsk)) last.tAsk = rowAsk;
+    } else if(row.symbol === SYMBOL_SHORT){
+      if(!isNaN(rowBid)) last.aBid = rowBid;
+      if(!isNaN(rowAsk)) last.aAsk = rowAsk;
+    } else if(row.symbol === FX_SYMBOL){
+      if(!isNaN(rowBid)) last.fxBid = rowBid;
+      if(!isNaN(rowAsk)) last.fxAsk = rowAsk;
+      continue; // un tick de divisa no genera punto por sí solo
+    }
+
+    const conv = p => (p==null) ? NaN : fxConvert(p, CCY_SHORT, plaza.ccy, last.fxBid, last.fxAsk);
+
+    if(last.tAsk>0 && last.aBid!=null){
+      const v = grossEntrySpread(last.tAsk, conv(last.aBid));
+      if(!isNaN(v)) inPts.push({ t: new Date(ts).getTime(), v: v*100 });
+    }
+    if(last.tBid>0 && last.aAsk!=null){
+      const v = grossExitSpread(last.tBid, conv(last.aAsk));
+      if(!isNaN(v)) outPts.push({ t: new Date(ts).getTime(), v: v*100 });
+    }
+  }
+
+  const MAX_POINTS = 400;
+  const downsample = pts => {
+    if(pts.length <= MAX_POINTS) return pts;
+    const step = Math.ceil(pts.length / MAX_POINTS);
+    return pts.filter((_,i)=> i % step === 0);
+  };
+  entryPts = downsample(inPts);
+  exitPts  = downsample(outPts);
+}
+
+function repaintAll(){
+  recalc();
+  updateOrderTicket();
+  updateLiquidityCard();
+  updateExchangeExplainer();
+  updateRefCards();
+  updateSpreadFreshness();
+  updatePositionCard();
+}
+
+async function updateData(){
+  const status = document.getElementById('status');
+  try{
+    const bySymbol = await fetchLatestQuotes();
+    ALL_SYMBOLS.forEach(s => ingestQuote(s, bySymbol[s] || {}));
+
+    const paint = (pfx, symbol, prefix, q) => {
+      const store = lastValid[symbol];
+      setNumericText(pfx+'-last', store.last, 4, v => fmtPrice(v, prefix));
+      setNumericText(pfx+'-bid',  store.bid,  4, v => fmtPrice(v, prefix));
+      setNumericText(pfx+'-ask',  store.ask,  4, v => fmtPrice(v, prefix));
+      setNumericText(pfx+'-bidsize', store.bidSize, 0, v => v.toLocaleString('en-US'));
+      setNumericText(pfx+'-asksize', store.askSize, 0, v => v.toLocaleString('en-US'));
+      if(q && q.primary_exchange) document.getElementById(pfx+'-exch').innerText = q.primary_exchange;
+      const stamps = [store.bidTs, store.askTs, store.lastTs].filter(Boolean).map(t => new Date(t).getTime());
+      const mostRecent = stamps.length ? new Date(Math.max(...stamps)).toISOString() : null;
+      const fr = tiempoDesde(mostRecent);
+      const frEl = document.getElementById(pfx+'-fresh');
+      frEl.innerText = fr.texto;
+      frEl.classList.toggle('stale', fr.stale);
+    };
+    paint('A', plaza.symbol, plaza.prefix, bySymbol[plaza.symbol]);
+    paint('B', SYMBOL_SHORT, '$', bySymbol[SYMBOL_SHORT]);
+
+    const t = lastValid[plaza.symbol], a = lastValid[SYMBOL_SHORT];
+    priceCache = {
+      tBid: t.bid, tAsk: t.ask, tLast: t.last,
+      aBidUsd: a.bid, aAskUsd: a.ask, aLastUsd: a.last,
+      aBidPlaza: shortToPlaza(a.bid),
+      aAskPlaza: shortToPlaza(a.ask),
+      aLastPlaza: shortToPlaza(a.last),
+      // Alias para los botones "usar precio actual" del simulador
+      tAskAlias: t.ask, tBidAlias: t.bid,
+    };
+    priceCache.aBid = priceCache.aBidUsd;
+    priceCache.aAsk = priceCache.aAskUsd;
+
+    repaintAll();
+    paintLastUpdateLabel();
+
+    const inLive = grossEntrySpread(priceCache.tAsk, priceCache.aBidPlaza);
+    if(!isNaN(inLive)){ entryPts.push({t:Date.now(), v: inLive*100}); if(entryPts.length>1000) entryPts.shift(); }
+    const outLive = grossExitSpread(priceCache.tBid, priceCache.aAskPlaza);
+    if(!isNaN(outLive)){ exitPts.push({t:Date.now(), v: outLive*100}); if(exitPts.length>1000) exitPts.shift(); }
+    drawChart();
+
+    status.innerHTML = `<span class="status-ok">Actualizado</span> · ${new Date().toLocaleTimeString()}`;
+  }catch(e){
+    status.innerText = 'Error al consultar datos: ' + e.message;
+  }
+}
+
+window.onload = async () => {
+  setupCanvas();
+  applyPlazaLabels();
+  updateMergerDaysLabel();
+  applyOrderModeStyle();
+  document.getElementById('invest-input').value = INVEST;
+  document.getElementById('invest-slider').value = investToSlider(INVEST);
+  updatePositionCard();
+  await loadHistoricalSpread();
+  drawChart();
+  paintLastUpdateLabel();
+  await updateData();
+  startAuto();
+};
+window.onresize = () => { setupCanvas(); drawChart(); };
+</script>
+</body>
+</html>
