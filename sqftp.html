@@ -1590,7 +1590,14 @@ function recalc(){
     if(basis){
       const grossProfit = -outPct * basis.capitalUsado;
       const commClose = commissionForOrder(basis.targetShares, tBid) + commissionForOrder(basis.acquirerShares, aAsk);
-      const netProfit = grossProfit - commClose;
+      // Borrow que TE AHORRAS cerrando ya en vez de aguantar hasta el
+      // cierre estimado: mismas acciones que en la entrada, valoradas al
+      // ask actual (precio al que se cubriría el corto), mismos días
+      // restantes que usa el lado de entrada (daysToMerger()). Un borrow
+      // alto reduce el neto de salida y por tanto adelanta exitHit — es
+      // justo el efecto de "un borrow alto ayuda a salirse antes".
+      const borrowClose = borrowCost(basis.acquirerShares, aAsk, daysToMerger());
+      const netProfit = grossProfit - commClose - borrowClose;
       const netPctOut = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
 
       const prevOut = displayedValues['out-pct'];
@@ -1600,10 +1607,15 @@ function recalc(){
       if(!isNaN(netPctOut)) displayedValues['out-pct'] = netPctOut;
 
       setNumericText('out-usd', netProfit, 2, v => fmt(v));
-      netOutEl.innerText = `Comisión de cierre estimada: ≈${fmt(commClose)}`;
-      netOutEl.style.color = '';
+      if(borrowRate > 0){
+        netOutEl.innerText = `Comisión ≈${fmt(commClose)} · Préstamo ${SYMBOL_ACQUIRER} evitado ≈${fmt(borrowClose)} (${borrowRate}% × ${daysToMerger()} d)`;
+        netOutEl.style.color = '';
+      } else {
+        netOutEl.innerText = `Comisión ≈${fmt(commClose)} · ⚠️ préstamo de ${SYMBOL_ACQUIRER} NO incluido (borrow a 0%)`;
+        netOutEl.style.color = 'var(--amber)';
+      }
 
-      const exitHit = (outPct*100) <= thresholdExit;
+      const exitHit = netPctOut <= thresholdExit;
       const exitCard = document.getElementById('exit-card');
       exitCard.classList.toggle('exit-hit', exitHit);
       triggerSignalSound('exit', exitHit);
