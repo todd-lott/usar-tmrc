@@ -104,6 +104,8 @@
   .s-tags{ display:flex; gap:6px; flex-wrap:wrap; }
   .s-tag{ font-family:var(--font-mono); font-size:.66rem; color:var(--ink-dim); background:#1c2230; padding:2px 6px; border-radius:4px; }
   .s-tag.fx{ color:var(--amber); background:var(--amber-bg); }
+  .s-tag.borrow{ color:var(--ink-dim); background:#1c2230; }
+  .s-tag.borrow.warn{ color:var(--amber); background:var(--amber-bg); }
   .s-meta{ font-size:.72rem; color:var(--ink-dim); font-family:var(--font-mono); }
 
   /* ── BLOQUE ENTRADA / SALIDA: spread + umbral + alarma juntos ── */
@@ -401,6 +403,69 @@ const STATIC_SITUATIONS = [
     detailUrl: 'ncsm-wfrd.html',
   },
 ];
+
+// ── Borrow rate automático desde Supabase ──
+// Todas las situaciones con `acquirerSymbol` tienen a esa pata como
+// pata CORTA (se compra el objetivo y se shortea el adquirente; ver
+// _es_accion / SITUACIONES en ib_arbitrage_monitor.py). Las de tipo
+// 'fixed' (OPA 100% en efectivo, como perf/gbcs) no tienen pata corta y
+// no llevan tag de borrow. El dato sale de `borrow_rates_latest` —la
+// misma tabla que mantiene ib-borrow-rate (borrow_rate_watchlist_monitor.py,
+// aparte, con su propio timer de systemd) y que usa también
+// ib_arbitrage_monitor.py para sus embeds de Discord— así que el board
+// solo LEE esa tabla, nunca escribe en ella.
+//
+// Se refresca cada BORROW_REFRESH_MS (5 min), muy por debajo de la
+// cadencia de los spreads: ib-borrow-rate solo escribe ahí unas pocas
+// veces al día, así que no hace falta ir más fino.
+const BORROW_REFRESH_MS = 5*60*1000;
+
+// symbol -> fila de borrow_rates_latest | null (consultado pero sin
+// dato) | undefined (aún no consultado). Se distingue null/undefined
+// para poder pintar "sin datos" solo cuando de verdad se ha comprobado.
+let borrowCache = {};
+
+async function refreshBorrowCache(){
+  const shortSymbols = [...new Set(SITUATIONS.filter(s => s.acquirerSymbol).map(s => s.acquirerSymbol))];
+  if(!shortSymbols.length) return;
+
+  try{
+    const { data, error } = await db
+      .from('borrow_rates_latest')
+      .select('*')
+      .in('symbol', shortSymbols);
+    if(error) throw error;
+
+    const nuevo = {};
+    shortSymbols.forEach(sym => { nuevo[sym] = null; }); // por defecto: consultado, sin fila
+    (data||[]).forEach(row => { nuevo[row.symbol] = row; });
+    borrowCache = nuevo;
+  }catch(e){
+    console.error('Error consultando borrow_rates_latest:', e.message);
+    // No se toca borrowCache: se queda con el último dato bueno que
+    // hubiera en vez de borrarlo por un fallo puntual de red.
+  }
+
+  // Repinta las filas ya calculadas con el borrow actualizado, sin
+  // tener que volver a pedir cotizaciones a Supabase.
+  if(lastComputedList.length){
+    document.getElementById('board-body').innerHTML =
+      lastComputedList.map(c => renderRow(c.sit, c)).join('');
+  }
+}
+
+// Tag de borrow para una fila: "Borrow SYMBOL: X.XX%" si hay dato, o un
+// aviso en ámbar "⚠ borrow SYMBOL: sin datos" si no lo hay (o si aún no
+// se ha consultado). Las situaciones sin pata corta (type:'fixed') no
+// llevan ningún tag.
+function borrowTag(sit){
+  if(!sit.acquirerSymbol) return '';
+  const datos = borrowCache[sit.acquirerSymbol];
+  if(!datos || datos.fee_rate === null || datos.fee_rate === undefined){
+    return `<span class="s-tag borrow warn">⚠ borrow ${sit.acquirerSymbol}: sin datos</span>`;
+  }
+  return `<span class="s-tag borrow">borrow ${sit.acquirerSymbol}: ${Number(datos.fee_rate).toFixed(2)}%</span>`;
+}
 
 // Convierte un precio entre divisas con la cotización del par USD.CAD
 // (bid/ask en CAD por 1 USD). Se elige SIEMPRE el lado del par que da
@@ -717,6 +782,7 @@ function renderRow(sit, computed){
           <span class="s-tag">${sit.targetSymbol}${tExch ? ' · '+tExch : ''}</span>
           ${acquirerTag(sit, aExch)}
           ${fxTag(sit)}
+          ${borrowTag(sit)}
         </div>
         <div class="s-meta">${fr.texto}</div>
       </div>
@@ -750,7 +816,8 @@ function renderRow(sit, computed){
 
 // Fila archivada: solo nombre, símbolos y navegación al hacer click.
 // No consulta Supabase, no calcula spreads y no tiene umbrales ni
-// botones de alarma.
+// botones de alarma. Tampoco lleva tag de borrow, a propósito: es una
+// fila puramente de navegación, igual que antes.
 function renderStaticRow(sit){
   return `
     <div class="situation static-situation" id="row-${sit.id}" tabindex="0" role="link"
@@ -912,8 +979,10 @@ function startAuto(){
 
 window.onload = async () => {
   renderStaticBoard();
+  await refreshBorrowCache();
   await updateBoard();
   startAuto();
+  setInterval(refreshBorrowCache, BORROW_REFRESH_MS);
 };
 </script>
 </body>
