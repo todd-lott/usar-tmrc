@@ -448,8 +448,10 @@
       </select>
       <span><label>Cierre est.</label><input type="date" id="merger-date-input" value="2026-09-30"></span>
       <span id="merger-days-label" style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim); white-space:nowrap;">–</span>
-      <span title="Tasa anual de préstamo de SQFT para el corto. Métela a mano mirando el borrow de tu bróker (en IBKR: Short Availability / SLB). Es un dato que cambia a diario y que en un valor tan pequeño puede ser enorme."><label>Borrow SQFT</label><input type="number" id="borrow-rate-input" value="0" step="0.5" min="0"></span>
+      <span title="Tasa de fee rate de préstamo de SQFT para el corto. Se toma automáticamente de Supabase (tabla borrow_rates_latest, alimentada por ib-borrow-rate) y se refresca sola; edítala a mano si quieres forzar otro valor — en ese momento deja de sincronizarse hasta que pulses «↺ auto»."><label>Borrow SQFT</label><input type="number" id="borrow-rate-input" value="0" step="0.5" min="0"></span>
       <span style="font-family:var(--font-mono); font-size:.8rem; color:var(--ink-dim);">% anual</span>
+      <span id="borrow-rate-status" style="font-family:var(--font-mono); font-size:.68rem; color:var(--ink-dim); white-space:nowrap;">consultando Supabase…</span>
+      <button class="liq-use-btn" id="borrow-rate-reset-btn" onclick="resetBorrowRateToSupabase()" title="Volver a usar el valor automático de Supabase" style="display:none;">↺ auto</button>
       <button class="btn" id="main-btn" onclick="updateData()">Actualizar</button>
       <span id="last-update-label">Sin actualizar</span>
     </div>
@@ -807,17 +809,122 @@ let commissionModel = 'tiered'; // por defecto: Tiered
 // ── Coste de préstamo del corto (borrow / stock loan) ──
 // SQFT es un microcap con ~1,43M de acciones en circulación: el préstamo
 // para shortearlo puede ser inexistente, o existir a tasas de dos o tres
-// dígitos. No hay forma de sacar ese dato de la cotización, así que se
-// mete A MANO desde el campo "Borrow SQFT" de la barra de arriba,
-// copiando la tasa que te dé tu bróker (en IBKR: Short Availability /
-// SLB, columna de fee rate). Cambia a diario, así que conviene mirarla
-// cada vez que se vaya a operar de verdad.
-//
-// Se deja a 0 por defecto a propósito: inventar una tasa "razonable"
-// sería peor que no ponerla. Mientras esté a 0, la interfaz avisa de
-// que el coste no está contemplado.
+// dígitos. Este dato YA NO se mete a mano por defecto: se lee de
+// Supabase (tabla `borrow_rates_latest`, símbolo SQFT), la misma que
+// alimenta ib-borrow-rate y que lee ib_arbitrage_monitor.py para sus
+// embeds de Discord — ver el bloque "Borrow rate automático desde
+// Supabase" más abajo. El campo de la barra de arriba sigue siendo
+// editable a mano por si quieres forzar otro valor (por ejemplo, si el
+// dato de Supabase está desactualizado y confirmas uno distinto en tu
+// bróker); en cuanto lo editas, deja de sincronizarse hasta que pulses
+// "↺ auto".
 const BORROW_DAY_COUNT = 360; // IBKR liquida los fees de préstamo en base 360
 let borrowRate = parseFloat(document.getElementById('borrow-rate-input').value) || 0;
+
+// ── Borrow rate automático desde Supabase ──
+// `SYMBOL_ACQUIRER` (SQFT) es la pata corta de esta situación, así que
+// es el símbolo que hay que buscar en `borrow_rates_latest` — la misma
+// tabla que mantiene ib-borrow-rate (borrow_rate_watchlist_monitor.py,
+// aparte, con su propio timer de systemd) y que lee también
+// ib_arbitrage_monitor.py para el campo "Borrow SQFT" de sus embeds de
+// Discord. Aquí se hace lo mismo, pero refrescando esta interfaz.
+const BORROW_SYMBOL = SYMBOL_ACQUIRER;
+const BORROW_REFRESH_MS = 5*60*1000; // cada 5 min: de sobra, ib-borrow-rate solo escribe unas pocas veces al día
+
+// true en cuanto el usuario teclea algo a mano en el campo: a partir de
+// ahí se respeta su valor y se deja de pisar con lo que venga de
+// Supabase, hasta que pulse "↺ auto".
+let borrowManualOverride = false;
+
+async function fetchBorrowRateFromSupabase(){
+  try{
+    const { data, error } = await db
+      .from('borrow_rates_latest')
+      .select('*')
+      .eq('symbol', BORROW_SYMBOL)
+      .maybeSingle();
+    if(error) throw error;
+    return data || null; // null = consulta OK pero sin fila (símbolo nunca monitorizado)
+  }catch(e){
+    console.error('Error consultando borrow_rates_latest:', e.message);
+    return undefined; // undefined = ha fallado la propia consulta (red, tabla inexistente...)
+  }
+}
+
+// Pinta el texto de estado junto al campo de borrow: de dónde sale el
+// valor actual, si está desfasado, o si hay que avisar de que falta.
+function paintBorrowStatus(row, queryFailed){
+  const statusEl = document.getElementById('borrow-rate-status');
+  if(!statusEl) return;
+
+  if(borrowManualOverride){
+    statusEl.innerText = 'valor manual — no se sincroniza con Supabase';
+    statusEl.style.color = 'var(--ink-dim)';
+    return;
+  }
+  if(queryFailed){
+    statusEl.innerText = '⚠️ error consultando borrow_rates_latest en Supabase';
+    statusEl.style.color = 'var(--amber)';
+    return;
+  }
+  if(!row || row.fee_rate === null || row.fee_rate === undefined){
+    statusEl.innerText = `⚠️ Sin datos del borrow rate de ${BORROW_SYMBOL} en Supabase — dalo de alta con /borrowwatch add, o introdúcelo a mano`;
+    statusEl.style.color = 'var(--amber)';
+    return;
+  }
+  const fr = tiempoDesde(row.updated_at);
+  statusEl.innerText = `desde Supabase · fee ${Number(row.fee_rate).toFixed(2)}% · ${fr.texto}` + (fr.stale ? ' ⚠️' : '');
+  statusEl.style.color = fr.stale ? 'var(--amber)' : 'var(--ink-dim)';
+}
+
+// Consulta Supabase y, si el usuario no ha tomado el control a mano,
+// actualiza el input y `borrowRate` con el dato fresco. Si no hay fila
+// (o falla la consulta), NO inventa nada: deja el valor tal cual esté
+// y se limita a pintar el warning en `borrow-rate-status`.
+async function refreshBorrowRateFromSupabase(){
+  const input = document.getElementById('borrow-rate-input');
+  if(!input) return;
+
+  const row = await fetchBorrowRateFromSupabase();
+
+  if(borrowManualOverride){
+    // El usuario ya tomó el control: no tocamos el input, solo
+    // mantenemos el mensaje de estado coherente.
+    paintBorrowStatus(row, row === undefined);
+    return;
+  }
+
+  if(row === undefined){
+    paintBorrowStatus(null, true);
+    return;
+  }
+  if(row === null || row.fee_rate === null || row.fee_rate === undefined){
+    paintBorrowStatus(null, false);
+    return;
+  }
+
+  const fee = Math.abs(parseFloat(row.fee_rate));
+  if(isNaN(fee)){
+    paintBorrowStatus(null, false);
+    return;
+  }
+
+  input.value = fee.toFixed(2);
+  borrowRate = fee;
+  paintBorrowStatus(row, false);
+  recalc();
+  updateOrderTicket();
+  updateExchangeExplainer();
+  updatePositionCard();
+}
+
+// Vuelve a ceder el control del campo a Supabase (botón "↺ auto").
+function resetBorrowRateToSupabase(){
+  borrowManualOverride = false;
+  const resetBtn = document.getElementById('borrow-rate-reset-btn');
+  if(resetBtn) resetBtn.style.display = 'none';
+  refreshBorrowRateFromSupabase();
+}
 
 // Coste de mantener `shares` acciones prestadas a `price` durante `days`
 // días, a la tasa anual `borrowRate`. Se calcula sobre el valor de la
@@ -1980,9 +2087,17 @@ function fillPosDaysToMerger(){
 
 // La tasa de préstamo afecta a todo: tarjeta de entrada, ticket de
 // orden, explicador y simulador. Un solo listener los repinta todos.
+// Si el cambio lo hace el USUARIO (no el refresco automático desde
+// Supabase, que asigna `input.value` directamente sin disparar este
+// evento), se marca como override manual: a partir de ahí el campo deja
+// de sincronizarse solo hasta que se pulse "↺ auto".
 document.getElementById('borrow-rate-input').addEventListener('input', (e)=>{
   const v = parseFloat(e.target.value);
   borrowRate = (isNaN(v) || v < 0) ? 0 : v;
+  borrowManualOverride = true;
+  const resetBtn = document.getElementById('borrow-rate-reset-btn');
+  if(resetBtn) resetBtn.style.display = '';
+  paintBorrowStatus(null, false);
   recalc();
   updateOrderTicket();
   updateExchangeExplainer();
@@ -2248,12 +2363,14 @@ window.onload = async () => {
   document.getElementById('invest-input').value = INVEST;
   document.getElementById('invest-slider').value = investToSlider(INVEST);
   updatePositionCard();
+  await refreshBorrowRateFromSupabase();
   await loadHistoricalSpread();
   drawChart();
   updateSpreadFreshness();
   paintLastUpdateLabel();
   await updateData();
   startAuto();
+  setInterval(refreshBorrowRateFromSupabase, BORROW_REFRESH_MS);
 };
 window.onresize = () => { setupCanvas(); drawChart(); };
 </script>
