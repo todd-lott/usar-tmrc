@@ -360,6 +360,31 @@ const SITUATIONS = [
     mergerDate: '2026-11-30',
     detailUrl: 'aagaf-bhll.html',
   },
+    // ── Brookfield Bancshares / NSTS Bancorp ─────────────────────
+  // Fusión 100% en efectivo (no OPA): ~$14.28 por acción, calculado
+  // como ($73.662M − pagos a opciones) ÷ acciones en circulación y
+  // reducido dólar a dólar si los gastos de la transacción superan
+  // $4.5M, así que el precio final podría quedar algo por debajo.
+  // Pendientes: voto de la mayoría del capital (junta sin fecha aún),
+  // aprobación de la FRB (solicitud 8-jul-2026) y OCC para el banco
+  // (13-ago-2026); OCC del comprador ya aprobada el 10-ago-2026.
+  // Fecha límite del acuerdo: 12-feb-2027. mergerDate es una
+  // ESTIMACIÓN ("cierre esperado en 2026" según el PREM14A del
+  // 14-ago-2026): afínala cuando salga el proxy definitivo con la
+  // fecha de la junta.
+  {
+    id: 'nsts',
+    type: 'fixed',
+    targetSymbol: 'NSTS',
+    targetName: 'NSTS Bancorp (NSTS)',
+    acquirerName: 'Brookfield Bancshares (efectivo)',
+    cashTag: 'Fusión · voto accionistas · FRB',
+    offerPrice: 14.28,   // $ por acción, aprox.; sujeto a ajuste a la baja
+    threshold: 4,        // % — mismos umbrales que nsts.html
+    thresholdExit: 1,
+    mergerDate: '2026-12-15', // ESTIMACIÓN; límite contractual 12-feb-2027
+    detailUrl: 'nsts.html',
+  },
 ];
 
 // Situaciones archivadas: solo un enlace de navegación, sin símbolos
@@ -413,6 +438,7 @@ const STATIC_SITUATIONS = [
     acquirerSymbol: 'USAR',
     detailUrl: 'tmrc-usar.html',
   },
+
   {
     // Solo se modela la Share Consideration (0,5537 acciones de WFRD por
     // acción de NCSM): no está sujeta a prorrateo ni ajustes, y es la
