@@ -437,7 +437,7 @@
   </div>
 
   <div class="deal-note">
-    <b>Deal:</b> <b>Critical Metals Corp. (NASDAQ: CRML)</b> adquiere el 100% de <b>European Lithium Limited (ASX: EUR · FRA: PF8 · OTC: EULIF)</b> mediante un <b>share scheme of arrangement</b> (Part 5.1 Corporations Act 2001) más un option scheme para las opciones cotizadas. El ratio depende del Scheme VWAP de CRML (media de VWAP diarios, 20 sesiones de NASDAQ del 23-sep al 20-oct-2026) con suelo de US$8,00 y techo de US$16,00; como el VWAP quedó <b>en o por debajo del suelo</b>, aplica el ratio máximo: <b>0,045 New CRML Shares por cada acción EUR</b> (sujeto a redondeo) — ya es <b>fijo</b>. Juntas del 22-oct-2026: <b>99,96%</b> de los votos y 97,22% de los accionistas presentes a favor del Share Scheme. <b>Calendario:</b> Second Court Hearing <b>26-oct</b> (10:00 AWST) · Effective y <b>último día de cotización en ASX 27-oct</b> · Record Date <b>29-oct</b> (16:00 AWST) · Implementation <b>5-nov</b> · nuevas CRML cotizan en NASDAQ <b>6-nov</b>. Fuentes: anuncios ASX de EUR del 21-oct (<a href="https://wcsecure.weblink.com.au/pdf/EUR/03151113.pdf" target="_blank" rel="noopener">Share Scheme Transaction Ratio</a>) y del 22-oct (<a href="https://wcsecure.weblink.com.au/pdf/EUR/03151824.pdf" target="_blank" rel="noopener">Results of Meetings</a>). Aquí la pata larga es <b>PF8 en Frankfurt (en €)</b> y la corta <b>CRML (en US$)</b>, así que el spread incluye la conversión EUR/USD.
+    <b>Deal:</b> <b>Critical Metals Corp. (NASDAQ: CRML)</b> adquiere el 100% de <b>European Lithium Limited (ASX: EUR · FRA: PF8 · OTC: EULIF)</b> mediante un <b>share scheme of arrangement</b> (Part 5.1 Corporations Act 2001) más un option scheme para las opciones cotizadas. El ratio depende del Scheme VWAP de CRML (media de VWAP diarios, 20 sesiones de NASDAQ del 23-sep al 20-oct-2026) con suelo de US$8,00 y techo de US$16,00; como el VWAP quedó <b>en o por debajo del suelo</b>, aplica el ratio máximo: <b>0,045 New CRML Shares por cada acción EUR</b> (sujeto a redondeo) — ya es <b>fijo</b>. Juntas del 22-oct-2026: <b>99,96%</b> de los votos y 97,22% de los accionistas presentes a favor del Share Scheme. <b>Calendario:</b> Second Court Hearing <b>26-oct</b> (10:00 AWST) · Effective y <b>último día de cotización en ASX 27-oct</b> · Record Date <b>29-oct</b> (16:00 AWST) · Implementation <b>5-nov</b> · nuevas CRML cotizan en NASDAQ <b>6-nov</b>. Fuentes: anuncios ASX de EUR del 21-oct (<a href="https://wcsecure.weblink.com.au/pdf/EUR/03151113.pdf" target="_blank" rel="noopener">Share Scheme Transaction Ratio</a>) y del 22-oct (<a href="https://wcsecure.weblink.com.au/pdf/EUR/03151824.pdf" target="_blank" rel="noopener">Results of Meetings</a>). Aquí la pata larga es <b>PF8 en Alemania (Tradegate/gettex, en €)</b> y la corta <b>CRML (en US$)</b>, así que el spread incluye la conversión EUR/USD.
   </div>
 
   <details class="deal-note warn">
@@ -654,7 +654,7 @@
       <div class="trow"><span class="l">Bid size</span><span class="v" id="A-bidsize">–</span></div>
       <div class="trow"><span class="l">Ask size</span><span class="v" id="A-asksize">–</span></div>
       <div class="tfresh" id="A-fresh">sin datos</div>
-      <div class="tcard-note">Cotización secundaria en Frankfurt, poco volumen — aquí suele estar el cuello de botella. Último día de cotización en ASX: 27-oct.</div>
+      <div class="tcard-note">Cotización secundaria en Alemania (Tradegate/gettex, 8:00–22:00), poco volumen — aquí suele estar el cuello de botella. Último día de cotización en ASX: 27-oct.</div>
       <a class="ir-link" href="https://europeanlithium.com" target="_blank" rel="noopener">↗ European Lithium</a>
       <a class="ir-link" href="https://www.asx.com.au/markets/trade-our-cash-market/announcements.eur" target="_blank" rel="noopener">↗ Anuncios ASX (EUR)</a>
     </div>
@@ -784,7 +784,7 @@
 // corre en el navegador. Protege las tablas con RLS de solo lectura.
 //
 // ⚠️ OJO: para que este monitor funcione, el streamer de IB tiene que
-// estar suscrito a PF8, CRML y (opcional) al par EUR/USD, escribiendo
+// estar suscrito a PF8, CRML y (opcional) al par EUR.USD de IDEALPRO, que se publica como symbol 'EUR', escribiendo
 // sus ticks en esta misma base de datos con exactamente estos nombres
 // de símbolo. Añade una entrada `situacion_pf8_crml` a SITUACIONES en
 // el script de Python. Si el par de divisa no llega, el EUR/USD se usa
@@ -795,8 +795,8 @@ const db = supabase.createClient(DATA_URL, DATA_KEY);
 
 const SYMBOL_TARGET   = 'PF8';     // European Lithium en Frankfurt (€): lo que compras y mantienes hasta la Record Date
 const SYMBOL_ACQUIRER = 'CRML';    // Critical Metals (US$): lo que recibes en la implementación (y shorteas para cubrirte)
-const FX_SYMBOL       = 'EUR.USD'; // par de divisa en `quotes` (dólares por euro). Cámbialo si tu streamer lo guarda con otro nombre.
-const NAME_TARGET     = 'European Lithium (PF8 · Frankfurt)';
+const FX_SYMBOL       = 'EUR';     // Forex("EURUSD") de IDEALPRO: el streamer lo publica con la divisa BASE como symbol; bid/ask en USD por 1 EUR
+const NAME_TARGET     = 'European Lithium (PF8 · Tradegate/gettex)';
 const NAME_ACQUIRER   = 'Critical Metals Corp. (CRML)';
 const CCY_TARGET = '€';
 const CCY_ACQUIRER = '$';
