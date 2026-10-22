@@ -245,6 +245,44 @@ const FX_SYMBOL = 'USD';
 
 // Situaciones con seguimiento en vivo (datos de mercado + spreads).
 const SITUATIONS = [
+  // ── European Lithium / Critical Metals ────────────────────────
+  // Share scheme of arrangement (Part 5.1 Corporations Act): CRML
+  // adquiere el 100% de European Lithium (ASX: EUR · FRA: PF8 · OTC:
+  // EULIF). El Scheme VWAP de CRML (23-sep a 20-oct-2026) quedó en o por
+  // debajo del suelo de US$8, así que el ratio es el MÁXIMO y ya es fijo:
+  // 0,045 New CRML Shares por acción EUR (anuncio ASX 21-oct-2026).
+  // Juntas aprobadas el 22-oct (99,96%). Second Court Hearing 26-oct;
+  // último día de cotización en ASX 27-oct; Record Date 29-oct;
+  // Implementation 5-nov; nuevas CRML cotizan en NASDAQ el 6-nov.
+  //
+  // Se compra PF8 en Frankfurt (EUR) y se shortea CRML (USD): el precio
+  // de CRML se pasa a EUR con el par EUR.USD. OJO: con ~777 acciones o
+  // menos en la Record Date se recibe efectivo (Sale Facility) en vez de
+  // CRML; el detalle (pf8.html) avisa de ello, este board no.
+  {
+    id: 'pf8-crml',
+    type: 'ratio_fx',
+    targetSymbol: 'PF8',
+    targetCurrency: 'EUR',
+    targetName: 'European Lithium (PF8 · Tradegate/gettex, EUR)',
+    acquirerSymbol: 'CRML',
+    acquirerCurrency: 'USD',
+    acquirerName: 'Critical Metals Corp. (CRML · NASDAQ, USD)',
+    fxSymbol: 'EUR',     // Forex("EURUSD") -> symbol base "EUR", bid/ask en USD por 1 EUR
+    fxBase: 'EUR',
+    fxQuote: 'USD',
+    ratio: 0.045,
+    threshold: 3,
+    thresholdExit: 0.5,
+    mergerDate: '2026-11-06',
+    detailUrl: 'pf8.html',
+  },
+];
+
+// Situaciones archivadas: solo un enlace de navegación, sin símbolos
+// suscritos, sin datos de mercado y sin ninguna función de seguimiento
+// o alarma. Conservan todos sus campos para poder reactivarlas.
+const STATIC_SITUATIONS = [
   {
     id: 'perf',
     type: 'fixed',             // OPA en efectivo: un solo símbolo + precio de oferta fijo
@@ -385,12 +423,6 @@ const SITUATIONS = [
     mergerDate: '2026-12-15', // ESTIMACIÓN; límite contractual 12-feb-2027
     detailUrl: 'nsts.html',
   },
-];
-
-// Situaciones archivadas: solo un enlace de navegación, sin símbolos
-// suscritos, sin datos de mercado y sin ninguna función de seguimiento
-// o alarma. Conservan todos sus campos para poder reactivarlas.
-const STATIC_SITUATIONS = [
   {
     id: 'gbcs',
     type: 'fixed',
@@ -533,20 +565,28 @@ function borrowTag(sit){
 //
 // Devuelve NaN si no hay tipo de cambio: sin él, la fila se queda en
 // "sin datos" en vez de mostrar un spread inventado que mezcla divisas.
-function fxConvert(price, from, to, fx){
+//
+// Es genérica para cualquier par: `base`/`quote` describen cómo cotiza
+// el par (bid/ask = unidades de `quote` por 1 de `base`). Por defecto
+// USD/CAD, para las situaciones antiguas que no lo indican.
+function fxConvert(price, from, to, fx, base = 'USD', quote = 'CAD'){
   if(isNaN(price)) return NaN;
   if(from === to) return price;
   if(!fx) return NaN;
-  if(from === 'USD' && to === 'CAD'){
+  if(from === base && to === quote){
     const bid = cleanQuote(fx.bid);
     return isNaN(bid) || bid<=0 ? NaN : price*bid;
   }
-  if(from === 'CAD' && to === 'USD'){
+  if(from === quote && to === base){
     const ask = cleanQuote(fx.ask);
     return isNaN(ask) || ask<=0 ? NaN : price/ask;
   }
   return NaN;
 }
+
+// Símbolo del par de divisas de una situación ratio_fx (por defecto el
+// USD.CAD global de FX_SYMBOL).
+function fxSymbolOf(sit){ return sit.fxSymbol || FX_SYMBOL; }
 
 // Ratio de canje con collar dado un precio de referencia del adquirente
 // (bid o ask, según la pata) y el escenario de VWAP configurado en la
@@ -900,9 +940,10 @@ async function updateBoard(){
   try{
     const allSymbols = [...new Set(SITUATIONS.flatMap(s => s.acquirerSymbol ? [s.targetSymbol, s.acquirerSymbol] : [s.targetSymbol]))];
     // El par de divisas solo se pide si alguna situación lo necesita.
-    if(SITUATIONS.some(s => s.type === 'ratio_fx') && !allSymbols.includes(FX_SYMBOL)){
-      allSymbols.push(FX_SYMBOL);
-    }
+    SITUATIONS.filter(s => s.type === 'ratio_fx').forEach(s => {
+      const fxSym = fxSymbolOf(s);
+      if(!allSymbols.includes(fxSym)) allSymbols.push(fxSym);
+    });
     const bySymbol = await fetchAllQuotes(allSymbols);
 
     const computedList = SITUATIONS.map(sit => {
@@ -954,9 +995,9 @@ async function updateBoard(){
         // cambio, fxConvert devuelve NaN y la fila queda en "sin datos"
         // en vez de mostrar un número que mezcla divisas.
         const a = bySymbol[sit.acquirerSymbol] || {};
-        const fx = bySymbol[FX_SYMBOL];
-        const aBid = fxConvert(cleanQuote(a.bid), sit.acquirerCurrency, sit.targetCurrency, fx);
-        const aAsk = fxConvert(cleanQuote(a.ask), sit.acquirerCurrency, sit.targetCurrency, fx);
+        const fx = bySymbol[fxSymbolOf(sit)];
+        const aBid = fxConvert(cleanQuote(a.bid), sit.acquirerCurrency, sit.targetCurrency, fx, sit.fxBase, sit.fxQuote);
+        const aAsk = fxConvert(cleanQuote(a.ask), sit.acquirerCurrency, sit.targetCurrency, fx, sit.fxBase, sit.fxQuote);
         const tBid = cleanQuote(t.bid);
         const tAsk = cleanQuote(t.ask);
         if(!isNaN(aBid) && !isNaN(tAsk) && tAsk>0) inPct = (sit.ratio*aBid)/tAsk - 1;
