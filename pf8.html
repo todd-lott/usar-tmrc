@@ -1587,6 +1587,8 @@ function recalc(){
     setNumericText('in-last', (RATIO*aLast)/(tLast*fxRate) - 1, 3, fmtPct);
   }
 
+    // Spread de salida = lo que aún queda por ganar si MANTIENES hasta el canje,
+  // comparado con cerrar ahora. Si cae por debajo del umbral, compensa salir.
   const outPct = grossExitSpread(tBid, aAsk);
   if(!isNaN(outPct)){
     const basis = computeOrderBasis();
@@ -1594,29 +1596,29 @@ function recalc(){
     const netOutEl = document.getElementById('out-usd-net');
 
     if(basis){
-      const grossProfit = -outPct * basis.capitalUsado;
+      const grossRemaining = outPct * basis.capitalUsado;                       // convergencia pendiente
       const commClose = commissionPairEUR(basis.targetShares, tBid, basis.acquirerShares, aAsk);
-      // Borrow que te ahorras cerrando ya en vez de aguantar hasta el cierre.
-      const borrowClose = usdToEur(borrowCost(basis.acquirerShares, aAsk, daysToMerger()));
-      const netProfit = grossProfit - commClose - borrowClose;
-      const netPctOut = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
+      const borrowPending = usdToEur(borrowCost(basis.acquirerShares, aAsk, daysToMerger())); // lo que pagarías si mantienes
+      // Mantener: +grossRemaining − borrowPending. Cerrar: −commClose.
+      const holdAdvantage = grossRemaining - borrowPending + commClose;
+      const netPctOut = basis.outlay>0 ? (holdAdvantage/basis.outlay)*100 : NaN;
 
       const prevOut = displayedValues['out-pct'];
       pEl.innerText = isNaN(netPctOut) ? 'N/A' : `${netPctOut.toFixed(3)} %`;
-      pEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
+      pEl.style.color = netPctOut > thresholdExit ? 'var(--ink)' : 'var(--amber)';
       if(prevOut !== undefined && !isNaN(netPctOut) && netPctOut !== prevOut) flashValue(pEl, netPctOut>prevOut?'up':'down');
       if(!isNaN(netPctOut)) displayedValues['out-pct'] = netPctOut;
 
-      setNumericText('out-usd', netProfit, 2, v => fmt(v));
+      setNumericText('out-usd', holdAdvantage, 2, v => fmt(v));
       if(borrowRate > 0){
-        netOutEl.innerText = `Comisión ≈${fmt(commClose)} · Préstamo ${SYMBOL_ACQUIRER} evitado ≈${fmt(borrowClose)} (${borrowRate}% × ${daysToMerger()} d)`;
+        netOutEl.innerText = `Pendiente bruto ${fmt(grossRemaining)} − préstamo pendiente ${fmt(borrowPending)} (${borrowRate}% × ${daysToMerger()} d) + comisión de cierre ahorrada ${fmt(commClose)}`;
         netOutEl.style.color = '';
       } else {
-        netOutEl.innerText = `Comisión ≈${fmt(commClose)} · ⚠️ préstamo de ${SYMBOL_ACQUIRER} NO incluido (borrow a 0%)`;
+        netOutEl.innerText = `Pendiente bruto ${fmt(grossRemaining)} + comisión de cierre ahorrada ${fmt(commClose)} · ⚠️ préstamo de ${SYMBOL_ACQUIRER} NO incluido (borrow a 0%)`;
         netOutEl.style.color = 'var(--amber)';
       }
 
-      const exitHit = netPctOut <= thresholdExit;
+      const exitHit = !isNaN(netPctOut) && netPctOut <= thresholdExit;
       document.getElementById('exit-card').classList.toggle('exit-hit', exitHit);
       triggerSignalSound('exit', exitHit);
     } else {
@@ -1625,10 +1627,6 @@ function recalc(){
       netOutEl.innerText = '–';
     }
   }
-  if(!isNaN(tLast) && tLast>0 && !isNaN(aLast) && fxRate>0){
-    setNumericText('out-last', (RATIO*aLast)/(tLast*fxRate) - 1, 3, fmtPct);
-  }
-}
 
 function applyOrderModeStyle(){
   const card = document.getElementById('order-card');
