@@ -1332,12 +1332,13 @@ function recalc(){
     const netPctIn = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
 
     const prevIn = displayedValues['in-pct'];
-    pInEl.innerText = isNaN(netPctIn) ? 'N/A' : `${Math.abs(netPctIn).toFixed(3)} %`;
+    // Con signo: un spread negativo se muestra como "-x.xxx %".
+    pInEl.innerText = isNaN(netPctIn) ? 'N/A' : `${netPctIn.toFixed(3)} %`;
     pInEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
     if(prevIn !== undefined && !isNaN(netPctIn) && netPctIn !== prevIn) flashValue(pInEl, netPctIn>prevIn?'up':'down');
     if(!isNaN(netPctIn)) displayedValues['in-pct'] = netPctIn;
 
-    setNumericText('in-usd', netProfit, 2, v => fmt(Math.abs(v)));
+    setNumericText('in-usd', netProfit, 2, v => fmt(v));
     if(borrowRate > 0){
       netInEl.innerText = `Comisión ≈${fmt(basis.commOpen)} · Préstamo BHLL ≈${fmt(basis.borrowOpen)} (${borrowRate}% × ${daysToMerger()} d)`;
       netInEl.style.color = '';
@@ -1383,12 +1384,13 @@ function recalc(){
     const netPctOut = basis.outlay>0 ? (netProfit/basis.outlay)*100 : NaN;
 
     const prevOut = displayedValues['out-pct'];
-    pOutEl.innerText = isNaN(netPctOut) ? 'N/A' : `${Math.abs(netPctOut).toFixed(3)} %`;
+    // Con signo: un spread negativo se muestra como "-x.xxx %".
+    pOutEl.innerText = isNaN(netPctOut) ? 'N/A' : `${netPctOut.toFixed(3)} %`;
     pOutEl.style.color = netProfit>0 ? 'var(--green)' : 'var(--red)';
     if(prevOut !== undefined && !isNaN(netPctOut) && netPctOut !== prevOut) flashValue(pOutEl, netPctOut>prevOut?'up':'down');
     if(!isNaN(netPctOut)) displayedValues['out-pct'] = netPctOut;
 
-    setNumericText('out-usd', netProfit, 2, v => fmt(Math.abs(v)));
+    setNumericText('out-usd', netProfit, 2, v => fmt(v));
     netOutEl.innerText = `Comisión de cierre estimada: ≈${fmt(commClose)}`;
     netOutEl.style.color = '';
 
